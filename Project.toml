@@ -1,0 +1,4 @@
+name = "TightBindingApproximation"
+uuid = "a49ca0c0-f999-4bc5-ac4d-abc18ca734f8"
+authors = ["waltergu <waltergu1989@gmail.com>"]
+version = "0.1.0"
