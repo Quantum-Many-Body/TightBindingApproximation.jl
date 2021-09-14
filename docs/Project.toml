@@ -1,3 +1,4 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-TightBindingApproximation = "a49ca0c0-f999-4bc5-ac4d-abc18ca734f8"
+QuantumLattices = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
+TightBindingApproximation = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
