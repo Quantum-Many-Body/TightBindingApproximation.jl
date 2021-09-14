@@ -90,7 +90,7 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[TightBindingApproximation]]
 path = ".."
-uuid = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
+uuid = "a49ca0c0-f999-4bc5-ac4d-abc18ca734f8"
 version = "0.1.0"
 
 [[Unicode]]
