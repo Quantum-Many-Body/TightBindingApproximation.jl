@@ -4,8 +4,9 @@ authors = ["waltergu <waltergu1989@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 QuantumLattices = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
 
 [compat]
-QuantumLattices = "0.5"
+QuantumLattices = "0.6"
 julia = "1.6"
