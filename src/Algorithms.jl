@@ -1,5 +1,0 @@
-module Algorithms
-
-
-
-end # module
