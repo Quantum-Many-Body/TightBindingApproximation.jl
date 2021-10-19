@@ -9,4 +9,5 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuantumLattices = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
 
 [compat]
+QuantumLattices = "0.6"
 julia = "1.6"
