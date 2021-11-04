@@ -14,7 +14,10 @@ using TightBindingApproximation
 using Plots: plot
 
 # define the unitcell of graphene
-unitcell = Lattice("Hexagon", [Point(PID(1), (0.0, 0.0), (0.0, 0.0)), Point(PID(2), (0.0, √3/3), (0.0, 0.0))],
+unitcell = Lattice("Hexagon", [
+        Point(PID(1), (0.0, 0.0), (0.0, 0.0)),
+        Point(PID(2), (0.0, √3/3), (0.0, 0.0))
+        ],
     vectors=[[1.0, 0.0], [0.5, √3/2]],
     neighbors=1
     )

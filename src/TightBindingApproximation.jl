@@ -204,7 +204,7 @@ end
 @inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:TBAEB}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:TBAEB})
     for (i, params) in enumerate(eb.action.path)
-        eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i
+        eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i-1
         @timeit tba.timer "matrix" (m = matrix!(tba.engine; params...))
         @timeit tba.timer "eigen" (eb.data[2][i, :] = eigen(m).values)
     end
