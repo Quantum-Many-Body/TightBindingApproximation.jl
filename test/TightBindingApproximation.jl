@@ -1,6 +1,6 @@
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
 using QuantumLattices: contentnames, kind, statistics, dimension, azimuth, rcoord, update!, matrix!
-using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, OIDToTuple
+using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, OIDToTuple, Parameters
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
 using QuantumLattices: ReciprocalPath, @rectangle_str
 using TightBindingApproximation
@@ -48,6 +48,7 @@ end
     @test valtype(tba, [0.0, 0.0]) == Complex{Float64}
     @test statistics(tba) == statistics(typeof(tba)) == :f
     @test dimension(tba) == 1
+    @test Parameters(tba) == (t=1.0, μ=0.0)
 
     m = matrix!(tba)
     @test size(m) == (1, 1)
@@ -55,12 +56,13 @@ end
     @test ishermitian(m) == ishermitian(typeof(m)) == true
 
     A(t, μ; k) = 2t*cos(k[1])+2t*cos(k[2])+μ
-    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=4)
+    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=8)
     for param in path
         m = matrix!(tba; param...)
         @test m.H ≈ Hermitian(hcat(A(1.0, 0.0; param...)))
     end
     update!(tba, μ=0.5)
+    @test Parameters(tba) == (t=1.0, μ=0.5)
     for param in path
         m = matrix!(tba; param...)
         @test m.H ≈ Hermitian(hcat(A(1.0, 0.5; param...)))
@@ -70,9 +72,10 @@ end
     bdg = TBA(lattice, hilbert, (t, μ, Δ))
     @test kind(bdg) == kind(typeof(bdg)) == TBAKind(:BdG)
     @test valtype(bdg) == valtype(typeof(bdg)) == Complex{Float64}
+    @test Parameters(bdg) == (t=1.0, μ=0.5, Δ=Complex(0.1))
 
     A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ 2im*Δ*sin(k[1])+2Δ*sin(k[2]); -2im*Δ*sin(k[1])+2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
-    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=4)
+    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=8)
     for param in path
         m = matrix!(bdg; param...)
         @test m.H ≈ Hermitian(A(1.0, 0.5, 0.1; param...))

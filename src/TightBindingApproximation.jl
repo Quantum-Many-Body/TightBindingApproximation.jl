@@ -1,16 +1,17 @@
 module TightBindingApproximation
 
 using Printf: @sprintf
+using TimerOutputs: @timeit
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky
 using QuantumLattices: getcontent, expand, id, pidtype, iidtype, rcoord, idtype, plain, creation, annihilation, atol, rtol
 using QuantumLattices: AbstractPID, FID, NID, Index, Internal, Fock, Phonon, AbstractLattice, Bonds, Hilbert, OIDToTuple, Table, Term, Boundary
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
-using QuantumLattices: Engine, AbstractGenerator, Generator, Action, Assignment, Algorithm
+using QuantumLattices: Engine, Parameters, AbstractGenerator, Generator, Action, Assignment, Algorithm
 
 import LinearAlgebra: eigen, ishermitian
 import QuantumLattices: contentnames, statistics, dimension, kind, matrix!, update!, prepare!, run!
 
-export TBAKind, AbstractTBA, TBA, TBAMatrix, commutator
+export TBAKind, AbstractTBA, TBAMatrix, commutator, TBA, TBAEB
 
 """
     TBAKind{K}
@@ -86,6 +87,7 @@ abstract type AbstractTBA{K, H<:AbstractGenerator, G<:Union{Nothing, AbstractMat
 @inline statistics(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = statistics(eltype(idtype(eltype(H))))
 @inline dimension(tba::AbstractTBA) = length(getcontent(getcontent(tba, :H), :table))
 @inline update!(tba::AbstractTBA; kwargs...) = (update!(getcontent(tba, :H); kwargs...); tba)
+@inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
 
 """
     TBAMatrix{T, H<:AbstractMatrix{T}, G<:Union{AbstractMatrix, Nothing}} <: AbstractMatrix{T}
@@ -198,12 +200,13 @@ Energy bands by tight-binding-approximation for quantum lattice systems.
 struct TBAEB{P} <: Action
     path::P
 end
-@inline prepare!(eb::TBAEB, tba::AbstractTBA) = zeros(Float64, length(eb.path), 1+dimension(tba))
+@inline prepare!(eb::TBAEB, tba::AbstractTBA) = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), dimension(tba)))
 @inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:TBAEB}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:TBAEB})
     for (i, params) in enumerate(eb.action.path)
-        eb.data[i, 1] = length(params)==1 && isa(first(params), Number) ? first(params) : i
-        eb.data[i, 2:end] = eigen(matrix!(tba.engine; params...)).values
+        eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i
+        @timeit tba.timer "matrix" (m = matrix!(tba.engine; params...))
+        @timeit tba.timer "eigen" (eb.data[2][i, :] = eigen(m).values)
     end
 end
 
