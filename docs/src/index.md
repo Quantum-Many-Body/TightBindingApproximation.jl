@@ -4,10 +4,15 @@ CurrentModule = TightBindingApproximation
 
 # TightBindingApproximation
 
-Documentation for [TightBindingApproximation](https://github.com/Quantum-Many-Body/TightBindingApproximation.jl).
+## Introduction
 
-```@index
-```
+Tight binding approximation for free quantum lattice systems based on the [QuantumLattices](https://github.com/Quantum-Many-Body/QuantumLattices.jl) pack.
+
+## Getting Started
+
+[Examples](@ref examples)
+
+## Manuals
 
 ```@autodocs
 Modules = [TightBindingApproximation]
