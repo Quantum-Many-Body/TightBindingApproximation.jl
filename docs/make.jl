@@ -17,8 +17,8 @@ makedocs(;
         "Home" => "index.md",
         "Examples" => [
             "examples/Introduction.md",
+            "examples/HoneycombLattice.md",
             "examples/SquareLattice.md",
-            "examples/HoneycombLattice.md"
         ]
     ],
 )

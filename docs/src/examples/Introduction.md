@@ -8,8 +8,8 @@ Here are some examples to illustrate how this package could be used.
 
 ```@contents
 Pages = [
-        "SquareLattice.md",
         "HoneycombLattice.md",
+        "SquareLattice.md",
         ]
 Depth = 2
 ```

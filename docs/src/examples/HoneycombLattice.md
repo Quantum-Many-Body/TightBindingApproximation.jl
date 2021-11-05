@@ -6,15 +6,15 @@ CurrentModule = TightBindingApproximation
 
 ## Energy bands for graphene
 
-The following codes could compute the energy bands of monolayer graphene.
+The following codes could compute the energy bands of the monolayer graphene.
 
 ```@example graphene
 using QuantumLattices
 using TightBindingApproximation
 using Plots: plot
 
-# define the unitcell of graphene
-unitcell = Lattice("Hexagon", [
+# define the unitcell of the honeycomb lattice
+unitcell = Lattice("Honeycomb", [
         Point(PID(1), (0.0, 0.0), (0.0, 0.0)),
         Point(PID(2), (0.0, √3/3), (0.0, 0.0))
         ],
@@ -22,41 +22,41 @@ unitcell = Lattice("Hexagon", [
     neighbors=1
     )
 
-# define the Hilbert space
-hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
+# define the Hilbert space of graphene (single-orbital spin-1/2 complex fermion)
+hilbert = Hilbert(pid=>Fock{:f}(1, 2, 2) for pid in unitcell.pids)
 
-# define the terms
+# define the terms, i.e. the nearest-neighbor hopping
 t = Hopping(:t, -1.0, 1, modulate=true)
 
 # define the tight-binding-approximation algorithm for graphene
-tba = Algorithm("Graphene", TBA(unitcell, hilbert, (t,)))
+graphene = Algorithm("Graphene", TBA(unitcell, hilbert, (t,)))
 
 # define the path in the reciprocal space to compute the energy bands
 path = ReciprocalPath(unitcell.reciprocals, hexagon"Γ-K-M-Γ", len=100)
 
 # compute the energy bands along the above path
-eb = register!(tba, :EB, TBAEB(path))
+energybands = register!(graphene, :EB, TBAEB(path))
 
 # plot the energy bands
-plot(eb)
+plot(energybands)
 ```
 
-To compute the edge states:
+Graphene supports flatband edge states on zigzag boundaries. Only minor modifications are needed to compute them:
 ```@example graphene
 # define a cylinder geometry with zigzag edges
 lattice = Lattice(unitcell, translations"1P-100O")
 
-# define the new Hilbert space
+# define the new Hilbert space corresponding to the cylinder
 hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in lattice.pids)
 
 # define the new tight-binding-approximation algorithm
-tba = Algorithm("Graphene", TBA(lattice, hilbert, (t,)))
+zigzag = Algorithm("Graphene", TBA(lattice, hilbert, (t,)))
 
 # define new the path in the reciprocal space to compute the edge states
 path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", len=100)
 
 # compute the energy bands along the above path
-edgestates = register!(tba, :EB, TBAEB(path))
+edgestates = register!(zigzag, :EB, TBAEB(path))
 
 # plot the energy bands
 plot(edgestates)
