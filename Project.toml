@@ -11,4 +11,5 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
 QuantumLattices = "0.7"
+TimerOutputs = "0.5"
 julia = "1.6"
