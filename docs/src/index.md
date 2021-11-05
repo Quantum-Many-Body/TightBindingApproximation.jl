@@ -13,7 +13,7 @@ Tight binding approximation for free quantum lattice systems based on the [Quant
 In Julia **v1.6+**, please type `]` in the REPL to use the package mode, then type this command:
 
 ```julia
-pkg> add https://github.com/Quantum-Many-Body/TightBindingApproximation.jl
+pkg> add TightBindingApproximation
 ```
 
 ## Getting Started
