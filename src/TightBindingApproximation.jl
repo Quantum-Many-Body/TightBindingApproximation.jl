@@ -3,7 +3,7 @@ module TightBindingApproximation
 using Printf: @sprintf
 using TimerOutputs: @timeit
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky
-using QuantumLattices: getcontent, expand, id, pidtype, iidtype, rcoord, idtype, plain, creation, annihilation, atol, rtol
+using QuantumLattices: getcontent, expand, id, pidtype, iidtype, rcoord, plain, creation, annihilation, atol, rtol
 using QuantumLattices: AbstractPID, FID, NID, Index, Internal, Fock, Phonon, AbstractLattice, Bonds, Hilbert, OIDToTuple, Table, Term, Boundary
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
 using QuantumLattices: Engine, Parameters, AbstractGenerator, Generator, Action, Assignment, Algorithm
@@ -80,11 +80,11 @@ abstract type AbstractTBA{K, H<:AbstractGenerator, G<:Union{Nothing, AbstractMat
 @inline Base.eltype(tba::AbstractTBA) = eltype(typeof(tba))
 @inline Base.eltype(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = eltype(H)
 @inline Base.valtype(tba::AbstractTBA) = valtype(typeof(tba))
-@inline Base.valtype(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = valtype(valtype(eltype(H)))
+@inline Base.valtype(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = valtype(eltype(eltype(H)))
 @inline Base.valtype(tba::AbstractTBA, ::Nothing) = valtype(tba)
 @inline Base.valtype(tba::AbstractTBA, k) = promote_type(valtype(tba), Complex{Int})
 @inline statistics(tba::AbstractTBA) = statistics(typeof(tba))
-@inline statistics(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = statistics(eltype(idtype(eltype(H))))
+@inline statistics(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = statistics(eltype(eltype(eltype(H))))
 @inline dimension(tba::AbstractTBA) = length(getcontent(getcontent(tba, :H), :table))
 @inline update!(tba::AbstractTBA; kwargs...) = (update!(getcontent(tba, :H); kwargs...); tba)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
@@ -116,7 +116,7 @@ function matrix!(tba::AbstractTBA{TBAKind(:TBA)}; k=nothing, kwargs...)
     H = getcontent(tba, :H)
     table = getcontent(H, :table)
     result = zeros(valtype(tba, k), dimension(tba), dimension(tba))
-    for op in values(expand(H))
+    for op in expand(H)
         seq₁, seq₂ = table[id(op)[1].index'], table[id(op)[2].index]
         phase = isnothing(k) ? one(valtype(tba, k)) : convert(valtype(tba, k), exp(-1im*dot(k, rcoord(op))))
         result[seq₁, seq₂] += op.value*phase
@@ -128,7 +128,7 @@ function matrix!(tba::AbstractTBA{TBAKind(:BdG)}; k=nothing, kwargs...)
     H = getcontent(tba, :H)
     table = getcontent(H, :table)
     result = zeros(valtype(tba, k), dimension(tba), dimension(tba))
-    for op in values(expand(H))
+    for op in expand(H)
         seq₁, seq₂ = table[id(op)[1].index'], table[id(op)[2].index]
         phase = isnothing(k) ? one(valtype(tba, k)) : convert(valtype(tba, k), exp(-1im*dot(k, rcoord(op))))
         result[seq₁, seq₂] += op.value*phase
