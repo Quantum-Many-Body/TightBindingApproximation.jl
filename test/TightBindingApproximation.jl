@@ -1,6 +1,6 @@
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
 using QuantumLattices: contentnames, kind, statistics, dimension, azimuth, rcoord, update!, matrix!
-using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, OIDToTuple, Parameters
+using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, Metric, OIDToTuple, Parameters
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
 using QuantumLattices: ReciprocalPath, @rectangle_str
 using TightBindingApproximation
@@ -15,18 +15,19 @@ using TightBindingApproximation
     @test TBAKind(Tuple{Hopping, Onsite}) == TBAKind(:TBA)
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}) == TBAKind(:BdG)
 
-    @test OIDToTuple(TBAKind(:BdG), Index{PID, NID{Char}}) == OIDToTuple(:tag, :site, :dir)
-    @test OIDToTuple(TBAKind(:BdG), Index{CPID{Char}, NID{Char}}) == OIDToTuple(:tag, :scope, :site, :dir)
-    @test OIDToTuple(TBAKind(:BdG), Index{PID, FID{Int, Int, Int}}) == OIDToTuple(:nambu, :site, :orbital, :spin)
-    @test OIDToTuple(TBAKind(:BdG), Index{CPID{Char}, FID{Int, Int, Int}}) == OIDToTuple(:nambu, :scope, :site, :orbital, :spin)
-    @test OIDToTuple(TBAKind(:TBA), Index{PID, FID{Int, Int, Int}}) == OIDToTuple(:site, :orbital, :spin)
-    @test OIDToTuple(TBAKind(:TBA), Index{CPID{Char}, FID{Int, Int, Int}}) == OIDToTuple(:scope, :site, :orbital, :spin)
 
-    @test commutator(TBAKind(:TBA), Fock{:f}, 2) == nothing
-    @test commutator(TBAKind(:TBA), Fock{:b}, 2) == nothing
-    @test commutator(TBAKind(:BdG), Fock{:f}, 2) == nothing
-    @test commutator(TBAKind(:BdG), Fock{:b}, 4) == Diagonal([1, 1, -1, -1])
-    @test commutator(TBAKind(:BdG), Phonon, 4) == Hermitian([0 0 -im 0; 0 0 0 -im; im 0 0 0; 0 im 0 0])
+    @test Metric(TBAKind(:TBA), Hilbert(PID(1)=>Fock{:b}(1, 1, 1))) == OIDToTuple(:site, :orbital, :spin)
+    @test Metric(TBAKind(:TBA), Hilbert(CPID(1, 1)=>Fock{:f}(1, 1, 1))) == OIDToTuple(:scope, :site, :orbital, :spin)
+    @test Metric(TBAKind(:BdG), Hilbert(PID(1)=>Fock{:b}(1, 1, 1))) == OIDToTuple(:nambu, :site, :orbital, :spin)
+    @test Metric(TBAKind(:BdG), Hilbert(CPID(1, 1)=>Fock{:f}(1, 1, 1))) == OIDToTuple(:nambu, :scope, :site, :orbital, :spin)
+    @test Metric(TBAKind(:BdG), Hilbert(PID(1)=>Phonon(2))) == OIDToTuple(:tag, :site, :dir)
+    @test Metric(TBAKind(:BdG), Hilbert(CPID(1, 1)=>Phonon(2))) == OIDToTuple(:tag, :scope, :site, :dir)
+
+    @test commutator(TBAKind(:TBA), Hilbert(PID(1)=>Fock{:f}(1, 2, 2))) == nothing
+    @test commutator(TBAKind(:TBA), Hilbert(PID(1)=>Fock{:b}(1, 2, 2))) == nothing
+    @test commutator(TBAKind(:BdG), Hilbert(PID(1)=>Fock{:f}(1, 2, 2))) == nothing
+    @test commutator(TBAKind(:BdG), Hilbert(PID(1)=>Fock{:b}(1, 2, 2))) == Diagonal([1, 1, -1, -1])
+    @test commutator(TBAKind(:BdG), Hilbert(PID(1)=>Phonon(2))) == Hermitian([0 0 -im 0; 0 0 0 -im; im 0 0 0; 0 im 0 0])
 
     contentnames(AbstractTBA) == (:H, :commutator)
     contentnames(TBA) == (:lattice, :H, :commutator)

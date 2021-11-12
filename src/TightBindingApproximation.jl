@@ -3,8 +3,8 @@ module TightBindingApproximation
 using Printf: @sprintf
 using TimerOutputs: @timeit
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky
-using QuantumLattices: getcontent, expand, id, pidtype, iidtype, rcoord, plain, creation, annihilation, atol, rtol
-using QuantumLattices: AbstractPID, FID, NID, Index, Internal, Fock, Phonon, AbstractLattice, Bonds, Hilbert, OIDToTuple, Table, Term, Boundary
+using QuantumLattices: getcontent, expand, id, iidtype, rcoord, plain, creation, annihilation, atol, rtol
+using QuantumLattices: AbstractPID, FID, NID, Index, Internal, Fock, Phonon, AbstractLattice, Bonds, Hilbert, Metric, OIDToTuple, Table, Term, Boundary
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
 using QuantumLattices: Engine, Parameters, AbstractGenerator, Generator, Action, Assignment, Algorithm
 
@@ -43,30 +43,25 @@ Depending on the kind of a term type, get the corresponding TBA kind.
 end
 
 """
-    OIDToTuple(::TBAKind, ::Type{I}) where {I<:Index{<:AbstractPID, <:FID}} -> OIDToTuple
-    OIDToTuple(::TBAKind, ::Type{I}) where {I<:Index{<:AbstractPID, <:NID}} -> OIDToTuple
+    Metric(::TBAKind, hilbert::Hilbert{<:Fock} -> OIDToTuple
+    Metric(::TBAKind, hilbert::Hilbert{<:Phonon}) -> OIDToTuple
 
 Get the oid-to-tuple metric for a free fermionic/bosonic system or a free phononic system.
 """
-@inline @generated function OIDToTuple(::TBAKind, ::Type{I}) where {I<:Index{<:AbstractPID, <:FID}}
-    return OIDToTuple(:nambu, fieldnames(pidtype(I))..., :orbital, :spin)
-end
-@inline @generated function OIDToTuple(::TBAKind{:TBA}, ::Type{I}) where {I<:Index{<:AbstractPID, <:FID}}
-    return OIDToTuple(fieldnames(pidtype(I))..., :orbital, :spin)
-end
-@inline @generated function OIDToTuple(::TBAKind, ::Type{I}) where {I<:Index{<:AbstractPID, <:NID}}
-    return OIDToTuple(:tag, fieldnames(pidtype(I))..., :dir)
-end
+@inline @generated Metric(::TBAKind{:TBA}, hilbert::Hilbert{<:Fock}) = OIDToTuple(fieldnames(keytype(hilbert))..., :orbital, :spin)
+@inline @generated Metric(::TBAKind{:BdG}, hilbert::Hilbert{<:Fock}) = OIDToTuple(:nambu, fieldnames(keytype(hilbert))..., :orbital, :spin)
+@inline @generated Metric(::TBAKind, hilbert::Hilbert{<:Phonon}) = OIDToTuple(:tag, fieldnames(keytype(hilbert))..., :dir)
 
 """
-    commutator(::TBAKind, ::Type{<:Internal}, n::Integer) -> Union{AbstractMatrix, Nothing}
+    commutator(k::TBAKind, hilbert::Hilbert{<:Internal}) -> Union{AbstractMatrix, Nothing}
 
 Get the commutation relation of the single-particle operators of a free quantum lattice system using the tight-binding approximation.
 """
-@inline commutator(::TBAKind, ::Type{<:Internal}, ::Integer) = nothing
-@inline commutator(::TBAKind{:BdG}, ::Type{<:Fock{:f}}, n::Integer) = nothing
-@inline commutator(::TBAKind{:BdG}, ::Type{<:Fock{:b}}, n::Integer) = Diagonal(kron([1, -1], ones(Int64, n÷2)))
-@inline commutator(::TBAKind{:BdG}, ::Type{<:Phonon}, n::Integer) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, n÷2))))
+@inline commutator(::TBAKind{:TBA}, ::Hilbert{<:Internal}) = nothing
+@inline commutator(::TBAKind{:BdG}, ::Hilbert{<:Fock{:f}}) = nothing
+@inline commutator(k::TBAKind{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, dimension(hilbert, k)÷2)))
+@inline commutator(k::TBAKind{:BdG}, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, dimension(hilbert, k)÷2))))
+@inline dimension(hilbert::Hilbert, ::TBAKind{:BdG}) = sum(dimension, values(hilbert))
 
 """
     AbstractTBA{K, H<:AbstractGenerator, G<:Union{Nothing, AbstractMatrix}} <: Engine
@@ -187,8 +182,8 @@ Construct a tight-binding quantum lattice system.
 """
 @inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; boundary::Boundary=plain)
     tbakind = TBAKind(typeof(terms))
-    table = Table(hilbert, OIDToTuple(tbakind, Index{hilbert|>keytype, hilbert|>valtype|>eltype}))
-    commt = commutator(tbakind, hilbert|>valtype, length(table))
+    table = Table(hilbert, Metric(tbakind, hilbert))
+    commt = commutator(tbakind, hilbert)
     return TBA{tbakind}(lattice, Generator(terms, Bonds(lattice), hilbert; half=false, table=table, boundary=boundary), commt)
 end
 
