@@ -2,7 +2,7 @@ module TightBindingApproximation
 
 using Printf: @sprintf
 using TimerOutputs: @timeit
-using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky
+using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
 using QuantumLattices: getcontent, expand, iidtype, rcoord, plain, creation, annihilation, atol, rtol
 using QuantumLattices: AbstractPID, FID, NID, Index, Internal, Fock, Phonon, AbstractLattice, Bonds, Hilbert, Metric, OIDToTuple, Table, Term, Boundary
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
