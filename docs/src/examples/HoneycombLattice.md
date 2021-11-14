@@ -32,7 +32,7 @@ t = Hopping(:t, -1.0, 1, modulate=true)
 graphene = Algorithm("Graphene", TBA(unitcell, hilbert, (t,)))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(unitcell.reciprocals, hexagon"Γ-K-M-Γ", len=100)
+path = ReciprocalPath(unitcell.reciprocals, hexagon"Γ-K-M-Γ", length=100)
 
 # compute the energy bands along the above path
 energybands = register!(graphene, :EB, EnergyBands(path))
@@ -53,7 +53,7 @@ hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in lattice.pids)
 zigzag = Algorithm("Graphene", TBA(lattice, hilbert, (t,)))
 
 # define new the path in the reciprocal space to compute the edge states
-path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", len=100)
+path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", length=100)
 
 # compute the energy bands along the above path
 edgestates = register!(zigzag, :EB, EnergyBands(path))

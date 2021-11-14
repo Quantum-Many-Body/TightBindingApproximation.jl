@@ -37,7 +37,7 @@ t = Hopping(:t, 1.0, 1, modulate=true)
 sc = Algorithm("p+ip", TBA(unitcell, hilbert, (t, μ, Δ)))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", len=100)
+path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
 
 # compute the energy bands along the above path
 energybands = register!(sc, :EB, EnergyBands(path))
@@ -58,7 +58,7 @@ hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in lattice.pids)
 sc = Algorithm("p+ip", TBA(lattice, hilbert, (t, μ, Δ)))
 
 # define new the path in the reciprocal space to compute the edge states
-path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", len=100)
+path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", length=100)
 
 # compute the energy bands along the above path
 edgestates = register!(sc, :Edge, EnergyBands(path))

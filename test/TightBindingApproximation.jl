@@ -57,7 +57,7 @@ end
     @test ishermitian(m) == ishermitian(typeof(m)) == true
 
     A(t, μ; k) = 2t*cos(k[1])+2t*cos(k[2])+μ
-    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=8)
+    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
     for param in path
         m = matrix!(tba; param...)
         @test m.H ≈ Hermitian(hcat(A(1.0, 0.0; param...)))
@@ -76,7 +76,7 @@ end
     @test Parameters(bdg) == (t=1.0, μ=0.5, Δ=Complex(0.1))
 
     A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ 2im*Δ*sin(k[1])+2Δ*sin(k[2]); -2im*Δ*sin(k[1])+2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
-    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", len=8)
+    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
     for param in path
         m = matrix!(bdg; param...)
         @test m.H ≈ Hermitian(A(1.0, 0.5, 0.1; param...))
