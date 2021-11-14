@@ -11,7 +11,8 @@ using QuantumLattices: Engine, Parameters, AbstractGenerator, Generator, Action,
 import LinearAlgebra: eigen, ishermitian
 import QuantumLattices: contentnames, statistics, dimension, kind, matrix!, update!, prepare!, run!
 
-export TBAKind, AbstractTBA, TBAMatrix, commutator, TBA, TBAEB
+export TBAKind, AbstractTBA, TBAMatrix, commutator
+export TBA, EnergyBands
 
 """
     TBAKind{K}
@@ -188,16 +189,16 @@ Construct a tight-binding quantum lattice system.
 end
 
 """
-    TBAEB{P} <: Action
+    EnergyBands{P} <: Action
 
 Energy bands by tight-binding-approximation for quantum lattice systems.
 """
-struct TBAEB{P} <: Action
+struct EnergyBands{P} <: Action
     path::P
 end
-@inline prepare!(eb::TBAEB, tba::AbstractTBA) = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), dimension(tba)))
-@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:TBAEB}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
-function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:TBAEB})
+@inline prepare!(eb::EnergyBands, tba::AbstractTBA) = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), dimension(tba)))
+@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
+function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     for (i, params) in enumerate(eb.action.path)
         eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i-1
         @timeit tba.timer "matrix" (m = matrix!(tba.engine; params...))

@@ -40,7 +40,7 @@ sc = Algorithm("p+ip", TBA(unitcell, hilbert, (t, μ, Δ)))
 path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", len=100)
 
 # compute the energy bands along the above path
-energybands = register!(sc, :EB, TBAEB(path))
+energybands = register!(sc, :EB, EnergyBands(path))
 
 # plot the energy bands
 plot(energybands)
@@ -61,7 +61,7 @@ sc = Algorithm("p+ip", TBA(lattice, hilbert, (t, μ, Δ)))
 path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", len=100)
 
 # compute the energy bands along the above path
-edgestates = register!(sc, :Edge, TBAEB(path))
+edgestates = register!(sc, :Edge, EnergyBands(path))
 
 # plot the energy bands
 plot(edgestates)
@@ -70,7 +70,7 @@ plot(edgestates)
 Note that when μ>4 or μ<-4, the superconductor is topologically trivial such that there are no gapless edge states on the cylinder geometry:
 ```@example p+ip
 # compute the edge states with a new onsite energy such that the superconductor is trivial
-trivial = register!(sc, :Trivial, TBAEB(path), parameters=(μ=4.5,))
+trivial = register!(sc, :Trivial, EnergyBands(path), parameters=(μ=4.5,))
 
 # plot the energy bands
 plot(trivial)

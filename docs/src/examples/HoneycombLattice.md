@@ -35,7 +35,7 @@ graphene = Algorithm("Graphene", TBA(unitcell, hilbert, (t,)))
 path = ReciprocalPath(unitcell.reciprocals, hexagon"Γ-K-M-Γ", len=100)
 
 # compute the energy bands along the above path
-energybands = register!(graphene, :EB, TBAEB(path))
+energybands = register!(graphene, :EB, EnergyBands(path))
 
 # plot the energy bands
 plot(energybands)
@@ -56,7 +56,7 @@ zigzag = Algorithm("Graphene", TBA(lattice, hilbert, (t,)))
 path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", len=100)
 
 # compute the energy bands along the above path
-edgestates = register!(zigzag, :EB, TBAEB(path))
+edgestates = register!(zigzag, :EB, EnergyBands(path))
 
 # plot the energy bands
 plot(edgestates)
