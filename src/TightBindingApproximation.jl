@@ -9,7 +9,7 @@ using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential,
 using QuantumLattices: Engine, Parameters, AbstractGenerator, Generator, Action, Assignment, Algorithm
 
 import LinearAlgebra: eigen, ishermitian
-import QuantumLattices: contentnames, statistics, dimension, kind, matrix!, update!, prepare!, run!
+import QuantumLattices: contentnames, statistics, dimension, kind, matrix, update!, prepare!, run!
 
 export TBAKind, AbstractTBA, TBAMatrix, commutator
 export TBA, EnergyBands
@@ -82,7 +82,7 @@ abstract type AbstractTBA{K, H<:AbstractGenerator, G<:Union{Nothing, AbstractMat
 @inline statistics(tba::AbstractTBA) = statistics(typeof(tba))
 @inline statistics(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = statistics(eltype(eltype(H)))
 @inline dimension(tba::AbstractTBA) = length(getcontent(getcontent(tba, :H), :table))
-@inline update!(tba::AbstractTBA; kwargs...) = (update!(getcontent(tba, :H); kwargs...); tba)
+@inline update!(tba::AbstractTBA; k=nothing, kwargs...) = ((length(kwargs)>0 && update!(getcontent(tba, :H); kwargs...)); tba)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
 
 """
@@ -103,12 +103,11 @@ end
 @inline ishermitian(::Type{<:TBAMatrix}) = true
 
 """
-    matrix!(tba::AbstractTBA; k=nothing, kwargs...) -> TBAMatrix
+    matrix(tba::AbstractTBA; k=nothing, kwargs...) -> TBAMatrix
 
 Get the matrix representation of a free quantum lattice system.
 """
-function matrix!(tba::AbstractTBA{TBAKind(:TBA)}; k=nothing, kwargs...)
-    length(kwargs)>0 && update!(tba; kwargs...)
+function matrix(tba::AbstractTBA{TBAKind(:TBA)}; k=nothing, kwargs...)
     H = getcontent(tba, :H)
     table = getcontent(H, :table)
     result = zeros(valtype(tba, k), dimension(tba), dimension(tba))
@@ -119,8 +118,7 @@ function matrix!(tba::AbstractTBA{TBAKind(:TBA)}; k=nothing, kwargs...)
     end
     return TBAMatrix(Hermitian(result), getcontent(tba, :commutator))
 end
-function matrix!(tba::AbstractTBA{TBAKind(:BdG)}; k=nothing, kwargs...)
-    length(kwargs)>0 && update!(tba; kwargs...)
+function matrix(tba::AbstractTBA{TBAKind(:BdG)}; k=nothing, kwargs...)
     H = getcontent(tba, :H)
     table = getcontent(H, :table)
     result = zeros(valtype(tba, k), dimension(tba), dimension(tba))
@@ -201,7 +199,8 @@ end
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     for (i, params) in enumerate(eb.action.path)
         eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i-1
-        @timeit tba.timer "matrix" (m = matrix!(tba.engine; params...))
+        update!(tba; params...)
+        @timeit tba.timer "matrix" (m = matrix(tba.engine; params...))
         @timeit tba.timer "eigen" (eb.data[2][i, :] = eigen(m).values)
     end
 end

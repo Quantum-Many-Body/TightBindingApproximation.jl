@@ -1,5 +1,5 @@
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
-using QuantumLattices: contentnames, kind, statistics, dimension, azimuth, rcoord, update!, matrix!
+using QuantumLattices: contentnames, kind, statistics, dimension, azimuth, rcoord, update!, matrix
 using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, Metric, OIDToTuple, Parameters
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
 using QuantumLattices: ReciprocalPath, @rectangle_str
@@ -34,7 +34,7 @@ using TightBindingApproximation
 end
 
 @time @testset "Square" begin
-    lattice = Lattice("Square", [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
+    lattice = Lattice(:Square, [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
         vectors=[[1.0, 0.0], [0.0, 1.0]],
         neighbors=1
         )
@@ -51,22 +51,22 @@ end
     @test dimension(tba) == 1
     @test Parameters(tba) == (t=1.0, μ=0.0)
 
-    m = matrix!(tba)
+    m = matrix(tba)
     @test size(m) == (1, 1)
     @test m[1, 1] == m.H[1, 1]
     @test ishermitian(m) == ishermitian(typeof(m)) == true
 
     A(t, μ; k) = 2t*cos(k[1])+2t*cos(k[2])+μ
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
-    for param in path
-        m = matrix!(tba; param...)
-        @test m.H ≈ Hermitian(hcat(A(1.0, 0.0; param...)))
+    for kv in path
+        m = matrix(tba; kv...)
+        @test m.H ≈ Hermitian(hcat(A(1.0, 0.0; kv...)))
     end
     update!(tba, μ=0.5)
     @test Parameters(tba) == (t=1.0, μ=0.5)
-    for param in path
-        m = matrix!(tba; param...)
-        @test m.H ≈ Hermitian(hcat(A(1.0, 0.5; param...)))
+    for kv in path
+        m = matrix(tba; kv...)
+        @test m.H ≈ Hermitian(hcat(A(1.0, 0.5; kv...)))
     end
 
     Δ = Pairing(:Δ, Complex(0.1), 1, amplitude=bond->exp(im*azimuth(rcoord(bond))))
@@ -77,8 +77,8 @@ end
 
     A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ 2im*Δ*sin(k[1])+2Δ*sin(k[2]); -2im*Δ*sin(k[1])+2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
-    for param in path
-        m = matrix!(bdg; param...)
-        @test m.H ≈ Hermitian(A(1.0, 0.5, 0.1; param...))
+    for kv in path
+        m = matrix(bdg; kv...)
+        @test m.H ≈ Hermitian(A(1.0, 0.5, 0.1; kv...))
     end
 end
