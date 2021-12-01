@@ -14,10 +14,8 @@ using TightBindingApproximation
 using Plots: plot
 
 # define the unitcell of the honeycomb lattice
-unitcell = Lattice(:Honeycomb, [
-        Point(PID(1), (0.0, 0.0), (0.0, 0.0)),
-        Point(PID(2), (0.0, √3/3), (0.0, 0.0))
-        ],
+unitcell = Lattice(:Honeycomb,
+    [Point(PID(1), [0.0, 0.0]), Point(PID(2), [0.0, √3/3])],
     vectors=[[1.0, 0.0], [0.5, √3/2]],
     neighbors=1
     )

@@ -14,7 +14,8 @@ using TightBindingApproximation
 using Plots: plot
 
 # define the unitcell of the square lattice
-unitcell = Lattice(:Square, [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
+unitcell = Lattice(:Square,
+    [Point(PID(1), [0.0, 0.0])],
     vectors=[[1.0, 0.0], [0.0, 1.0]],
     neighbors=1
     )

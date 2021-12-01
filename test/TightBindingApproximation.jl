@@ -34,7 +34,8 @@ using TightBindingApproximation
 end
 
 @time @testset "Square" begin
-    lattice = Lattice(:Square, [Point(PID(1), (0.0, 0.0), (0.0, 0.0))],
+    lattice = Lattice(:Square,
+        [Point(PID(1), [0.0, 0.0])],
         vectors=[[1.0, 0.0], [0.0, 1.0]],
         neighbors=1
         )
