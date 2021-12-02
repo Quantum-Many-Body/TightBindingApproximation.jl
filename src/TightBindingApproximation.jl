@@ -3,7 +3,7 @@ module TightBindingApproximation
 using Printf: @sprintf
 using TimerOutputs: @timeit
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
-using QuantumLattices: getcontent, expand, iidtype, rcoord, plain, creation, annihilation, atol, rtol
+using QuantumLattices: getcontent, iidtype, rcoord, plain, creation, annihilation, atol, rtol
 using QuantumLattices: AbstractPID, FID, NID, Index, Internal, Fock, Phonon, AbstractLattice, Bonds, Hilbert, Metric, OIDToTuple, Table, Term, Boundary
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
 using QuantumLattices: Engine, Parameters, AbstractGenerator, Generator, Action, Assignment, Algorithm
@@ -111,7 +111,7 @@ function matrix(tba::AbstractTBA{TBAKind(:TBA)}; k=nothing, kwargs...)
     H = getcontent(tba, :H)
     table = getcontent(H, :table)
     result = zeros(valtype(tba, k), dimension(tba), dimension(tba))
-    for op in expand(H)
+    for op in H
         seq₁, seq₂ = table[op[1].index'], table[op[2].index]
         phase = isnothing(k) ? one(valtype(tba, k)) : convert(valtype(tba, k), exp(-1im*dot(k, rcoord(op))))
         result[seq₁, seq₂] += op.value*phase
@@ -122,7 +122,7 @@ function matrix(tba::AbstractTBA{TBAKind(:BdG)}; k=nothing, kwargs...)
     H = getcontent(tba, :H)
     table = getcontent(H, :table)
     result = zeros(valtype(tba, k), dimension(tba), dimension(tba))
-    for op in expand(H)
+    for op in H
         seq₁, seq₂ = table[op[1].index'], table[op[2].index]
         phase = isnothing(k) ? one(valtype(tba, k)) : convert(valtype(tba, k), exp(-1im*dot(k, rcoord(op))))
         result[seq₁, seq₂] += op.value*phase
