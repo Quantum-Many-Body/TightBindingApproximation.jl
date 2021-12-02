@@ -32,7 +32,7 @@ end
 
 Depending on the kind of a term type, get the corresponding TBA kind.
 """
-@inline TBAKind(::Type{T}) where {T<:Term} = error("kind error: not defined for $(kind(T)).")
+@inline TBAKind(::Type{T}) where {T<:Term} = error("TBAKind error: not defined for $(kind(T)).")
 @inline TBAKind(::Type{T}) where {T<:Union{Hopping, Onsite}} = TBAKind(:TBA)
 @inline TBAKind(::Type{T}) where {T<:Union{Pairing, PhononKinetic, PhononPotential, DMPhonon}} = TBAKind(:BdG)
 @inline @generated function TBAKind(::Type{TS}) where {TS<:Tuple{Vararg{Term}}}
