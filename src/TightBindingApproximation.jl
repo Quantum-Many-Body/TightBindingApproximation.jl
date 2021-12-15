@@ -73,10 +73,7 @@ abstract type AbstractTBA{K, H<:AbstractGenerator, G<:Union{Nothing, AbstractMat
 @inline contentnames(::Type{<:AbstractTBA}) = (:H, :commutator)
 @inline kind(tba::AbstractTBA) = kind(typeof(tba))
 @inline kind(::Type{<:AbstractTBA{K}}) where K = K
-@inline Base.eltype(tba::AbstractTBA) = eltype(typeof(tba))
-@inline Base.eltype(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = eltype(H)
-@inline Base.valtype(tba::AbstractTBA) = valtype(typeof(tba))
-@inline Base.valtype(T::Type{<:AbstractTBA}) = valtype(eltype(T))
+@inline Base.valtype(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = valtype(eltype(H))
 @inline Base.valtype(tba::AbstractTBA, ::Nothing) = valtype(tba)
 @inline Base.valtype(tba::AbstractTBA, k) = promote_type(valtype(tba), Complex{Int})
 @inline statistics(tba::AbstractTBA) = statistics(typeof(tba))

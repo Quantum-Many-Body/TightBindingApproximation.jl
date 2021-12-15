@@ -45,7 +45,6 @@ end
 
     tba = TBA(lattice, hilbert, (t, μ))
     @test kind(tba) == kind(typeof(tba)) == TBAKind(:TBA)
-    @test eltype(tba) == eltype(typeof(tba)) == eltype(tba.H)
     @test valtype(tba) == valtype(typeof(tba)) == valtype(tba, nothing) == Float64
     @test valtype(tba, [0.0, 0.0]) == Complex{Float64}
     @test statistics(tba) == statistics(typeof(tba)) == :f
