@@ -4,9 +4,9 @@ using Printf: @sprintf
 using TimerOutputs: @timeit
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
 using QuantumLattices: getcontent, iidtype, rcoord, plain, creation, annihilation, atol, rtol
-using QuantumLattices: AbstractPID, FID, NID, Index, Internal, Fock, Phonon, AbstractLattice, Bonds, Hilbert, Metric, OIDToTuple, Table, Term, Boundary
-using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
-using QuantumLattices: Engine, Parameters, AbstractGenerator, Generator, Action, Assignment, Algorithm
+using QuantumLattices: AbstractLattice, Bonds, Hilbert, Metric, Operators, OIDToTuple, Table, Term, Boundary
+using QuantumLattices: Internal, Fock, Phonon, Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
+using QuantumLattices: Engine, Parameters, AbstractGenerator, CompositeGenerator, Entry, Generator, Formulation, Action, Assignment, Algorithm
 
 import LinearAlgebra: eigen, ishermitian
 import QuantumLattices: contentnames, statistics, dimension, kind, matrix, update!, prepare!, run!
@@ -77,8 +77,8 @@ abstract type AbstractTBA{K, H<:AbstractGenerator, G<:Union{Nothing, AbstractMat
 @inline Base.valtype(tba::AbstractTBA, ::Nothing) = valtype(tba)
 @inline Base.valtype(tba::AbstractTBA, k) = promote_type(valtype(tba), Complex{Int})
 @inline statistics(tba::AbstractTBA) = statistics(typeof(tba))
-@inline statistics(::Type{<:AbstractTBA{K, H} where K}) where {H<:AbstractGenerator} = statistics(eltype(eltype(H)))
-@inline dimension(tba::AbstractTBA) = length(getcontent(getcontent(tba, :H), :table))
+@inline statistics(::Type{<:AbstractTBA{K, H} where K}) where {H<:CompositeGenerator{<:Entry{<:Operators}}} = statistics(eltype(eltype(H)))
+@inline dimension(tba::AbstractTBA{K, <:CompositeGenerator}) where K = length(getcontent(getcontent(tba, :H), :table))
 @inline update!(tba::AbstractTBA; k=nothing, kwargs...) = ((length(kwargs)>0 && update!(getcontent(tba, :H); kwargs...)); tba)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
 
@@ -131,6 +131,9 @@ function matrix(tba::AbstractTBA{TBAKind(:BdG)}; k=nothing, kwargs...)
     end
     return TBAMatrix(Hermitian(result), getcontent(tba, :commutator))
 end
+@inline function matrix(tba::AbstractTBA{TBAKind(:Analytical)}; kwargs...)
+    return TBAMatrix(Hermitian(getcontent(tba, :H)(; kwargs...)), getcontent(tba, :commutator))
+end
 
 """
     eigen(m::TBAMatrix) -> Eigen
@@ -181,6 +184,15 @@ Construct a tight-binding quantum lattice system.
     table = Table(hilbert, Metric(tbakind, hilbert))
     commt = commutator(tbakind, hilbert)
     return TBA{tbakind}(lattice, Generator(terms, Bonds(lattice), hilbert; half=false, table=table, boundary=boundary), commt)
+end
+
+"""
+    TBA(lattice::AbstractLattice, hamiltonian::Function, parameters::Parameters, commt::Union{AbstractMatrix, Nothing}=nothing)
+
+Construct a tight-binding quantum lattice system by providing the analytical expressions of the Hamiltonian.
+"""
+@inline function TBA(lattice::AbstractLattice, hamiltonian::Function, parameters::Parameters, commt::Union{AbstractMatrix, Nothing}=nothing)
+    return TBA{TBAKind(:Analytical)}(lattice, Formulation(hamiltonian, parameters), commt)
 end
 
 """

@@ -133,9 +133,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[QuantumLattices]]
 deps = ["DataStructures", "Formatting", "LaTeXStrings", "LinearAlgebra", "MacroTools", "NearestNeighbors", "Printf", "Random", "RecipesBase", "Reexport", "Serialization", "StaticArrays", "TimerOutputs"]
-git-tree-sha1 = "5f59c1b221563a784791443755006c4830f0e0a9"
+git-tree-sha1 = "440dbb65926de7ece09ef095b9cd7be8726faf60"
 uuid = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
-version = "0.8.9"
+version = "0.8.10"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
