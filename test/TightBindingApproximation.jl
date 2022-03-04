@@ -1,7 +1,7 @@
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
-using QuantumLattices: contentnames, kind, statistics, dimension, azimuth, rcoord, update!, matrix
+using QuantumLattices: contentnames, kind, dimension, azimuth, rcoord, update!, matrix
 using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, Metric, OIDToTuple, Parameters
-using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, DMPhonon
+using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential
 using QuantumLattices: ReciprocalPath, @rectangle_str
 using TightBindingApproximation
 
@@ -11,7 +11,7 @@ using TightBindingApproximation
     @test promote_type(TBAKind{:TBA}, TBAKind{:BdG}) == promote_type(TBAKind{:BdG}, TBAKind{:TBA}) == TBAKind{:BdG}
 
     @test TBAKind(Hopping) == TBAKind(Onsite) == TBAKind(:TBA)
-    @test TBAKind(Pairing) == TBAKind(PhononKinetic) == TBAKind(PhononPotential) == TBAKind(DMPhonon) == TBAKind(:BdG)
+    @test TBAKind(Pairing) == TBAKind(PhononKinetic) == TBAKind(PhononPotential) == TBAKind(:BdG)
     @test TBAKind(Tuple{Hopping, Onsite}) == TBAKind(:TBA)
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}) == TBAKind(:BdG)
 
@@ -45,9 +45,7 @@ end
 
     tba = TBA(lattice, hilbert, (t, μ))
     @test kind(tba) == kind(typeof(tba)) == TBAKind(:TBA)
-    @test valtype(tba) == valtype(typeof(tba)) == valtype(tba, nothing) == Float64
-    @test valtype(tba, [0.0, 0.0]) == Complex{Float64}
-    @test statistics(tba) == statistics(typeof(tba)) == :f
+    @test valtype(tba) == valtype(typeof(tba)) == Float64
     @test dimension(tba) == 1
     @test Parameters(tba) == (t=1.0, μ=0.0)
 

@@ -2,9 +2,9 @@
 CurrentModule = TightBindingApproximation
 ```
 
-# Honeycomb lattice
+# Graphene
 
-## Energy bands for graphene
+## Energy bands
 
 The following codes could compute the energy bands of the monolayer graphene.
 
@@ -39,6 +39,8 @@ energybands = graphene(:EB, EnergyBands(path))
 plot(energybands)
 ```
 
+## Edge states
+
 Graphene supports flatband edge states on zigzag boundaries. Only minor modifications are needed to compute them:
 ```@example graphene
 # define a cylinder geometry with zigzag edges
@@ -58,4 +60,29 @@ edgestates = zigzag(:EB, EnergyBands(path))
 
 # plot the energy bands
 plot(edgestates)
+```
+
+## Auto-generation of the analytical expression of the Hamiltonian matrix
+
+Combined with [SymPy](https://github.com/JuliaPy/SymPy.jl), it is also possible to get the analytical expression of the free Hamiltonian in the matrix form:
+```@example graphene-analytical
+using SymPy: Sym, symbols
+using QuantumLattices
+using TightBindingApproximation
+
+unitcell = Lattice(:Honeycomb,
+    [Point(PID(1), [zero(Sym), zero(Sym)]), Point(PID(2), [zero(Sym), √(one(Sym)*3)/3])],
+    vectors=[[one(Sym), zero(Sym)], [one(Sym)/2, √(one(Sym)*3)/2]],
+    neighbors=1
+    )
+
+hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
+
+t = Hopping(:t, symbols("t", real=true), 1)
+
+graphene = TBA(unitcell, hilbert, (t,))
+
+k₁ = symbols("k₁", real=true)
+k₂ = symbols("k₂", real=true)
+m = matrix(graphene; k=[k₁, k₂])
 ```

@@ -2,9 +2,9 @@
 CurrentModule = TightBindingApproximation
 ```
 
-# Square lattice
+# p+ip Superconductor on Square Lattice
 
-## Energy bands for p+ip superconductor
+## Energy bands
 
 The following codes could compute the energy bands of the Bogoliubov quasiparticles of the p+ip topological superconductor on the square lattice.
 
@@ -47,6 +47,8 @@ energybands = sc(:EB, EnergyBands(path))
 plot(energybands)
 ```
 
+## Edge states
+
 With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:
 ```@example p+ip
 # define a cylinder geometry
@@ -75,4 +77,31 @@ trivial = sc(:Trivial, EnergyBands(path), parameters=(μ=4.5,))
 
 # plot the energy bands
 plot(trivial)
+```
+
+## Auto-generation of the analytical expression of the Hamiltonian matrix
+
+Combined with [SymPy](https://github.com/JuliaPy/SymPy.jl), it is also possible to get the analytical expression of the free Hamiltonian in the matrix form:
+```@example p+ip-analytical
+using SymPy: Sym, symbols
+using QuantumLattices
+using TightBindingApproximation
+
+unitcell = Lattice(:Square,
+    [Point(PID(1), [zero(Sym), zero(Sym)])],
+    vectors=[[one(Sym), zero(Sym)], [zero(Sym), one(Sym)]],
+    neighbors=1
+    )
+
+hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
+
+t = Hopping(:t, symbols("t", real=true), 1)
+μ = Onsite(:μ, symbols("μ", real=true))
+Δ = Pairing(:Δ, symbols("Δ", real=true), 1, amplitude=bond->exp(im*azimuth(rcoord(bond))))
+
+sc = TBA(unitcell, hilbert, (t, μ, Δ))
+
+k₁ = symbols("k₁", real=true)
+k₂ = symbols("k₂", real=true)
+m = matrix(sc; k=[k₁, k₂])
 ```
