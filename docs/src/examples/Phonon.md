@@ -25,13 +25,13 @@ hilbert = Hilbert(pid=>Phonon(2) for pid in unitcell.pids)
 
 # define the terms
 
-## Kinetic energy of the phonons with the mass M=1
+## Kinetic energy with the mass M=1
 T = PhononKinetic(:T, 0.5)
 
-## Potential energy of the phonons on the nearest-neighbor bonds with the spring constant k₁=1.0
+## Potential energy on the nearest-neighbor bonds with the spring constant k₁=1.0
 V₁ = PhononPotential(:V₁, 0.5, 1)
 
-## Potential energy of the phonons on the next-nearest-neighbor bonds with the spring constant k₂=0.5
+## Potential energy on the next-nearest-neighbor bonds with the spring constant k₂=0.5
 V₂ = PhononPotential(:V₂, 0.25, 2)
 
 # define the harmonic approximation of the phonons on square lattice
