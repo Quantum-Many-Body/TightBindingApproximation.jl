@@ -85,4 +85,5 @@ graphene = TBA(unitcell, hilbert, (t,))
 k₁ = symbols("k₁", real=true)
 k₂ = symbols("k₂", real=true)
 m = matrix(graphene; k=[k₁, k₂])
+display(m)
 ```

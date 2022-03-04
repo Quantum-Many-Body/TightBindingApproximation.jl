@@ -51,13 +51,12 @@ jobs:
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
+            ENV["PYTHON"]=""
+            Pkg.build("PyCall")'
       - run: |
           julia --project=docs -e '
             using Documenter: DocMeta, doctest
             using TightBindingApproximation
-            using Pkg
-            ENV["PYTHON"]=""
-            Pkg.build("PyCall")
             DocMeta.setdocmeta!(TightBindingApproximation, :DocTestSetup, :(using TightBindingApproximation); recursive=true)
             doctest(TightBindingApproximation)'
       - run: julia --project=docs docs/make.jl
