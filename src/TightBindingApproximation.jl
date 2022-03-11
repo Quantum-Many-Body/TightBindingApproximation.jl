@@ -3,16 +3,16 @@ module TightBindingApproximation
 using Printf: @sprintf
 using TimerOutputs: @timeit
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
-using QuantumLattices: getcontent, iidtype, rcoord, icoord, expand, statistics, plain, creation, annihilation, atol, rtol
+using QuantumLattices: getcontent, iidtype, rcoord, icoord, expand, statistics, plain, creation, annihilation, atol, rtol, periods
 using QuantumLattices: AbstractLattice, AbstractPID, FID, NID, Index, CompositeOID, ID, Bonds, Hilbert, Metric, Operator, Operators, OIDToTuple, Table, Term, Boundary
-using QuantumLattices: Internal, Fock, Phonon, Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, MatrixRepresentation
+using QuantumLattices: Internal, Fock, Phonon, Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, MatrixRepresentation, BrillouinZone
 using QuantumLattices: Engine, Parameters, AbstractGenerator, CompositeGenerator, Entry, Generator, Formulation, Action, Assignment, Algorithm
 
 import LinearAlgebra: eigen, ishermitian
 import QuantumLattices: add!, contentnames, dimension, kind, matrix, update!, prepare!, run!
 
 export TBAKind, AbstractTBA, TBAMatrix, TBAMatrixRepresentation, commutator
-export TBA, EnergyBands
+export TBA, EnergyBands, BerryCurvature
 
 """
     TBAKind{K}
@@ -104,12 +104,12 @@ struct TBAMatrixRepresentation{K<:AbstractTBA, V, T} <: MatrixRepresentation
     k::V
     table::T
     gauge::Symbol
-    function TBAMatrixRepresentation{K}(k, table, gauge::Symbol=:rcoord) where {K<:AbstractTBA}
+    function TBAMatrixRepresentation{K}(k, table, gauge::Symbol=:icoord) where {K<:AbstractTBA}
         @assert gauge∈(:rcoord, :icoord) "TBAMatrixRepresentation error: gauge must be :rcoord or :icoord."
         return new{K, typeof(k), typeof(table)}(k, table, gauge)
     end
 end
-@inline TBAMatrixRepresentation{K}(table, gauge::Symbol=:rcoord) where {K<:AbstractTBA} = TBAMatrixRepresentation{K}(nothing, table, gauge)
+@inline TBAMatrixRepresentation{K}(table, gauge::Symbol=:icoord) where {K<:AbstractTBA} = TBAMatrixRepresentation{K}(nothing, table, gauge)
 @inline Base.valtype(mr::TBAMatrixRepresentation) = valtype(typeof(mr))
 @inline Base.valtype(::Type{<:TBAMatrixRepresentation{K}}) where {K<:AbstractTBA} = Matrix{promote_type(valtype(K), Complex{Int})}
 @inline Base.valtype(::Type{<:TBAMatrixRepresentation{K, Nothing}}) where {K<:AbstractTBA} = Matrix{valtype(K)}
@@ -117,6 +117,28 @@ end
 @inline Base.zero(mr::TBAMatrixRepresentation) = zeros(eltype(valtype(mr)), length(mr.table), length(mr.table))
 @inline Base.zero(mr::TBAMatrixRepresentation, ::Union{Operator, Operators}) = zero(mr)
 @inline (mr::TBAMatrixRepresentation)(m::Operator; kwargs...) = add!(zero(mr, m), mr, m; kwargs...)
+
+"""
+    add!(dest::Matrix,
+        mr::TBAMatrixRepresentation{<:AbstractTBA{TBAKind(:TBA)}},
+        m::Operator;
+        kwargs...
+        ) -> typeof(dest)
+    add!(dest::Matrix,
+        mr::TBAMatrixRepresentation{<:AbstractTBA{TBAKind(:BdG)}},
+        m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID}}}};
+        atol=atol/5,
+        kwargs...
+        ) -> typeof(dest)
+    add!(dest::Matrix,
+        mr::TBAMatrixRepresentation{<:AbstractTBA{TBAKind(:BdG)}},
+        m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:NID}}}};
+        atol=atol/5,
+        kwargs...
+        ) -> typeof(dest)
+
+Get the matrix representation of an operator and add it to destination.
+"""
 function add!(dest::Matrix,
         mr::TBAMatrixRepresentation{<:AbstractTBA{TBAKind(:TBA)}},
         m::Operator;
@@ -166,16 +188,25 @@ function add!(dest::Matrix,
 end
 
 """
-    matrix(tba::AbstractTBA; k=nothing, gauge=:rcoord, atol=atol/5, kwargs...) -> TBAMatrix
+    TBAMatrixRepresentation(tba::AbstractTBA, k=nothing, gauge::Symbol=:icoord)
+
+Construct the matrix representation transformation of a free quantum lattice system using the tight-binding approximation.
+"""
+@inline function TBAMatrixRepresentation(tba::AbstractTBA, k=nothing, gauge::Symbol=:icoord)
+    table = getcontent(getcontent(tba, :H), :table)
+    return TBAMatrixRepresentation{typeof(tba)}(k, table, gauge)
+end
+
+"""
+    matrix(tba::AbstractTBA; k=nothing, gauge=:icoord, atol=atol/5, kwargs...) -> TBAMatrix
 
 Get the matrix representation of a free quantum lattice system.
 """
-@inline function matrix(tba::AbstractTBA; k=nothing, gauge=:rcoord, atol=atol/5, kwargs...)
+@inline function matrix(tba::AbstractTBA; k=nothing, gauge=:icoord, atol=atol/5, kwargs...)
     H = getcontent(tba, :H)
-    table = getcontent(H, :table)
     commutator = getcontent(tba, :commutator)
     isnothing(commutator) && (atol = 0)
-    return TBAMatrix(Hermitian(TBAMatrixRepresentation{typeof(tba)}(k, table, gauge)(expand(H); atol=atol, kwargs...)), commutator)
+    return TBAMatrix(Hermitian(TBAMatrixRepresentation(tba, k, gauge)(expand(H); atol=atol, kwargs...)), commutator)
 end
 @inline function matrix(tba::AbstractTBA{TBAKind(:Analytical)}; kwargs...)
     return TBAMatrix(Hermitian(getcontent(tba, :H)(; kwargs...)), getcontent(tba, :commutator))
@@ -242,22 +273,71 @@ Construct a tight-binding quantum lattice system by providing the analytical exp
 end
 
 """
-    EnergyBands{P} <: Action
+    EnergyBands{P, L<:Union{Colon, Vector{Int}}} <: Action
 
 Energy bands by tight-binding-approximation for quantum lattice systems.
 """
-struct EnergyBands{P} <: Action
+struct EnergyBands{P, L<:Union{Colon, Vector{Int}}} <: Action
     path::P
+    levels::L
+    gauge::Symbol
 end
-@inline prepare!(eb::EnergyBands, tba::AbstractTBA) = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), dimension(tba)))
+@inline EnergyBands(path, levels::Union{Colon, Vector{Int}}=Colon(), gauge::Symbol=:icoord) = EnergyBands(path, levels, gauge)
+@inline prepare!(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), dimension(tba)))
+@inline prepare!(eb::EnergyBands{P, Vector{Int}}, tba::AbstractTBA) where P = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), length(eb.levels)))
 @inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     for (i, params) in enumerate(eb.action.path)
         eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i-1
-        update!(tba; params...)
+        update!(tba; gauge=eb.action.gauge, params...)
         @timeit tba.timer "matrix" (m = matrix(tba.engine; params...))
-        @timeit tba.timer "eigen" (eb.data[2][i, :] = eigen(m).values)
+        @timeit tba.timer "eigen" (eb.data[2][i, :] = eigen(m).values[eb.action.levels])
     end
+end
+
+"""
+    BerryCurvature{B<:BrillouinZone} <: Action
+
+Berry curvature of energy bands with the spirit of a momentum space discretization method by [Fukui et al, JPSJ 74, 1674 (2005)](https://journals.jps.jp/doi/10.1143/JPSJ.74.1674).
+"""
+struct BerryCurvature{B<:BrillouinZone} <: Action
+    brillouinzone::B
+    levels::Vector{Int}
+end
+@inline function prepare!(bc::BerryCurvature, tba::AbstractTBA)
+    N₁, N₂ = periods(fieldtype(eltype(bc.brillouinzone), 1))
+    x = collect(Float64, 0:(N₁-1))/N₁
+    y = collect(Float64, 0:(N₂-1))/N₂
+    z = zeros(Float64, length(bc.levels), length(y), length(x))
+    n = zeros(Float64, length(bc.levels))
+    return (x, y, z, n)
+end
+function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
+    N₁, N₂ = length(bc.data[1]), length(bc.data[2])
+    eigenvectors = zeros(ComplexF64, N₁, N₂, dimension(tba.engine), length(bc.action.levels))
+    for momentum in bc.action.brillouinzone
+        coord = expand(first(momentum), bc.action.brillouinzone.reciprocals)
+        @timeit tba.timer "matrix" (m = matrix(tba.engine; k=coord))
+        @timeit tba.timer "eigen" (eigenvectors[Int(first(momentum)[1])+1, Int(first(momentum)[2])+1, :, :] = eigen(m).vectors[:, bc.action.levels])
+    end
+    g = isnothing(tba.engine.commutator) ? Diagonal(ones(Int, dimension(tba.engine))) : inv(tba.engine.commutator)
+    @timeit tba.timer "Berry curvature" for momentum in bc.action.brillouinzone
+        i₁, j₁ = Int(first(momentum)[1]), Int(first(momentum)[2])
+        i₂, j₂ = (i₁+1)%N₁, (j₁+1)%N₂
+        vs₁ = eigenvectors[i₁+1, j₁+1, :, :]
+        vs₂ = eigenvectors[i₂+1, j₁+1, :, :]
+        vs₃ = eigenvectors[i₂+1, j₂+1, :, :]
+        vs₄ = eigenvectors[i₁+1, j₂+1, :, :]
+        for k = 1:length(bc.action.levels)
+            p₁ = vs₁[:, k]'*g*vs₂[:, k]
+            p₂ = vs₂[:, k]'*g*vs₃[:, k]
+            p₃ = vs₃[:, k]'*g*vs₄[:, k]
+            p₄ = vs₄[:, k]'*g*vs₁[:, k]
+            bc.data[3][k, j₁+1, i₁+1] = angle(p₁*p₂*p₃*p₄)
+            bc.data[4][k] += bc.data[3][k, j₁+1, i₁+1]/2pi
+        end
+    end
+    @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn level for (cn, level) in zip(bc.data[4], bc.action.levels)], ", "))
 end
 
 end # module
