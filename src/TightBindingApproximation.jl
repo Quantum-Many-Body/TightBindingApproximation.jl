@@ -281,8 +281,10 @@ struct EnergyBands{P, L<:Union{Colon, Vector{Int}}} <: Action
     path::P
     levels::L
     gauge::Symbol
+    function EnergyBands(path, levels::Union{Colon, Vector{Int}}=Colon(), gauge::Symbol=:icoord)
+        new{typeof(path), typeof(levels)}(path, levels, gauge)
+    end
 end
-@inline EnergyBands(path, levels::Union{Colon, Vector{Int}}=Colon(), gauge::Symbol=:icoord) = EnergyBands(path, levels, gauge)
 @inline prepare!(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), dimension(tba)))
 @inline prepare!(eb::EnergyBands{P, Vector{Int}}, tba::AbstractTBA) where P = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), length(eb.levels)))
 @inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
