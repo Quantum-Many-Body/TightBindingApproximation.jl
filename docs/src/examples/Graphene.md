@@ -11,7 +11,7 @@ The following codes could compute the energy bands of the monolayer graphene.
 ```@example graphene
 using QuantumLattices
 using TightBindingApproximation
-using Plots: plot
+using Plots; pyplot()
 
 # define the unitcell of the honeycomb lattice
 unitcell = Lattice(:Honeycomb,

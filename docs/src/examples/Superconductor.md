@@ -11,7 +11,7 @@ The following codes could compute the energy bands of the Bogoliubov quasipartic
 ```@example p+ip
 using QuantumLattices
 using TightBindingApproximation
-using Plots: plot
+using Plots; pyplot()
 
 # define the unitcell of the square lattice
 unitcell = Lattice(:Square,
@@ -45,6 +45,19 @@ energybands = sc(:EB, EnergyBands(path))
 
 # plot the energy bands
 plot(energybands)
+```
+
+## Berry curvature and Chern number
+The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated as follows:
+```@example p+ip
+# define the Brillouin zone
+brillouin = BrillouinZone(unitcell.reciprocals, 100)
+
+# compute the Berry curvatures and Chern numbers of both quasiparticle bands
+berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
+
+# plot the Berry curvature
+plot(berry)
 ```
 
 ## Edge states

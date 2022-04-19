@@ -2,13 +2,14 @@ module TightBindingApproximation
 
 using Printf: @sprintf
 using TimerOutputs: @timeit
+using RecipesBase: RecipesBase, @recipe, @series
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
-using QuantumLattices: getcontent, iidtype, rcoord, icoord, expand, statistics, plain, creation, annihilation, atol, rtol, periods
+using QuantumLattices: getcontent, iidtype, rcoord, icoord, expand, statistics, plain, creation, annihilation, atol, rtol, periods, decimaltostr
 using QuantumLattices: AbstractLattice, AbstractPID, FID, NID, Index, CompositeOID, ID, Bonds, Hilbert, Metric, Operator, Operators, OIDToTuple, Table, Term, Boundary
 using QuantumLattices: Internal, Fock, Phonon, Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, MatrixRepresentation, BrillouinZone
 using QuantumLattices: Engine, Parameters, AbstractGenerator, CompositeGenerator, Entry, Generator, Formulation, Action, Assignment, Algorithm
 
-import LinearAlgebra: eigen, ishermitian
+import LinearAlgebra: eigen, eigvals, ishermitian
 import QuantumLattices: add!, contentnames, dimension, kind, matrix, update!, prepare!, run!
 
 export TBAKind, AbstractTBA, TBAMatrix, TBAMatrixRepresentation, commutator
@@ -230,6 +231,21 @@ function eigen(m::TBAMatrix{T, H, G}) where {T, H<:AbstractMatrix{T}, G<:Abstrac
 end
 
 """
+    eigvals(m::TBAMatrix) -> Vector
+
+Get the eigen values of a free quantum lattice system.
+"""
+@inline eigvals(m::TBAMatrix{T, H, Nothing}) where {T, H<:AbstractMatrix{T}} = eigvals(m.H)
+function eigvals(m::TBAMatrix{T, H, G}) where {T, H<:AbstractMatrix{T}, G<:AbstractMatrix}
+    values = eigen(m.H*m.commutator).values
+    @assert length(values)%2==0 "eigvals error: wrong dimension of matrix."
+    for i = 1:(length(values)÷2)
+        values[i] = -values[i]
+    end
+    return values
+end
+
+"""
     TBA{K, L<:AbstractLattice, H<:AbstractGenerator, G<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, H, G}
 
 The usual tight binding approximation for quantum lattice systems.
@@ -289,7 +305,7 @@ end
 @inline prepare!(eb::EnergyBands{P, Vector{Int}}, tba::AbstractTBA) where P = (zeros(Float64, length(eb.path)), zeros(Float64, length(eb.path), length(eb.levels)))
 @inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
-    for (i, params) in enumerate(eb.action.path)
+    for (i, params) in enumerate(pairs(eb.action.path))
         eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i-1
         update!(tba; gauge=eb.action.gauge, params...)
         @timeit tba.timer "matrix" (m = matrix(tba.engine; params...))
@@ -307,10 +323,10 @@ struct BerryCurvature{B<:BrillouinZone} <: Action
     levels::Vector{Int}
 end
 @inline function prepare!(bc::BerryCurvature, tba::AbstractTBA)
-    N₁, N₂ = periods(fieldtype(eltype(bc.brillouinzone), 1))
+    N₁, N₂ = periods(eltype(bc.brillouinzone))
     x = collect(Float64, 0:(N₁-1))/N₁
     y = collect(Float64, 0:(N₂-1))/N₂
-    z = zeros(Float64, length(bc.levels), length(y), length(x))
+    z = zeros(Float64, length(y), length(x), length(bc.levels))
     n = zeros(Float64, length(bc.levels))
     return (x, y, z, n)
 end
@@ -318,13 +334,13 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
     N₁, N₂ = length(bc.data[1]), length(bc.data[2])
     eigenvectors = zeros(ComplexF64, N₁, N₂, dimension(tba.engine), length(bc.action.levels))
     for momentum in bc.action.brillouinzone
-        coord = expand(first(momentum), bc.action.brillouinzone.reciprocals)
+        coord = expand(momentum, bc.action.brillouinzone.reciprocals)
         @timeit tba.timer "matrix" (m = matrix(tba.engine; k=coord))
-        @timeit tba.timer "eigen" (eigenvectors[Int(first(momentum)[1])+1, Int(first(momentum)[2])+1, :, :] = eigen(m).vectors[:, bc.action.levels])
+        @timeit tba.timer "eigen" (eigenvectors[Int(momentum[1])+1, Int(momentum[2])+1, :, :] = eigen(m).vectors[:, bc.action.levels])
     end
     g = isnothing(tba.engine.commutator) ? Diagonal(ones(Int, dimension(tba.engine))) : inv(tba.engine.commutator)
     @timeit tba.timer "Berry curvature" for momentum in bc.action.brillouinzone
-        i₁, j₁ = Int(first(momentum)[1]), Int(first(momentum)[2])
+        i₁, j₁ = Int(momentum[1]), Int(momentum[2])
         i₂, j₂ = (i₁+1)%N₁, (j₁+1)%N₂
         vs₁ = eigenvectors[i₁+1, j₁+1, :, :]
         vs₂ = eigenvectors[i₂+1, j₁+1, :, :]
@@ -335,11 +351,32 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
             p₂ = vs₂[:, k]'*g*vs₃[:, k]
             p₃ = vs₃[:, k]'*g*vs₄[:, k]
             p₄ = vs₄[:, k]'*g*vs₁[:, k]
-            bc.data[3][k, j₁+1, i₁+1] = angle(p₁*p₂*p₃*p₄)
-            bc.data[4][k] += bc.data[3][k, j₁+1, i₁+1]/2pi
+            bc.data[3][j₁+1, i₁+1, k] = angle(p₁*p₂*p₃*p₄)
+            bc.data[4][k] += bc.data[3][j₁+1, i₁+1, k]/2pi
         end
     end
     @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn level for (cn, level) in zip(bc.data[4], bc.action.levels)], ", "))
+end
+@recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:BerryCurvature}})
+    levels, chernnumbers = pack[2].action.levels, pack[2].data[4]
+    layout --> length(levels)
+    aspect_ratio --> :equal
+    framestyle --> :none
+    colorbar --> :bottom
+    plot_title --> nameof(pack[1], pack[2])
+    plot_titlefontsize --> 10
+    title := @sprintf "level %s (C = %s)" first(levels) decimaltostr(first(chernnumbers))
+    titlefontsize --> 8
+    for (i, (level, chn)) in enumerate(zip(levels, chernnumbers))
+        @series begin
+            seriestype := :heatmap
+            title := @sprintf "level %s (C = %s)" level decimaltostr(chn)
+            subplot := i
+            pack[2].data[1], pack[2].data[2], pack[2].data[3][:, :, i]
+        end
+    end
+    primary := false
+    ()
 end
 
 end # module

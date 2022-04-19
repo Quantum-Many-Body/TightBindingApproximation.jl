@@ -11,7 +11,7 @@ The following codes could compute the energy bands of the phonons on the square 
 ```@example phonon
 using QuantumLattices
 using TightBindingApproximation
-using Plots: plot
+using Plots; pyplot()
 
 # define the unitcell of the square lattice
 unitcell = Lattice(:Square,

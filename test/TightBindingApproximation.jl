@@ -57,14 +57,14 @@ end
     A(t, μ; k) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
     tbaₐ = TBA(lattice, A, (t=1.0, μ=0.0))
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
-    for kv in path
+    for kv in pairs(path)
         m = matrix(tba; kv...)
         mₐ = matrix(tbaₐ; kv...)
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.0; kv...))
     end
     update!(tba, μ=0.5)
     update!(tbaₐ, μ=0.5)
-    for kv in path
+    for kv in pairs(path)
         m = matrix(tba; kv...)
         mₐ = matrix(tbaₐ; kv...)
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.5; kv...))
@@ -79,7 +79,7 @@ end
     A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ 2im*Δ*sin(k[1])+2Δ*sin(k[2]); -2im*Δ*sin(k[1])+2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
     bdgₐ = TBA(lattice, A, (t=1.0, μ=0.5, Δ=0.1))
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
-    for kv in path
+    for kv in pairs(path)
         m = matrix(bdg; kv...)
         mₐ = matrix(bdgₐ; kv...)
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.5, 0.1; kv...))
