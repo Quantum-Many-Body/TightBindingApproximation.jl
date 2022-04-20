@@ -33,7 +33,7 @@ using TightBindingApproximation
     contentnames(TBA) == (:lattice, :H, :commutator)
 end
 
-@time @testset "Square" begin
+@time @testset "TBA" begin
     lattice = Lattice(:Square,
         [Point(PID(1), [0.0, 0.0])],
         vectors=[[1.0, 0.0], [0.0, 1.0]],
@@ -84,4 +84,11 @@ end
         mₐ = matrix(bdgₐ; kv...)
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.5, 0.1; kv...))
     end
+
+    samplesets = [
+        SampleNode(lattice.reciprocals, [0.0, 0.0], [1], [-4.0]),
+        SampleNode(lattice.reciprocals, [0.5, 0.5], [1], [+4.0])
+    ]
+    op = optimize!(tba, samplesets)[2]
+    @test isapprox(op.minimizer, [-1.0, 0.0], atol=10^-10)
 end

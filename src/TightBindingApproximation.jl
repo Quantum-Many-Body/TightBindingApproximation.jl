@@ -2,6 +2,7 @@ module TightBindingApproximation
 
 using Printf: @sprintf
 using TimerOutputs: @timeit
+using Optim: optimize, LBFGS
 using RecipesBase: RecipesBase, @recipe, @series
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
 using QuantumLattices: getcontent, iidtype, rcoord, icoord, expand, statistics, plain, creation, annihilation, atol, rtol, periods, decimaltostr
@@ -14,6 +15,7 @@ import QuantumLattices: add!, contentnames, dimension, kind, matrix, update!, pr
 
 export TBAKind, AbstractTBA, TBAMatrix, TBAMatrixRepresentation, commutator
 export TBA, EnergyBands, BerryCurvature
+export SampleNode, deviation, optimize!
 
 """
     TBAKind{K}
@@ -199,7 +201,7 @@ Construct the matrix representation transformation of a free quantum lattice sys
 end
 
 """
-    matrix(tba::AbstractTBA; k=nothing, gauge=:icoord, atol=atol/5, kwargs...) -> TBAMatrix
+    matrix(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}; k=nothing, gauge=:icoord, atol=atol/5, kwargs...) -> TBAMatrix
 
 Get the matrix representation of a free quantum lattice system.
 """
@@ -212,6 +214,7 @@ end
 @inline function matrix(tba::AbstractTBA{TBAKind(:Analytical)}; kwargs...)
     return TBAMatrix(Hermitian(getcontent(tba, :H)(; kwargs...)), getcontent(tba, :commutator))
 end
+@inline matrix(tba::Algorithm{<:AbstractTBA}; kwargs...) = matrix(tba.engine; kwargs...)
 
 """
     eigen(m::TBAMatrix) -> Eigen
@@ -377,6 +380,69 @@ end
     end
     primary := false
     ()
+end
+
+"""
+    SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratio::Number)
+    SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratios::Vector=ones(length(levels)))
+
+A sample node of a momentum-eigenvalues pair.
+"""
+struct SampleNode
+    k::Vector{Float64}
+    levels::Vector{Int64}
+    values::Vector{Float64}
+    ratios::Vector{Float64}
+end
+@inline function SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratio::Number)
+    return SampleNode(reciprocals, position, levels, values, ones(length(levels))*ratio)
+end
+function SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratios::Vector=ones(length(levels)))
+    @assert length(reciprocals)==length(position) "SampleNode error: mismatched reciprocals and position."
+    @assert length(levels)==length(values)==length(ratios) "SampleNode error: mismatched levels, values and ratios."
+    return SampleNode(mapreduce(*, +, reciprocals, position), levels, values, ratios)
+end
+
+"""
+    deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplenode::SampleNode) -> Float64
+    deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}) -> Float64
+
+Get the deviation of the eigenvalues between the sample points and model points.
+"""
+function deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplenode::SampleNode)
+    diff = eigvals(matrix(tba; k=samplenode.k))[samplenode.levels] .- samplenode.values
+    return real(sum(conj(diff) .* diff .* samplenode.ratios))
+end
+function deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode})
+    result = 0.0
+    for samplenode in samplesets
+        result += deviation(tba, samplenode)
+    end
+    return result
+end
+
+"""
+    optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}},
+        samplesets::Vector{SampleNode},
+        variables=keys(Parameters(tba));
+        verbose=false,
+        method=LBFGS()
+        ) -> Tuple{typeof(tba), Optim.MultivariateOptimizationResults}
+
+Optimize the parameters of a tight binding system whose names are specified by `variables` so that the total deviations of the eigenvalues between the model points and sample points minimize.
+"""
+function optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba)); verbose=false, method=LBFGS())
+    v₀ = collect(getfield(Parameters(tba), name) for name in variables)
+    function diff(v::Vector)
+        parameters = Parameters{variables}(v...)
+        update!(tba; parameters...)
+        verbose && println(parameters)
+        return deviation(tba, samplesets)
+    end
+    op = optimize(diff, v₀, method)
+    parameters = Parameters{variables}(op.minimizer...)
+    update!(tba; parameters...)
+    return tba, op
 end
 
 end # module
