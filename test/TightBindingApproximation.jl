@@ -1,8 +1,9 @@
+using Plots: plot, savefig
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
 using QuantumLattices: contentnames, kind, dimension, azimuth, rcoord, update!, matrix
 using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, Metric, OIDToTuple, Parameters
 using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential
-using QuantumLattices: ReciprocalPath, @rectangle_str
+using QuantumLattices: ReciprocalPath, @rectangle_str, BrillouinZone, Algorithm
 using TightBindingApproximation
 
 @time @testset "prerequisite" begin
@@ -91,4 +92,24 @@ end
     ]
     op = optimize!(tba, samplesets)[2]
     @test isapprox(op.minimizer, [-1.0, 0.0], atol=10^-10)
+end
+
+@time @testset "plot" begin
+    unitcell = Lattice(:Square, [Point(PID(1), [0.0, 0.0])], vectors=[[1.0, 0.0], [0.0, 1.0]], neighbors=1)
+    hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
+    t = Hopping(:t, 1.0, 1, modulate=true)
+    μ = Onsite(:μ, 3.5, modulate=true)
+    Δ = Pairing(:Δ, Complex(0.5), 1, amplitude=bond->exp(im*azimuth(rcoord(bond))), modulate=true)
+    sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
+    path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+    energybands = sc(:EB, EnergyBands(path))
+    plt = plot(energybands)
+    display(plt)
+    savefig(plt, "eb.png")
+
+    brillouin = BrillouinZone(unitcell.reciprocals, 100)
+    berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
+    plt = plot(berry)
+    display(plt)
+    savefig(plt, "bc.png")
 end
