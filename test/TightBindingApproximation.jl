@@ -113,3 +113,17 @@ end
     display(plt)
     savefig(plt, "bc.png")
 end
+
+@time @testset "phonon" begin
+    unitcell = Lattice(:Square, [Point(PID(1), [0.0, 0.0])], vectors=[[1.0, 0.0], [0.0, 1.0]], neighbors=2)
+    hilbert = Hilbert(pid=>Phonon(2) for pid in unitcell.pids)
+    T = PhononKinetic(:T, 0.5)
+    V₁ = PhononPotential(:V₁, 0.5, 1)
+    V₂ = PhononPotential(:V₂, 0.25, 2)
+    phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))
+    path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+    energybands = phonon(:EB, EnergyBands(path))
+    plt = plot(energybands)
+    display(plt)
+    savefig(plt, "phonon.png")
+end
