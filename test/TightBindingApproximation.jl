@@ -2,7 +2,7 @@ using Plots: plot, savefig
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
 using QuantumLattices: contentnames, kind, dimension, azimuth, rcoord, update!, matrix
 using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, Metric, OIDToTuple, Parameters
-using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential
+using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, Segment, ReciprocalZone
 using QuantumLattices: ReciprocalPath, @rectangle_str, BrillouinZone, Algorithm
 using TightBindingApproximation
 
@@ -130,6 +130,12 @@ end
     plt = plot(berry)
     display(plt)
     savefig(plt, "bc.png")
+
+    reciprocalzone = ReciprocalZone(unitcell.reciprocals, [Segment(-2.0, +2.0, 201, ends=(true, true)), Segment(-2.0, 2.0, 201, ends=(true, true))])
+    berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
+    plt = plot(berry)
+    display(plt)
+    savefig(plt, "bcextended.png")
 end
 
 @time @testset "phonon" begin
