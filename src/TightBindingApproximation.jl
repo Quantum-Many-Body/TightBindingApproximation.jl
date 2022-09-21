@@ -168,7 +168,7 @@ Get the matrix representation of an operator and add it to destination.
 function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:TBA}}}, m::Operator; kwargs...)
     seq₁, seq₂ = mr.table[m[1].index'], mr.table[m[2].index]
     coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
-    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coordinate)))
+    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
     dest[seq₁, seq₂] += m.value*phase
     return dest
 end
@@ -177,7 +177,7 @@ end
 function _add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m, sign; atol, kwargs...)
     seq₁, seq₂ = mr.table[m[1].index'], mr.table[m[2].index]
     coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
-    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coordinate)))
+    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
     seq₁==seq₂ || (atol = 0)
     dest[seq₁, seq₂] += m.value*phase+atol
     if m[1].index.iid.nambu==creation && m[2].index.iid.nambu==annihilation
@@ -193,7 +193,7 @@ function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:
     else
         seq₁, seq₂ = mr.table[m[1].index], mr.table[m[2].index]
         coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
-        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coordinate)))
+        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
         dest[seq₁, seq₂] += m.value*phase
         dest[seq₂, seq₁] += m.value'*phase'
     end

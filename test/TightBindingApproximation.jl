@@ -1,10 +1,10 @@
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
 using Plots: plot, savefig
 using QuantumLattices: dimension, kind, matrix, update!
-using QuantumLattices: Coupling, Hilbert, Index, Metric, OperatorUnitToTuple
+using QuantumLattices: Coupling, Hilbert, Metric, OperatorUnitToTuple
 using QuantumLattices: Algorithm, Parameters
 using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon
-using QuantumLattices: BrillouinZone, Lattice, Point, ReciprocalPath, ReciprocalZone, Segment, azimuth, rcoordinate, @rectangle_str
+using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, Segment, azimuth, rcoordinate, @rectangle_str
 using QuantumLattices: contentnames
 using TightBindingApproximation
 
@@ -82,7 +82,7 @@ end
     @test valtype(bdg) == valtype(typeof(bdg)) == Complex{Float64}
     @test Parameters(bdg) == (t=1.0, μ=0.5, Δ=Complex(0.1))
 
-    A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ 2im*Δ*sin(k[1])+2Δ*sin(k[2]); -2im*Δ*sin(k[1])+2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
+    A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ -2im*Δ*sin(k[1])-2Δ*sin(k[2]); 2im*Δ*sin(k[1])-2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
     bdgₐ = TBA{Fermionic{:BdG}}(lattice, A, (t=1.0, μ=0.5, Δ=0.1))
     path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
