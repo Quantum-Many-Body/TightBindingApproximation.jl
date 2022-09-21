@@ -14,25 +14,24 @@ using TightBindingApproximation
 using Plots; pyplot()
 
 # define the unitcell of the square lattice
-unitcell = Lattice(:Square,
-    [Point(PID(1), [0.0, 0.0])],
-    vectors=[[1.0, 0.0], [0.0, 1.0]],
-    neighbors=1
-    )
+unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
 
 # define the Hilbert space of the p+ip superconductor (single-orbital spinless complex fermion)
-hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
+hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
 
 # define the terms
 
 ## nearest-neighbor hopping
-t = Hopping(:t, 1.0, 1, modulate=true)
+t = Hopping(:t, 1.0, 1)
 
 ## onsite energy as the chemical potential
-μ = Onsite(:μ, 3.5, modulate=true)
+μ = Onsite(:μ, 3.5)
 
 ## p+ip pairing term
-Δ = Pairing(:Δ, Complex(0.5), 1, amplitude=bond->exp(im*azimuth(rcoord(bond))), modulate=true)
+Δ = Pairing(
+    :Δ, Complex(0.5), 1, Coupling(:, FID, :, :, (1, 1));
+    amplitude=bond->exp(im*azimuth(rcoordinate(bond)))
+)
 
 # define the Bogoliubov-de Gennes formula for the p+ip superconductor
 sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
@@ -68,7 +67,7 @@ With tiny modification on the algorithm, the edge states of the p+ip topological
 lattice = Lattice(unitcell, translations"1P-100O")
 
 # define the new Hilbert space corresponding to the cylinder
-hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in lattice.pids)
+hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
 
 # define the new Bogoliubov-de Gennes formula
 sc = Algorithm(Symbol("p+ip"), TBA(lattice, hilbert, (t, μ, Δ)))
@@ -100,17 +99,20 @@ using SymPy: Sym, symbols
 using QuantumLattices
 using TightBindingApproximation
 
-unitcell = Lattice(:Square,
-    [Point(PID(1), [zero(Sym), zero(Sym)])],
-    vectors=[[one(Sym), zero(Sym)], [zero(Sym), one(Sym)]],
-    neighbors=1
-    )
+unitcell = Lattice(
+    [zero(Sym), zero(Sym)];
+    name=:Square,
+    vectors=[[one(Sym), zero(Sym)], [zero(Sym), one(Sym)]]
+)
 
-hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
+hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
 
 t = Hopping(:t, symbols("t", real=true), 1)
 μ = Onsite(:μ, symbols("μ", real=true))
-Δ = Pairing(:Δ, symbols("Δ", real=true), 1, amplitude=bond->exp(im*azimuth(rcoord(bond))))
+Δ = Pairing(
+    :Δ, symbols("Δ", real=true), 1, Coupling(:, FID, :, :, (1, 1));
+    amplitude=bond->exp(im*azimuth(rcoordinate(bond)))
+)
 
 sc = TBA(unitcell, hilbert, (t, μ, Δ))
 

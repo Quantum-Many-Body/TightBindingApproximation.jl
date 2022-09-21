@@ -14,25 +14,21 @@ using TightBindingApproximation
 using Plots; pyplot()
 
 # define the unitcell of the square lattice
-unitcell = Lattice(:Square,
-    [Point(PID(1), [0.0, 0.0])],
-    vectors=[[1.0, 0.0], [0.0, 1.0]],
-    neighbors=2
-    )
+unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
 
 # define the Hilbert space of phonons with 2 vibrant directions
-hilbert = Hilbert(pid=>Phonon(2) for pid in unitcell.pids)
+hilbert = Hilbert(site=>Phonon(2) for site=1:length(unitcell))
 
 # define the terms
 
 ## Kinetic energy with the mass M=1
-T = PhononKinetic(:T, 0.5)
+T = Kinetic(:T, 0.5)
 
 ## Potential energy on the nearest-neighbor bonds with the spring constant k₁=1.0
-V₁ = PhononPotential(:V₁, 0.5, 1)
+V₁ = Hooke(:V₁, 0.5, 1)
 
 ## Potential energy on the next-nearest-neighbor bonds with the spring constant k₂=0.5
-V₂ = PhononPotential(:V₂, 0.25, 2)
+V₂ = Hooke(:V₂, 0.25, 2)
 
 # define the harmonic approximation of the phonons on square lattice
 phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))

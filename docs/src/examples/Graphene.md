@@ -14,17 +14,17 @@ using TightBindingApproximation
 using Plots; pyplot()
 
 # define the unitcell of the honeycomb lattice
-unitcell = Lattice(:Honeycomb,
-    [Point(PID(1), [0.0, 0.0]), Point(PID(2), [0.0, √3/3])],
-    vectors=[[1.0, 0.0], [0.5, √3/2]],
-    neighbors=1
-    )
+unitcell = Lattice(
+    [0.0, 0.0], [0.0, √3/3];
+    name=:Honeycomb,
+    vectors=[[1.0, 0.0], [0.5, √3/2]]
+)
 
 # define the Hilbert space of graphene (single-orbital spin-1/2 complex fermion)
-hilbert = Hilbert(pid=>Fock{:f}(1, 2, 2) for pid in unitcell.pids)
+hilbert = Hilbert(site=>Fock{:f}(1, 2) for site=1:length(unitcell))
 
 # define the terms, i.e. the nearest-neighbor hopping
-t = Hopping(:t, -1.0, 1, modulate=true)
+t = Hopping(:t, -1.0, 1)
 
 # define the tight-binding-approximation algorithm for graphene
 graphene = Algorithm(:Graphene, TBA(unitcell, hilbert, (t,)))
@@ -47,7 +47,7 @@ Graphene supports flatband edge states on zigzag boundaries. Only minor modifica
 lattice = Lattice(unitcell, translations"1P-100O")
 
 # define the new Hilbert space corresponding to the cylinder
-hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in lattice.pids)
+hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
 
 # define the new tight-binding-approximation algorithm
 zigzag = Algorithm(:Graphene, TBA(lattice, hilbert, (t,)))
@@ -70,13 +70,13 @@ using SymPy: Sym, symbols
 using QuantumLattices
 using TightBindingApproximation
 
-unitcell = Lattice(:Honeycomb,
-    [Point(PID(1), [zero(Sym), zero(Sym)]), Point(PID(2), [zero(Sym), √(one(Sym)*3)/3])],
-    vectors=[[one(Sym), zero(Sym)], [one(Sym)/2, √(one(Sym)*3)/2]],
-    neighbors=1
-    )
+unitcell = Lattice(
+    [zero(Sym), zero(Sym)], [zero(Sym), √(one(Sym)*3)/3];
+    name=:Honeycomb,
+    vectors=[[one(Sym), zero(Sym)], [one(Sym)/2, √(one(Sym)*3)/2]]
+)
 
-hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
+hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
 
 t = Hopping(:t, symbols("t", real=true), 1)
 

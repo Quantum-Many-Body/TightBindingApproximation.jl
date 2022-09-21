@@ -5,10 +5,10 @@ using TimerOutputs: @timeit
 using Optim: optimize, LBFGS
 using RecipesBase: RecipesBase, @recipe, @series
 using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
-using QuantumLattices: getcontent, iidtype, rcoord, icoord, expand, statistics, plain, creation, annihilation, atol, rtol, periods, decimaltostr
-using QuantumLattices: AbstractLattice, AbstractPID, FID, NID, Index, CompositeOID, ID, Bonds, Hilbert, Metric, Operator, Operators, OIDToTuple, Table, Term, Boundary
-using QuantumLattices: Internal, Fock, Phonon, Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, BrillouinZone, ReciprocalZone, ReciprocalPath 
-using QuantumLattices: MatrixRepresentation, Engine, Parameters, AbstractGenerator, CompositeGenerator, Entry, Generator, Formulation, Action, Assignment, Algorithm
+using QuantumLattices: getcontent, iidtype, rcoordinate, icoordinate, expand, statistics, plain, creation, annihilation, atol, rtol, periods, decimaltostr, bonds
+using QuantumLattices: AbstractLattice, FID, PID, Index, CompositeIndex, ID, Hilbert, Metric, Operator, Operators, OperatorUnitToTuple, Table, Term, Boundary, Neighbors
+using QuantumLattices: Internal, Fock, Phonon, Hopping, Onsite, Pairing, Kinetic, Hooke, Elastic, BrillouinZone, ReciprocalZone, ReciprocalPath
+using QuantumLattices: MatrixRepresentation, Frontend, Parameters, RepresentationGenerator, CompositeGenerator, Entry, OperatorGenerator, AnalyticalExpression, Action, Assignment, Algorithm
 
 import LinearAlgebra: eigen, eigvals, ishermitian
 import QuantumLattices: add!, contentnames, dimension, kind, matrix, update!, prepare!, run!
@@ -63,7 +63,7 @@ Depending on the kind of a `Term` type and an `Internal` type, get the correspon
 @inline TBAKind(::Type{T}, ::Type{<:Fock{:f}}) where {T<:Pairing} = Fermionic(:BdG)
 @inline TBAKind(::Type{T}, ::Type{<:Fock{:b}}) where {T<:Union{Hopping, Onsite}} = Bosonic(:TBA)
 @inline TBAKind(::Type{T}, ::Type{<:Fock{:b}}) where {T<:Pairing} = Bosonic(:BdG)
-@inline TBAKind(::Type{T}, ::Type{<:Phonon}) where {T<:Union{PhononKinetic, PhononPotential}} = Phononic()
+@inline TBAKind(::Type{T}, ::Type{<:Phonon}) where {T<:Union{Kinetic, Hooke, Elastic}} = Phononic()
 @inline @generated function TBAKind(::Type{TS}, ::Type{I}) where {TS<:Tuple{Vararg{Term}}, I<:Internal}
     exprs = []
     for i = 1:fieldcount(TS)
@@ -73,18 +73,18 @@ Depending on the kind of a `Term` type and an `Internal` type, get the correspon
 end
 
 """
-    Metric(::Fermionic, hilbert::Hilbert{<:Fock{:f}} -> OIDToTuple
-    Metric(::Bosonic, hilbert::Hilbert{<:Fock{:b}} -> OIDToTuple
-    Metric(::Phononic, hilbert::Hilbert{<:Phonon}) -> OIDToTuple
+    Metric(::Fermionic, hilbert::Hilbert{<:Fock{:f}} -> OperatorUnitToTuple
+    Metric(::Bosonic, hilbert::Hilbert{<:Fock{:b}} -> OperatorUnitToTuple
+    Metric(::Phononic, hilbert::Hilbert{<:Phonon}) -> OperatorUnitToTuple
 
 Get the oid-to-tuple metric for a free fermionic/bosonic/phononic system.
 """
 @inline Metric(::TBAKind, ::Hilbert) = error("Metric error: not defined behavior.")
-@inline @generated Metric(::Fermionic{:TBA}, hilbert::Hilbert{<:Fock{:f}}) = OIDToTuple(fieldnames(keytype(hilbert))..., :orbital, :spin)
-@inline @generated Metric(::Bosonic{:TBA}, hilbert::Hilbert{<:Fock{:b}}) = OIDToTuple(fieldnames(keytype(hilbert))..., :orbital, :spin)
-@inline @generated Metric(::Fermionic{:BdG}, hilbert::Hilbert{<:Fock{:f}}) = OIDToTuple(:nambu, fieldnames(keytype(hilbert))..., :orbital, :spin)
-@inline @generated Metric(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = OIDToTuple(:nambu, fieldnames(keytype(hilbert))..., :orbital, :spin)
-@inline @generated Metric(::Phononic, hilbert::Hilbert{<:Phonon}) = OIDToTuple(:tag, fieldnames(keytype(hilbert))..., :dir)
+@inline @generated Metric(::Fermionic{:TBA}, hilbert::Hilbert{<:Fock{:f}}) = OperatorUnitToTuple(:site, :orbital, :spin)
+@inline @generated Metric(::Bosonic{:TBA}, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:site, :orbital, :spin)
+@inline @generated Metric(::Fermionic{:BdG}, hilbert::Hilbert{<:Fock{:f}}) = OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
+@inline @generated Metric(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
+@inline @generated Metric(::Phononic, hilbert::Hilbert{<:Phonon}) = OperatorUnitToTuple(:tag, :site, :direction)
 
 """
     commutator(k::TBAKind, hilbert::Hilbert{<:Internal}) -> Union{AbstractMatrix, Nothing}
@@ -98,15 +98,15 @@ Get the commutation relation of the single-particle operators of a free quantum 
 @inline commutator(::Phononic, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, sum(dimension, values(hilbert))÷2))))
 
 """
-    AbstractTBA{K<:TBAKind, H<:AbstractGenerator, G<:Union{Nothing, AbstractMatrix}} <: Engine
+    AbstractTBA{K<:TBAKind, H<:RepresentationGenerator, G<:Union{Nothing, AbstractMatrix}} <: Frontend
 
 Abstract type for free quantum lattice systems using the tight-binding approximation.
 """
-abstract type AbstractTBA{K<:TBAKind, H<:AbstractGenerator, G<:Union{Nothing, AbstractMatrix}} <: Engine end
+abstract type AbstractTBA{K<:TBAKind, H<:RepresentationGenerator, G<:Union{Nothing, AbstractMatrix}} <: Frontend end
 @inline contentnames(::Type{<:AbstractTBA}) = (:H, :commutator)
 @inline kind(tba::AbstractTBA) = kind(typeof(tba))
 @inline kind(::Type{<:AbstractTBA{K}}) where K = K()
-@inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, H}}) where {H<:AbstractGenerator} = valtype(eltype(H))
+@inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, H}}) where {H<:RepresentationGenerator} = valtype(eltype(H))
 @inline dimension(tba::AbstractTBA{<:TBAKind, <:CompositeGenerator}) = length(getcontent(getcontent(tba, :H), :table))
 @inline update!(tba::AbstractTBA; k=nothing, kwargs...) = ((length(kwargs)>0 && update!(getcontent(tba, :H); kwargs...)); tba)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
@@ -137,12 +137,12 @@ struct TBAMatrixRepresentation{K<:AbstractTBA, V, T} <: MatrixRepresentation
     k::V
     table::T
     gauge::Symbol
-    function TBAMatrixRepresentation{K}(k, table, gauge::Symbol=:icoord) where {K<:AbstractTBA}
-        @assert gauge∈(:rcoord, :icoord) "TBAMatrixRepresentation error: gauge must be :rcoord or :icoord."
+    function TBAMatrixRepresentation{K}(k, table, gauge::Symbol=:icoordinate) where {K<:AbstractTBA}
+        @assert gauge∈(:rcoordinate, :icoordinate) "TBAMatrixRepresentation error: gauge must be :rcoordinate or :icoordinate."
         return new{K, typeof(k), typeof(table)}(k, table, gauge)
     end
 end
-@inline TBAMatrixRepresentation{K}(table, gauge::Symbol=:icoord) where {K<:AbstractTBA} = TBAMatrixRepresentation{K}(nothing, table, gauge)
+@inline TBAMatrixRepresentation{K}(table, gauge::Symbol=:icoordinate) where {K<:AbstractTBA} = TBAMatrixRepresentation{K}(nothing, table, gauge)
 @inline Base.valtype(mr::TBAMatrixRepresentation) = valtype(typeof(mr))
 @inline Base.valtype(::Type{<:TBAMatrixRepresentation{K}}) where {K<:AbstractTBA} = Matrix{promote_type(valtype(K), Complex{Int})}
 @inline Base.valtype(::Type{<:TBAMatrixRepresentation{K, Nothing}}) where {K<:AbstractTBA} = Matrix{valtype(K)}
@@ -153,25 +153,25 @@ end
 
 """
     add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:TBA}}}, m::Operator; kwargs...) -> typeof(dest)
-    add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:f}}}}}; kwargs...) -> typeof(dest)
-    add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:b}}}}}; atol=atol/5, kwargs...) -> typeof(dest)
-    add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:NID}}}}; atol=atol/5, kwargs...) -> typeof(dest)
+    add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:f}}}}}; kwargs...) -> typeof(dest)
+    add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}}}; atol=atol/5, kwargs...) -> typeof(dest)
+    add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}}}; atol=atol/5, kwargs...) -> typeof(dest)
 
 Get the matrix representation of an operator and add it to destination.
 """
 function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:TBA}}}, m::Operator; kwargs...)
     seq₁, seq₂ = mr.table[m[1].index'], mr.table[m[2].index]
-    coord = mr.gauge==:rcoord ? rcoord(m) : icoord(m)
-    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coord)))
+    coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
+    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coordinate)))
     dest[seq₁, seq₂] += m.value*phase
     return dest
 end
-@inline add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:f}}}}}; kwargs...) = _add!(dest, mr, m, -1; kwargs..., atol=0)
-@inline add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:FID{:b}}}}}; atol=atol/5, kwargs...) = _add!(dest, mr, m, +1; atol=atol, kwargs...)
+@inline add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:f}}}}}; kwargs...) = _add!(dest, mr, m, -1; kwargs..., atol=0)
+@inline add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID{:b}}}}}; atol=atol/5, kwargs...) = _add!(dest, mr, m, +1; atol=atol, kwargs...)
 function _add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m, sign; atol, kwargs...)
     seq₁, seq₂ = mr.table[m[1].index'], mr.table[m[2].index]
-    coord = mr.gauge==:rcoord ? rcoord(m) : icoord(m)
-    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coord)))
+    coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
+    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coordinate)))
     seq₁==seq₂ || (atol = 0)
     dest[seq₁, seq₂] += m.value*phase+atol
     if m[1].index.iid.nambu==creation && m[2].index.iid.nambu==annihilation
@@ -180,14 +180,14 @@ function _add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<
     end
     return dest
 end
-function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeOID{<:Index{<:AbstractPID, <:NID}}}}; atol=atol/5, kwargs...)
+function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:TBAKind{:BdG}}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}}}; atol=atol/5, kwargs...)
     if m[1] == m[2]
         seq = mr.table[m[1].index]
         dest[seq, seq] += 2*m.value+atol
     else
         seq₁, seq₂ = mr.table[m[1].index], mr.table[m[2].index]
-        coord = mr.gauge==:rcoord ? rcoord(m) : icoord(m)
-        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coord)))
+        coordinate = mr.gauge==:rcoordinate ? rcoordinate(m) : icoordinate(m)
+        phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(-1im*dot(mr.k, coordinate)))
         dest[seq₁, seq₂] += m.value*phase
         dest[seq₂, seq₁] += m.value'*phase'
     end
@@ -195,28 +195,28 @@ function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:AbstractTBA{<:
 end
 
 """
-    TBAMatrixRepresentation(tba::AbstractTBA, k=nothing; gauge::Symbol=:icoord)
+    TBAMatrixRepresentation(tba::AbstractTBA, k=nothing; gauge::Symbol=:icoordinate)
 
 Construct the matrix representation transformation of a free quantum lattice system using the tight-binding approximation.
 """
-@inline function TBAMatrixRepresentation(tba::AbstractTBA, k=nothing; gauge::Symbol=:icoord)
+@inline function TBAMatrixRepresentation(tba::AbstractTBA, k=nothing; gauge::Symbol=:icoordinate)
     return TBAMatrixRepresentation{typeof(tba)}(k, getcontent(getcontent(tba, :H), :table), gauge)
 end
 
 """
-    matrix(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}; k=nothing, gauge=:icoord, kwargs...) -> TBAMatrix
+    matrix(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}; k=nothing, gauge=:icoordinate, kwargs...) -> TBAMatrix
 
 Get the matrix representation of a free quantum lattice system.
 """
-@inline function matrix(tba::AbstractTBA; k=nothing, gauge=:icoord, kwargs...)
+@inline function matrix(tba::AbstractTBA; k=nothing, gauge=:icoordinate, kwargs...)
     H = getcontent(tba, :H)
     commutator = getcontent(tba, :commutator)
     return TBAMatrix(Hermitian(TBAMatrixRepresentation(tba, k; gauge=gauge)(expand(H); kwargs...)), commutator)
 end
-@inline function matrix(tba::AbstractTBA{<:TBAKind, <:Formulation}; kwargs...)
+@inline function matrix(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression}; kwargs...)
     return TBAMatrix(Hermitian(getcontent(tba, :H)(; kwargs...)), getcontent(tba, :commutator))
 end
-@inline matrix(tba::Algorithm{<:AbstractTBA}; kwargs...) = matrix(tba.engine; kwargs...)
+@inline matrix(tba::Algorithm{<:AbstractTBA}; kwargs...) = matrix(tba.frontend; kwargs...)
 
 """
     eigen(m::TBAMatrix) -> Eigen
@@ -251,15 +251,15 @@ function eigvals(m::TBAMatrix{T, H, G}) where {T, H<:AbstractMatrix{T}, G<:Abstr
 end
 
 """
-    TBA{K, L<:AbstractLattice, H<:AbstractGenerator, G<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, H, G}
+    TBA{K, L<:AbstractLattice, H<:RepresentationGenerator, G<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, H, G}
 
 The usual tight binding approximation for quantum lattice systems.
 """
-struct TBA{K, L<:AbstractLattice, H<:AbstractGenerator, G<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, H, G}
+struct TBA{K, L<:AbstractLattice, H<:RepresentationGenerator, G<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, H, G}
     lattice::L
     H::H
     commutator::G
-    function TBA{K}(lattice::AbstractLattice, H::AbstractGenerator, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
+    function TBA{K}(lattice::AbstractLattice, H::RepresentationGenerator, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
         if !isnothing(commutator)
             values = eigvals(commutator)
             num₁ = count(isapprox(+1, atol=atol, rtol=rtol), values)
@@ -272,15 +272,16 @@ end
 @inline contentnames(::Type{<:TBA}) = (:lattice, :H, :commutator)
 
 """
-    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; boundary::Boundary=plain)
+    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
 
 Construct a tight-binding quantum lattice system.
 """
-@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; boundary::Boundary=plain)
+@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
     tbakind = TBAKind(typeof(terms), valtype(hilbert))
     table = Table(hilbert, Metric(tbakind, hilbert))
     commt = commutator(tbakind, hilbert)
-    return TBA{typeof(tbakind)}(lattice, Generator(terms, Bonds(lattice), hilbert; half=false, table=table, boundary=boundary), commt)
+    isnothing(neighbors) && (neighbors = maximum(term->term.bondkind, terms))
+    return TBA{typeof(tbakind)}(lattice, OperatorGenerator(terms, bonds(lattice, neighbors), hilbert; half=false, table=table, boundary=boundary), commt)
 end
 
 """
@@ -289,7 +290,7 @@ end
 Construct a tight-binding quantum lattice system by providing the analytical expressions of the Hamiltonian.
 """
 @inline function TBA{K}(lattice::AbstractLattice, hamiltonian::Function, parameters::Parameters, commt::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-    return TBA{K}(lattice, Formulation(hamiltonian, parameters), commt)
+    return TBA{K}(lattice, AnalyticalExpression(hamiltonian, parameters), commt)
 end
 
 """
@@ -310,7 +311,7 @@ function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     for (i, params) in enumerate(pairs(eb.action.path))
         eb.data[1][i] = length(params)==1 && isa(first(params), Number) ? first(params) : i-1
         update!(tba; params...)
-        @timeit tba.timer "matrix" (m = matrix(tba.engine; gauge=get(eb.action.options, :gauge, :icoord), atol=get(eb.action.options, :atol, atol/5), params...))
+        @timeit tba.timer "matrix" (m = matrix(tba.frontend; gauge=get(eb.action.options, :gauge, :icoordinate), atol=get(eb.action.options, :atol, atol/5), params...))
         @timeit tba.timer "eigen" (eb.data[2][i, :] = eigen(m).values[eb.action.levels])
     end
 end
@@ -337,13 +338,13 @@ end
 end
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
     N₁, N₂ = length(bc.data[1]), length(bc.data[2])
-    eigenvectors = zeros(ComplexF64, N₁, N₂, dimension(tba.engine), length(bc.action.levels))
+    eigenvectors = zeros(ComplexF64, N₁, N₂, dimension(tba.frontend), length(bc.action.levels))
     for momentum in bc.action.reciprocalspace
-        coord = expand(momentum, bc.action.reciprocalspace.reciprocals)
-        @timeit tba.timer "matrix" (m = matrix(tba.engine; k=coord, gauge=get(bc.action.options, :gauge, :icoord), atol=get(bc.action.options, :atol, atol/5)))
+        coordinate = expand(momentum, bc.action.reciprocalspace.reciprocals)
+        @timeit tba.timer "matrix" (m = matrix(tba.frontend; k=coordinate, gauge=get(bc.action.options, :gauge, :icoordinate), atol=get(bc.action.options, :atol, atol/5)))
         @timeit tba.timer "eigen" (eigenvectors[Int(momentum[1])+1, Int(momentum[2])+1, :, :] = eigen(m).vectors[:, bc.action.levels])
     end
-    g = isnothing(tba.engine.commutator) ? Diagonal(ones(Int, dimension(tba.engine))) : inv(tba.engine.commutator)
+    g = isnothing(tba.frontend.commutator) ? Diagonal(ones(Int, dimension(tba.frontend))) : inv(tba.frontend.commutator)
     @timeit tba.timer "Berry curvature" for momentum in bc.action.reciprocalspace
         i₁, j₁ = Int(momentum[1]), Int(momentum[2])
         i₂, j₂ = (i₁+1)%N₁, (j₁+1)%N₂
@@ -394,13 +395,13 @@ end
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalZone}})
     N₁, N₂ = length(bc.data[1]), length(bc.data[2])
     indices = CartesianIndices((1:(N₂+1), 1:(N₁+1)))
-    eigenvectors = zeros(ComplexF64, N₁+1, N₂+1, dimension(tba.engine), length(bc.action.levels))
+    eigenvectors = zeros(ComplexF64, N₁+1, N₂+1, dimension(tba.frontend), length(bc.action.levels))
     for (index, momentum) in enumerate(bc.action.reciprocalspace)
         j, i = Tuple(indices[index])
-        @timeit tba.timer "matrix" (m = matrix(tba.engine; k=momentum, gauge=get(bc.action.options, :gauge, :icoord), atol=get(bc.action.options, :atol, atol/5)))
+        @timeit tba.timer "matrix" (m = matrix(tba.frontend; k=momentum, gauge=get(bc.action.options, :gauge, :icoordinate), atol=get(bc.action.options, :atol, atol/5)))
         @timeit tba.timer "eigen" (eigenvectors[i, j, :, :] = eigen(m).vectors[:, bc.action.levels])
     end
-    g = isnothing(tba.engine.commutator) ? Diagonal(ones(Int, dimension(tba.engine))) : inv(tba.engine.commutator)
+    g = isnothing(tba.frontend.commutator) ? Diagonal(ones(Int, dimension(tba.frontend))) : inv(tba.frontend.commutator)
     @timeit tba.timer "Berry curvature" for i = 1:N₁, j = 1:N₂
         vs₁ = eigenvectors[i, j, :, :]
         vs₂ = eigenvectors[i+1, j, :, :]

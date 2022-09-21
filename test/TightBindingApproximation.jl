@@ -1,8 +1,8 @@
 using Plots: plot, savefig
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
-using QuantumLattices: contentnames, kind, dimension, azimuth, rcoord, update!, matrix
-using QuantumLattices: PID, CPID, Point, Lattice, FID, Fock, NID, Phonon, Index, Hilbert, Metric, OIDToTuple, Parameters
-using QuantumLattices: Hopping, Onsite, Pairing, PhononKinetic, PhononPotential, Segment, ReciprocalZone
+using QuantumLattices: contentnames, kind, dimension, azimuth, rcoordinate, update!, matrix
+using QuantumLattices: Point, Lattice, FID, Fock, Phonon, Index, Hilbert, Metric, OperatorUnitToTuple, Parameters
+using QuantumLattices: Hopping, Onsite, Pairing, Kinetic, Hooke, Elastic, Segment, ReciprocalZone, Coupling
 using QuantumLattices: ReciprocalPath, @rectangle_str, BrillouinZone, Algorithm
 using TightBindingApproximation
 
@@ -17,50 +17,35 @@ using TightBindingApproximation
 
     @test TBAKind(Hopping, Fock{:f}) == TBAKind(Onsite, Fock{:f}) == Fermionic(:TBA)
     @test TBAKind(Pairing, Fock{:f}) == Fermionic(:BdG)
-
     @test TBAKind(Hopping, Fock{:b}) == TBAKind(Onsite, Fock{:b}) == Bosonic(:TBA)
     @test TBAKind(Pairing, Fock{:b}) == Bosonic(:BdG)
-
-    @test TBAKind(PhononKinetic, Phonon) == TBAKind(PhononPotential, Phonon) == Phononic()
-
+    @test TBAKind(Kinetic, Phonon) == TBAKind(Hooke, Phonon) == TBAKind(Elastic, Phonon) == Phononic()
     @test TBAKind(Tuple{Hopping, Onsite}, Fock{:f}) == Fermionic(:TBA)
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}, Fock{:f}) == Fermionic(:BdG)
-
     @test TBAKind(Tuple{Hopping, Onsite}, Fock{:b}) == Bosonic(:TBA)
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}, Fock{:b}) == Bosonic(:BdG)
 
-    @test Metric(Fermionic(:TBA), Hilbert(PID(1)=>Fock{:f}(1, 1, 1))) == OIDToTuple(:site, :orbital, :spin)
-    @test Metric(Fermionic(:TBA), Hilbert(CPID(1, 1)=>Fock{:f}(1, 1, 1))) == OIDToTuple(:scope, :site, :orbital, :spin)
-    @test Metric(Fermionic(:BdG), Hilbert(PID(1)=>Fock{:f}(1, 1, 1))) == OIDToTuple(:nambu, :site, :orbital, :spin)
-    @test Metric(Fermionic(:BdG), Hilbert(CPID(1, 1)=>Fock{:f}(1, 1, 1))) == OIDToTuple(:nambu, :scope, :site, :orbital, :spin)
+    @test Metric(Fermionic(:TBA), Hilbert(1=>Fock{:f}(1, 1))) == OperatorUnitToTuple(:site, :orbital, :spin)
+    @test Metric(Fermionic(:BdG), Hilbert(1=>Fock{:f}(1, 1))) == OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
+    @test Metric(Bosonic(:TBA), Hilbert(1=>Fock{:b}(1, 1))) == OperatorUnitToTuple(:site, :orbital, :spin)
+    @test Metric(Bosonic(:BdG), Hilbert(1=>Fock{:b}(1, 1))) == OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
+    @test Metric(Phononic(), Hilbert(1=>Phonon(2))) == OperatorUnitToTuple(:tag, :site, :direction)
 
-    @test Metric(Bosonic(:TBA), Hilbert(PID(1)=>Fock{:b}(1, 1, 1))) == OIDToTuple(:site, :orbital, :spin)
-    @test Metric(Bosonic(:TBA), Hilbert(CPID(1, 1)=>Fock{:b}(1, 1, 1))) == OIDToTuple(:scope, :site, :orbital, :spin)
-    @test Metric(Bosonic(:BdG), Hilbert(PID(1)=>Fock{:b}(1, 1, 1))) == OIDToTuple(:nambu, :site, :orbital, :spin)
-    @test Metric(Bosonic(:BdG), Hilbert(CPID(1, 1)=>Fock{:b}(1, 1, 1))) == OIDToTuple(:nambu, :scope, :site, :orbital, :spin)
-
-    @test Metric(Phononic(), Hilbert(PID(1)=>Phonon(2))) == OIDToTuple(:tag, :site, :dir)
-    @test Metric(Phononic(), Hilbert(CPID(1, 1)=>Phonon(2))) == OIDToTuple(:tag, :scope, :site, :dir)
-
-    @test commutator(Fermionic(:TBA), Hilbert(PID(1)=>Fock{:f}(1, 2, 2))) == nothing
-    @test commutator(Fermionic(:BdG), Hilbert(PID(1)=>Fock{:f}(1, 2, 2))) == nothing
-    @test commutator(Bosonic(:TBA), Hilbert(PID(1)=>Fock{:b}(1, 2, 2))) == nothing
-    @test commutator(Bosonic(:BdG), Hilbert(PID(1)=>Fock{:b}(1, 2, 2))) == Diagonal([1, 1, -1, -1])
-    @test commutator(Phononic(), Hilbert(PID(1)=>Phonon(2))) == Hermitian([0 0 -im 0; 0 0 0 -im; im 0 0 0; 0 im 0 0])
+    @test commutator(Fermionic(:TBA), Hilbert(1=>Fock{:f}(1, 2))) == nothing
+    @test commutator(Fermionic(:BdG), Hilbert(1=>Fock{:f}(1, 2))) == nothing
+    @test commutator(Bosonic(:TBA), Hilbert(1=>Fock{:b}(1, 2))) == nothing
+    @test commutator(Bosonic(:BdG), Hilbert(1=>Fock{:b}(1, 2))) == Diagonal([1, 1, -1, -1])
+    @test commutator(Phononic(), Hilbert(1=>Phonon(2))) == Hermitian([0 0 -im 0; 0 0 0 -im; im 0 0 0; 0 im 0 0])
 
     contentnames(AbstractTBA) == (:H, :commutator)
     contentnames(TBA) == (:lattice, :H, :commutator)
 end
 
 @time @testset "TBA" begin
-    lattice = Lattice(:Square,
-        [Point(PID(1), [0.0, 0.0])],
-        vectors=[[1.0, 0.0], [0.0, 1.0]],
-        neighbors=1
-        )
-    hilbert = Hilbert(PID(1)=>Fock{:f}(1, 1, 2))
+    lattice = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+    hilbert = Hilbert(1=>Fock{:f}(1, 1))
     t = Hopping(:t, 1.0, 1)
-    μ = Onsite(:μ, 0.0, modulate=true)
+    μ = Onsite(:μ, 0.0)
 
     tba = TBA(lattice, hilbert, (t, μ))
     @test kind(tba) == kind(typeof(tba)) == Fermionic(:TBA)
@@ -89,7 +74,7 @@ end
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.5; kv...))
     end
 
-    Δ = Pairing(:Δ, Complex(0.1), 1, amplitude=bond->exp(im*azimuth(rcoord(bond))))
+    Δ = Pairing(:Δ, Complex(0.1), 1, Coupling(:, FID, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     bdg = TBA(lattice, hilbert, (t, μ, Δ))
     @test kind(bdg) == kind(typeof(bdg)) == Fermionic(:BdG)
     @test valtype(bdg) == valtype(typeof(bdg)) == Complex{Float64}
@@ -113,11 +98,11 @@ end
 end
 
 @time @testset "plot" begin
-    unitcell = Lattice(:Square, [Point(PID(1), [0.0, 0.0])], vectors=[[1.0, 0.0], [0.0, 1.0]], neighbors=1)
-    hilbert = Hilbert(pid=>Fock{:f}(1, 1, 2) for pid in unitcell.pids)
-    t = Hopping(:t, 1.0, 1, modulate=true)
-    μ = Onsite(:μ, 3.5, modulate=true)
-    Δ = Pairing(:Δ, Complex(0.5), 1, amplitude=bond->exp(im*azimuth(rcoord(bond))), modulate=true)
+    unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+    hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
+    t = Hopping(:t, 1.0, 1)
+    μ = Onsite(:μ, 3.5)
+    Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(:, FID, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
     path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
     energybands = sc(:EB, EnergyBands(path))
@@ -139,11 +124,11 @@ end
 end
 
 @time @testset "phonon" begin
-    unitcell = Lattice(:Square, [Point(PID(1), [0.0, 0.0])], vectors=[[1.0, 0.0], [0.0, 1.0]], neighbors=2)
-    hilbert = Hilbert(pid=>Phonon(2) for pid in unitcell.pids)
-    T = PhononKinetic(:T, 0.5)
-    V₁ = PhononPotential(:V₁, 0.5, 1)
-    V₂ = PhononPotential(:V₂, 0.25, 2)
+    unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+    hilbert = Hilbert(site=>Phonon(2) for site=1:length(unitcell))
+    T = Kinetic(:T, 0.5)
+    V₁ = Hooke(:V₁, 0.5, 1)
+    V₂ = Hooke(:V₂, 0.25, 2)
     phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))
     path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
     energybands = phonon(:EB, EnergyBands(path))
