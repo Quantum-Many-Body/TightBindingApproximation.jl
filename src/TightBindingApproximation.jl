@@ -1,17 +1,23 @@
 module TightBindingApproximation
 
+using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, eigvals, inv
+using Optim: LBFGS, optimize
 using Printf: @sprintf
-using TimerOutputs: @timeit
-using Optim: optimize, LBFGS
+using QuantumLattices: expand
+using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, Internal, Metric, Table, Term, statistics
+using QuantumLattices: Action, Algorithm, AnalyticalExpression, Assignment, CompositeGenerator, Entry, Frontend, OperatorGenerator, Parameters, RepresentationGenerator
+using QuantumLattices: periods
+using QuantumLattices: ID, MatrixRepresentation, Operator, Operators, OperatorUnitToTuple, iidtype
+using QuantumLattices: annihilation, creation, Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon, PID
+using QuantumLattices: AbstractLattice, BrillouinZone, Neighbors, ReciprocalPath, ReciprocalZone, bonds, icoordinate, rcoordinate
+using QuantumLattices: atol, rtol, decimaltostr, getcontent
 using RecipesBase: RecipesBase, @recipe, @series
-using LinearAlgebra: inv, dot, Hermitian, Diagonal, eigvals, cholesky, Eigen
-using QuantumLattices: getcontent, iidtype, rcoordinate, icoordinate, expand, statistics, plain, creation, annihilation, atol, rtol, periods, decimaltostr, bonds
-using QuantumLattices: AbstractLattice, FID, PID, Index, CompositeIndex, ID, Hilbert, Metric, Operator, Operators, OperatorUnitToTuple, Table, Term, Boundary, Neighbors
-using QuantumLattices: Internal, Fock, Phonon, Hopping, Onsite, Pairing, Kinetic, Hooke, Elastic, BrillouinZone, ReciprocalZone, ReciprocalPath
-using QuantumLattices: MatrixRepresentation, Frontend, Parameters, RepresentationGenerator, CompositeGenerator, Entry, OperatorGenerator, AnalyticalExpression, Action, Assignment, Algorithm
+using TimerOutputs: @timeit
 
 import LinearAlgebra: eigen, eigvals, ishermitian
-import QuantumLattices: add!, contentnames, dimension, kind, matrix, update!, prepare!, run!
+import QuantumLattices: add!, dimension, kind, matrix, update!
+import QuantumLattices: prepare!, run!
+import QuantumLattices: contentnames
 
 export TBAKind, Fermionic, Bosonic, Phononic, AbstractTBA, TBAMatrix, TBAMatrixRepresentation, commutator
 export TBA, EnergyBands, BerryCurvature, InelasticNeutronScatteringSpectra

@@ -1,9 +1,11 @@
-using Plots: plot, savefig
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
-using QuantumLattices: contentnames, kind, dimension, azimuth, rcoordinate, update!, matrix
-using QuantumLattices: Point, Lattice, FID, Fock, Phonon, Index, Hilbert, Metric, OperatorUnitToTuple, Parameters
-using QuantumLattices: Hopping, Onsite, Pairing, Kinetic, Hooke, Elastic, Segment, ReciprocalZone, Coupling
-using QuantumLattices: ReciprocalPath, @rectangle_str, BrillouinZone, Algorithm
+using Plots: plot, savefig
+using QuantumLattices: dimension, kind, matrix, update!
+using QuantumLattices: Coupling, Hilbert, Index, Metric, OperatorUnitToTuple
+using QuantumLattices: Algorithm, Parameters
+using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon
+using QuantumLattices: BrillouinZone, Lattice, Point, ReciprocalPath, ReciprocalZone, Segment, azimuth, rcoordinate, @rectangle_str
+using QuantumLattices: contentnames
 using TightBindingApproximation
 
 @time @testset "prerequisite" begin
