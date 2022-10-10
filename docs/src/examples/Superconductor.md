@@ -11,7 +11,7 @@ The following codes could compute the energy bands of the Bogoliubov quasipartic
 ```@example p+ip
 using QuantumLattices
 using TightBindingApproximation
-using Plots; pyplot()
+using Plots
 
 # define the unitcell of the square lattice
 unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])

@@ -1,5 +1,5 @@
 using LinearAlgebra: Diagonal, Hermitian, ishermitian
-using Plots: plot, savefig
+using Plots: plot, plot!, savefig
 using QuantumLattices: dimension, kind, matrix, update!
 using QuantumLattices: Coupling, Hilbert, Metric, OperatorUnitToTuple
 using QuantumLattices: Algorithm, Parameters
@@ -133,8 +133,16 @@ end
     V₂ = Hooke(:V₂, 0.25, 2)
     phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))
     path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+
     energybands = phonon(:EB, EnergyBands(path))
     plt = plot(energybands)
     display(plt)
     savefig(plt, "phonon.png")
+
+    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, scale=log))
+    plt = plot()
+    plot!(plt, inelastic)
+    plot!(plt, energybands, color=:white, linestyle=:dash)
+    display(plt)
+    savefig("inelastic.png")
 end

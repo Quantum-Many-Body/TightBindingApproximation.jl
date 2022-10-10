@@ -11,7 +11,7 @@ The following codes could compute the energy bands of the phonons on the square 
 ```@example phonon
 using QuantumLattices
 using TightBindingApproximation
-using Plots; pyplot()
+using Plots
 
 # define the unitcell of the square lattice
 unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
@@ -41,4 +41,17 @@ energybands = phonon(:EB, EnergyBands(path))
 
 # plot the energy bands
 plot(energybands)
+```
+
+The inelastic neutron scattering spectra of phonons can also be computed:
+```@example phonon
+# fwhm: the FWHM of the Gaussian to be convoluted
+# scale: the scale of the intensity
+spectra = phonon(
+    :INSS,
+    InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, scale=log)
+)
+plt = plot()
+plot!(plt, spectra)
+plot!(plt, energybands, color=:white, linestyle=:dash)
 ```
