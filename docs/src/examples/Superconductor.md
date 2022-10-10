@@ -47,13 +47,28 @@ plot(energybands)
 ```
 
 ## Berry curvature and Chern number
-The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated as follows:
+The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated in the unitcell of the reciprocal space:
 ```@example p+ip
 # define the Brillouin zone
 brillouin = BrillouinZone(unitcell.reciprocals, 100)
 
 # compute the Berry curvatures and Chern numbers of both quasiparticle bands
 berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
+
+# plot the Berry curvatures
+plot(berry)
+```
+
+The Berry curvatures can also be computed on a reciprocal zone beyond the reciprocal unitcell:
+```@example p+ip
+# define the reciprocal zone
+reciprocalzone = ReciprocalZone(
+    unitcell.reciprocals,
+    [Segment(-2.0, +2.0, 201, ends=(true, true)), Segment(-2.0, 2.0, 201, ends=(true, true))]
+)
+
+# compute the Berry curvature
+berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
 
 # plot the Berry curvature
 plot(berry)
