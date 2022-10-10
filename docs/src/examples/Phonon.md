@@ -43,6 +43,8 @@ energybands = phonon(:EB, EnergyBands(path))
 plot(energybands)
 ```
 
+## Inelastic neutron scattering spectra
+
 The inelastic neutron scattering spectra of phonons can also be computed:
 ```@example phonon
 # fwhm: the FWHM of the Gaussian to be convoluted
