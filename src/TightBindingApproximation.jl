@@ -105,17 +105,18 @@ Get the commutation relation of the single-particle operators of a free quantum 
 @inline commutator(::Phononic, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, sum(dimension, values(hilbert))÷2))))
 
 """
-    TBAMatrix{T, H<:AbstractMatrix{T}, G<:Union{AbstractMatrix, Nothing}} <: AbstractMatrix{T}
+    TBAMatrix{K<:TBAKind, G<:Union{AbstractMatrix, Nothing}, H<:AbstractMatrix} <: AbstractMatrix{Number}
 
 Matrix representation of a free quantum lattice system using the tight-binding approximation.
 """
-struct TBAMatrix{T, H<:AbstractMatrix{T}, G<:Union{AbstractMatrix, Nothing}} <: AbstractMatrix{T}
+struct TBAMatrix{K<:TBAKind, G<:Union{AbstractMatrix, Nothing}, H<:AbstractMatrix} <: AbstractMatrix{Number}
     H::H
     commutator::G
-    function TBAMatrix(H::AbstractMatrix, commutator::Union{AbstractMatrix, Nothing})
-        new{eltype(H), typeof(H), typeof(commutator)}(H, commutator)
+    function TBAMatrix{K}(H::AbstractMatrix, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
+        new{K, typeof(commutator), typeof(H)}(H, commutator)
     end
 end
+@inline Base.eltype(::Type{<:TBAMatrix{<:TBAKind, <:Union{AbstractMatrix, Nothing}, H}}) where {H<:AbstractMatrix} = eltype(H)
 @inline Base.size(m::TBAMatrix) = size(m.H)
 @inline Base.getindex(m::TBAMatrix, i::Integer, j::Integer) = m.H[i, j]
 @inline ishermitian(m::TBAMatrix) = ishermitian(typeof(m))
@@ -126,8 +127,8 @@ end
 
 Solve the eigen problem of a free quantum lattice system.
 """
-@inline eigen(m::TBAMatrix{T, H, Nothing}) where {T, H<:AbstractMatrix{T}} = eigen(m.H)
-function eigen(m::TBAMatrix{T, H, G}) where {T, H<:AbstractMatrix{T}, G<:AbstractMatrix}
+@inline eigen(m::TBAMatrix{<:TBAKind, Nothing}) = eigen(m.H)
+function eigen(m::TBAMatrix{<:TBAKind, <:AbstractMatrix})
     W = cholesky(m.H)
     K = eigen(Hermitian(W.U*m.commutator*W.L))
     @assert length(K.values)%2==0 "eigen error: wrong dimension of matrix."
@@ -143,8 +144,8 @@ end
 
 Get the eigen values of a free quantum lattice system.
 """
-@inline eigvals(m::TBAMatrix{T, H, Nothing}) where {T, H<:AbstractMatrix{T}} = eigvals(m.H)
-function eigvals(m::TBAMatrix{T, H, G}) where {T, H<:AbstractMatrix{T}, G<:AbstractMatrix}
+@inline eigvals(m::TBAMatrix{<:TBAKind, Nothing}) = eigvals(m.H)
+function eigvals(m::TBAMatrix{<:TBAKind, <:AbstractMatrix})
     values = eigen(m.H*m.commutator).values
     @assert length(values)%2==0 "eigvals error: wrong dimension of matrix."
     for i = 1:(length(values)÷2)
@@ -253,10 +254,10 @@ end
 Get the matrix representation of a free quantum lattice system.
 """
 @inline function matrix(tba::AbstractTBA; k=nothing, gauge=:icoordinate, kwargs...)
-    return TBAMatrix(Hermitian(TBAMatrixRepresentation(tba, k; gauge=gauge)(expand(getcontent(tba, :H)); kwargs...)), getcontent(tba, :commutator))
+    return TBAMatrix{typeof(kind(tba))}(Hermitian(TBAMatrixRepresentation(tba, k; gauge=gauge)(expand(getcontent(tba, :H)); kwargs...)), getcontent(tba, :commutator))
 end
 @inline function matrix(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression}; kwargs...)
-    return TBAMatrix(Hermitian(getcontent(tba, :H)(; kwargs...)), getcontent(tba, :commutator))
+    return TBAMatrix{typeof(kind(tba))}(Hermitian(getcontent(tba, :H)(; kwargs...)), getcontent(tba, :commutator))
 end
 @inline matrix(tba::Algorithm{<:AbstractTBA}; kwargs...) = matrix(tba.frontend; kwargs...)
 
@@ -424,7 +425,7 @@ end
 # Compute the Berry curvature and optionally, the Chern number
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
     @timeit tba.timer "eigenvectors" eigenvectors = eigvecs(tba, bc)
-    g = isnothing(tba.frontend.commutator) ? Diagonal(ones(Int, dimension(tba.frontend))) : inv(tba.frontend.commutator)
+    g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba.frontend))) : inv(getcontent(tba.frontend, :commutator))
     @timeit tba.timer "Berry curvature" for i = 1:length(bc.data[1]), j = 1:length(bc.data[2])
         vs₁ = eigenvectors[i, j, :, :]
         vs₂ = eigenvectors[i+1, j, :, :]
