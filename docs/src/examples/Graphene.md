@@ -30,7 +30,7 @@ t = Hopping(:t, -1.0, 1)
 graphene = Algorithm(:Graphene, TBA(unitcell, hilbert, (t,)))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(unitcell.reciprocals, hexagon"Γ-K-M-Γ", length=100)
+path = ReciprocalPath(reciprocals(unitcell), hexagon"Γ-K-M-Γ", length=100)
 
 # compute the energy bands along the above path
 energybands = graphene(:EB, EnergyBands(path))
@@ -44,7 +44,7 @@ plot(energybands)
 Graphene supports flatband edge states on zigzag boundaries. Only minor modifications are needed to compute them:
 ```@example graphene
 # define a cylinder geometry with zigzag edges
-lattice = Lattice(unitcell, translations"1P-100O")
+lattice = Lattice(unitcell, Translations((1, 100), ('P', 'O')))
 
 # define the new Hilbert space corresponding to the cylinder
 hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
@@ -53,7 +53,7 @@ hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
 zigzag = Algorithm(:Graphene, TBA(lattice, hilbert, (t,)))
 
 # define new the path in the reciprocal space to compute the edge states
-path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", length=100)
+path = ReciprocalPath(reciprocals(lattice), line"Γ₁-Γ₂", length=100)
 
 # compute the energy bands along the above path
 edgestates = zigzag(:EB, EnergyBands(path))

@@ -37,7 +37,7 @@ t = Hopping(:t, 1.0, 1)
 sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
 
 # compute the energy bands along the above path
 energybands = sc(:EB, EnergyBands(path))
@@ -50,7 +50,7 @@ plot(energybands)
 The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated in the unitcell of the reciprocal space:
 ```@example p+ip
 # define the Brillouin zone
-brillouin = BrillouinZone(unitcell.reciprocals, 100)
+brillouin = BrillouinZone(reciprocals(unitcell), 100)
 
 # compute the Berry curvatures and Chern numbers of both quasiparticle bands
 berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
@@ -63,7 +63,7 @@ The Berry curvatures can also be computed on a reciprocal zone beyond the recipr
 ```@example p+ip
 # define the reciprocal zone
 reciprocalzone = ReciprocalZone(
-    unitcell.reciprocals,
+    reciprocals(unitcell),
     [Segment(-2.0, +2.0, 201, ends=(true, true)), Segment(-2.0, 2.0, 201, ends=(true, true))]
 )
 
@@ -79,7 +79,7 @@ plot(berry)
 With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:
 ```@example p+ip
 # define a cylinder geometry
-lattice = Lattice(unitcell, translations"1P-100O")
+lattice = Lattice(unitcell, Translations((1, 100), ('P', 'O')))
 
 # define the new Hilbert space corresponding to the cylinder
 hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
@@ -88,7 +88,7 @@ hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
 sc = Algorithm(Symbol("p+ip"), TBA(lattice, hilbert, (t, μ, Δ)))
 
 # define new the path in the reciprocal space to compute the edge states
-path = ReciprocalPath(lattice.reciprocals, line"Γ₁-Γ₂", length=100)
+path = ReciprocalPath(reciprocals(lattice), line"Γ₁-Γ₂", length=100)
 
 # compute the energy bands along the above path
 edgestates = sc(:Edge, EnergyBands(path))

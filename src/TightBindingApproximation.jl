@@ -234,6 +234,7 @@ abstract type AbstractTBA{K<:TBAKind, H<:RepresentationGenerator, G<:Union{Nothi
 @inline kind(::Type{<:AbstractTBA{K}}) where K = K()
 @inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, H}}) where {H<:RepresentationGenerator} = valtype(eltype(H))
 @inline dimension(tba::AbstractTBA{<:TBAKind, <:CompositeGenerator}) = length(getcontent(getcontent(tba, :H), :table))
+@inline dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression}) = dimension(getcontent(tba, :H).expression)
 @inline update!(tba::AbstractTBA; k=nothing, kwargs...) = ((length(kwargs)>0 && update!(getcontent(tba, :H); kwargs...)); tba)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
 

@@ -4,7 +4,7 @@ using QuantumLattices: dimension, kind, matrix, update!
 using QuantumLattices: Coupling, Hilbert, Metric, OperatorUnitToTuple
 using QuantumLattices: Algorithm, Parameters
 using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon
-using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, Segment, azimuth, rcoordinate, @rectangle_str
+using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, Segment, azimuth, rcoordinate, reciprocals, @rectangle_str
 using QuantumLattices: contentnames
 using TightBindingApproximation
 
@@ -62,7 +62,7 @@ end
 
     A(t, μ; k) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
     tbaₐ = TBA{Fermionic{:TBA}}(lattice, A, (t=1.0, μ=0.0))
-    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
+    path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
         m = matrix(tba; kv...)
         mₐ = matrix(tbaₐ; kv...)
@@ -84,7 +84,7 @@ end
 
     A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ -2im*Δ*sin(k[1])-2Δ*sin(k[2]); 2im*Δ*sin(k[1])-2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
     bdgₐ = TBA{Fermionic{:BdG}}(lattice, A, (t=1.0, μ=0.5, Δ=0.1))
-    path = ReciprocalPath(lattice.reciprocals, rectangle"Γ-X-M-Γ", length=8)
+    path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
         m = matrix(bdg; kv...)
         mₐ = matrix(bdgₐ; kv...)
@@ -92,8 +92,8 @@ end
     end
 
     samplesets = [
-        SampleNode(lattice.reciprocals, [0.0, 0.0], [1], [-4.0]),
-        SampleNode(lattice.reciprocals, [0.5, 0.5], [1], [+4.0])
+        SampleNode(reciprocals(lattice), [0.0, 0.0], [1], [-4.0]),
+        SampleNode(reciprocals(lattice), [0.5, 0.5], [1], [+4.0])
     ]
     op = optimize!(tba, samplesets)[2]
     @test isapprox(op.minimizer, [-1.0, 0.0], atol=10^-10)
@@ -106,19 +106,19 @@ end
     μ = Onsite(:μ, 3.5)
     Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(:, FID, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
-    path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+    path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
     energybands = sc(:EB, EnergyBands(path))
     plt = plot(energybands)
     display(plt)
     savefig(plt, "eb.png")
 
-    brillouin = BrillouinZone(unitcell.reciprocals, 100)
+    brillouin = BrillouinZone(reciprocals(unitcell), 100)
     berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
     plt = plot(berry)
     display(plt)
     savefig(plt, "bc.png")
 
-    reciprocalzone = ReciprocalZone(unitcell.reciprocals, [Segment(-2.0, +2.0, 201, ends=(true, true)), Segment(-2.0, 2.0, 201, ends=(true, true))])
+    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [Segment(-2.0, +2.0, 201, ends=(true, true)), Segment(-2.0, 2.0, 201, ends=(true, true))])
     berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
     plt = plot(berry)
     display(plt)
@@ -132,7 +132,7 @@ end
     V₁ = Hooke(:V₁, 0.5, 1)
     V₂ = Hooke(:V₂, 0.25, 2)
     phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))
-    path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+    path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
 
     energybands = phonon(:EB, EnergyBands(path))
     plt = plot(energybands)

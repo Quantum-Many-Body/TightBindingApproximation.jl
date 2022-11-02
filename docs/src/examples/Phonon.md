@@ -34,7 +34,7 @@ V₂ = Hooke(:V₂, 0.25, 2)
 phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(unitcell.reciprocals, rectangle"Γ-X-M-Γ", length=100)
+path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
 
 # compute the energy bands along the above path
 energybands = phonon(:EB, EnergyBands(path))
