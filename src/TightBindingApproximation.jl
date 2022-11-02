@@ -105,18 +105,17 @@ Get the commutation relation of the single-particle operators of a free quantum 
 @inline commutator(::Phononic, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, sum(dimension, values(hilbert))÷2))))
 
 """
-    TBAMatrix{K<:TBAKind, G<:Union{AbstractMatrix, Nothing}, H<:AbstractMatrix} <: AbstractMatrix{Number}
+    TBAMatrix{K<:TBAKind, G<:Union{AbstractMatrix, Nothing}, T, H<:AbstractMatrix{T}} <: AbstractMatrix{T}
 
 Matrix representation of a free quantum lattice system using the tight-binding approximation.
 """
-struct TBAMatrix{K<:TBAKind, G<:Union{AbstractMatrix, Nothing}, H<:AbstractMatrix} <: AbstractMatrix{Number}
+struct TBAMatrix{K<:TBAKind, G<:Union{AbstractMatrix, Nothing}, T, H<:AbstractMatrix{T}} <: AbstractMatrix{T}
     H::H
     commutator::G
     function TBAMatrix{K}(H::AbstractMatrix, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
-        new{K, typeof(commutator), typeof(H)}(H, commutator)
+        new{K, typeof(commutator), eltype(H), typeof(H)}(H, commutator)
     end
 end
-@inline Base.eltype(::Type{<:TBAMatrix{<:TBAKind, <:Union{AbstractMatrix, Nothing}, H}}) where {H<:AbstractMatrix} = eltype(H)
 @inline Base.size(m::TBAMatrix) = size(m.H)
 @inline Base.getindex(m::TBAMatrix, i::Integer, j::Integer) = m.H[i, j]
 @inline ishermitian(m::TBAMatrix) = ishermitian(typeof(m))
