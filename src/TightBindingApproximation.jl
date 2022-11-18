@@ -359,7 +359,7 @@ end
 @inline EnergyBands(path, levels::Union{Colon, Vector{Int}}=Colon(); options...) = EnergyBands(path, levels, convert(Dict{Symbol, Any}, options))
 @inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (collect(Float64, 0:(length(eb.path)-1)), zeros(Float64, length(eb.path), dimension(tba)))
 @inline initialize(eb::EnergyBands{P, Vector{Int}}, tba::AbstractTBA) where P = (collect(Float64, 0:(length(eb.path)-1)), zeros(Float64, length(eb.path), length(eb.levels)))
-@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(keys(eb.action.path))) eb.id
+@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.path))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     atol = get(eb.action.options, :atol, 10^-12)
     for (i, params) in enumerate(pairs(eb.action.path))
@@ -386,7 +386,7 @@ end
 # For the Berry curvature and Chern number on the first Brillouin zone
 @inline function initialize(bc::BerryCurvature{<:BrillouinZone}, tba::AbstractTBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    N₁, N₂ = periods(eltype(keys(bc.reciprocalspace)))
+    N₁, N₂ = periods(keytype(bc.reciprocalspace))
     x = collect(Float64, 0:(N₁-1))/N₁
     y = collect(Float64, 0:(N₂-1))/N₂
     z = zeros(Float64, length(y), length(x), length(bc.levels))
@@ -396,7 +396,7 @@ end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
     N₁, N₂ = length(bc.data[1]), length(bc.data[2])
     eigenvectors = zeros(ComplexF64, N₁+1, N₂+1, dimension(tba.frontend), length(bc.action.levels))
-    P = eltype(keys(bc.action.reciprocalspace))
+    P = keytype(bc.action.reciprocalspace)
     for i = 1:(N₁+1), j=1:(N₂+1)
         momentum = expand(P(i, j), bc.action.reciprocalspace.reciprocals)
         eigenvectors[i, j, :, :] = eigvecs(tba; k=momentum, bc.action.options...)[:, bc.action.levels]
