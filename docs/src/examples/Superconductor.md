@@ -63,8 +63,8 @@ The Berry curvatures can also be computed on a reciprocal zone beyond the recipr
 ```@example p+ip
 # define the reciprocal zone
 reciprocalzone = ReciprocalZone(
-    reciprocals(unitcell),
-    [Segment(-2.0, +2.0, 201, ends=(true, true)), Segment(-2.0, 2.0, 201, ends=(true, true))]
+    reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0];
+    length=201, ends=(true, true)
 )
 
 # compute the Berry curvature
@@ -79,7 +79,7 @@ plot(berry)
 With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:
 ```@example p+ip
 # define a cylinder geometry
-lattice = Lattice(unitcell, Translations((1, 100), ('P', 'O')))
+lattice = Lattice(unitcell, (1, 100), ('P', 'O'))
 
 # define the new Hilbert space corresponding to the cylinder
 hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))

@@ -101,8 +101,8 @@ Get the commutation relation of the single-particle operators of a free quantum 
 @inline commutator(::TBAKind, ::Hilbert{<:Internal}) = error("commutator error: not defined behavior.")
 @inline commutator(::Fermionic, ::Hilbert{<:Fock{:f}}) = nothing
 @inline commutator(::Bosonic{:TBA}, ::Hilbert{<:Fock{:b}}) = nothing
-@inline commutator(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(dimension, values(hilbert))÷2)))
-@inline commutator(::Phononic, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, sum(dimension, values(hilbert))÷2))))
+@inline commutator(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
+@inline commutator(::Phononic, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, sum(length, values(hilbert))÷2))))
 
 """
     TBAMatrix{K<:TBAKind, G<:Union{AbstractMatrix, Nothing}, T, H<:AbstractMatrix{T}} <: AbstractMatrix{T}
@@ -386,7 +386,7 @@ end
 # For the Berry curvature and Chern number on the first Brillouin zone
 @inline function initialize(bc::BerryCurvature{<:BrillouinZone}, tba::AbstractTBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    N₁, N₂ = periods(eltype(bc.reciprocalspace))
+    N₁, N₂ = periods(eltype(keys(bc.reciprocalspace)))
     x = collect(Float64, 0:(N₁-1))/N₁
     y = collect(Float64, 0:(N₂-1))/N₂
     z = zeros(Float64, length(y), length(x), length(bc.levels))
@@ -396,8 +396,9 @@ end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
     N₁, N₂ = length(bc.data[1]), length(bc.data[2])
     eigenvectors = zeros(ComplexF64, N₁+1, N₂+1, dimension(tba.frontend), length(bc.action.levels))
+    P = eltype(keys(bc.action.reciprocalspace))
     for i = 1:(N₁+1), j=1:(N₂+1)
-        momentum = expand(eltype(bc.action.reciprocalspace)(i, j), bc.action.reciprocalspace.reciprocals)
+        momentum = expand(P(i, j), bc.action.reciprocalspace.reciprocals)
         eigenvectors[i, j, :, :] = eigvecs(tba; k=momentum, bc.action.options...)[:, bc.action.levels]
     end
     return eigenvectors
@@ -493,7 +494,7 @@ struct InelasticNeutronScatteringSpectra{P<:ReciprocalPath, E<:AbstractVector, O
     energies::E
     options::O
     function InelasticNeutronScatteringSpectra(path::ReciprocalPath, energies::AbstractVector, options)
-        @assert keys(path)==(:k,) "InelasticNeutronScatteringSpectra error: the name of the momenta in the path must be :k."
+        @assert names(path)==(:k,) "InelasticNeutronScatteringSpectra error: the name of the momenta in the path must be :k."
         new{typeof(path), typeof(energies), typeof(options)}(path, energies, options)
     end
 end

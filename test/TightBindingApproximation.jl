@@ -4,7 +4,7 @@ using QuantumLattices: dimension, kind, matrix, update!
 using QuantumLattices: Coupling, Hilbert, Metric, OperatorUnitToTuple
 using QuantumLattices: Algorithm, Parameters
 using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon
-using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, Segment, azimuth, rcoordinate, reciprocals, @rectangle_str
+using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, azimuth, rcoordinate, reciprocals, @rectangle_str
 using QuantumLattices: contentnames
 using TightBindingApproximation
 
@@ -118,7 +118,7 @@ end
     display(plt)
     savefig(plt, "bc.png")
 
-    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [Segment(-2.0, +2.0, 201, ends=(true, true)), Segment(-2.0, 2.0, 201, ends=(true, true))])
+    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=201, ends=(true, true))
     berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
     plt = plot(berry)
     display(plt)

@@ -44,7 +44,7 @@ plot(energybands)
 Graphene supports flatband edge states on zigzag boundaries. Only minor modifications are needed to compute them:
 ```@example graphene
 # define a cylinder geometry with zigzag edges
-lattice = Lattice(unitcell, Translations((1, 100), ('P', 'O')))
+lattice = Lattice(unitcell, (1, 100), ('P', 'O'))
 
 # define the new Hilbert space corresponding to the cylinder
 hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
