@@ -396,9 +396,8 @@ end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
     N₁, N₂ = length(bc.data[1]), length(bc.data[2])
     eigenvectors = zeros(ComplexF64, N₁+1, N₂+1, dimension(tba.frontend), length(bc.action.levels))
-    P = keytype(bc.action.reciprocalspace)
     for i = 1:(N₁+1), j=1:(N₂+1)
-        momentum = expand(P(i, j), bc.action.reciprocalspace.reciprocals)
+        momentum = mapreduce(*, +, (i/N₁, j/N₂), bc.action.reciprocalspace.reciprocals)
         eigenvectors[i, j, :, :] = eigvecs(tba; k=momentum, bc.action.options...)[:, bc.action.levels]
     end
     return eigenvectors
