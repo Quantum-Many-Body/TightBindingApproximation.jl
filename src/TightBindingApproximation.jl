@@ -1,7 +1,7 @@
 module TightBindingApproximation
 
 using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, inv, norm
-using Optim: LBFGS, optimize
+using Optim: LBFGS, Options, optimize
 using Printf: @sprintf
 using QuantumLattices: expand
 using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, Internal, Metric, Table, Term, statistics
@@ -577,16 +577,14 @@ function deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets
 end
 
 """
-    optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}},
-        samplesets::Vector{SampleNode},
-        variables=keys(Parameters(tba));
-        verbose=false,
-        method=LBFGS()
+    optimize!(
+        tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba));
+        verbose=false, method=LBFGS(), x_tol=atol, f_tol=atol
     ) -> Tuple{typeof(tba), Optim.MultivariateOptimizationResults}
 
 Optimize the parameters of a tight binding system whose names are specified by `variables` so that the total deviations of the eigenvalues between the model points and sample points minimize.
 """
-function optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba)); verbose=false, method=LBFGS())
+function optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba)); verbose=false, method=LBFGS(), options=Options())
     v₀ = collect(getfield(Parameters(tba), name) for name in variables)
     function diff(v::Vector)
         parameters = Parameters{variables}(v...)
@@ -594,7 +592,7 @@ function optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets
         verbose && println(parameters)
         return deviation(tba, samplesets)
     end
-    op = optimize(diff, v₀, method)
+    op = optimize(diff, v₀, method, options)
     parameters = Parameters{variables}(op.minimizer...)
     update!(tba; parameters...)
     return tba, op
