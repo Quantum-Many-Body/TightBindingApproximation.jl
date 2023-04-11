@@ -8,7 +8,7 @@ using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, Internal
 using QuantumLattices: Action, Algorithm, AnalyticalExpression, Assignment, CompositeGenerator, Entry, Frontend, OperatorGenerator, Parameters, RepresentationGenerator
 using QuantumLattices: periods
 using QuantumLattices: ID, MatrixRepresentation, Operator, Operators, OperatorUnitToTuple, iidtype
-using QuantumLattices: annihilation, creation, Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon, PID
+using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon, PID, isannihilation, iscreation
 using QuantumLattices: AbstractLattice, BrillouinZone, Neighbors, ReciprocalPath, ReciprocalZone, bonds, icoordinate, rcoordinate
 using QuantumLattices: atol, rtol, decimaltostr, getcontent
 using RecipesBase: RecipesBase, @recipe, @series, @layout
@@ -202,7 +202,7 @@ function _add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:TBAKind{:BdG}
     phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
     seq₁==seq₂ || (atol = 0)
     dest[seq₁, seq₂] += m.value*phase+atol
-    if m[1].index.iid.nambu==creation && m[2].index.iid.nambu==annihilation
+    if iscreation(m[1]) && isannihilation(m[2])
         seq₁, seq₂ = mr.table[m[1].index], mr.table[m[2].index']
         dest[seq₁, seq₂] += sign*m.value*phase'+atol
     end
