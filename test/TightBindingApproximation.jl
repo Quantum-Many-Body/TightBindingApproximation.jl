@@ -1,4 +1,4 @@
-using LinearAlgebra: Diagonal, Hermitian, ishermitian
+using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Plots: plot, plot!, savefig
 using QuantumLattices: dimension, kind, matrix, update!
 using QuantumLattices: Coupling, Hilbert, Metric, OperatorUnitToTuple
@@ -68,6 +68,7 @@ end
         mₐ = matrix(tbaₐ; kv...)
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.0; kv...))
     end
+    @test eigen(tbaₐ, path) == (eigvals(tbaₐ, path), eigvecs(tbaₐ, path))
     update!(tba, μ=0.5)
     update!(tbaₐ, μ=0.5)
     for kv in pairs(path)
@@ -106,7 +107,9 @@ end
     μ = Onsite(:μ, 3.5)
     Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(:, FID, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
+    @test eigen(sc) == Eigen(eigvals(sc), eigvecs(sc))
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
+    @test eigen(sc, path) == (eigvals(sc, path), eigvecs(sc, path))
     energybands = sc(:EB, EnergyBands(path))
     plt = plot(energybands)
     display(plt)

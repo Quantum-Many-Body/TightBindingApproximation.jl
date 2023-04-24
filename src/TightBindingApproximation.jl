@@ -9,10 +9,10 @@ using QuantumLattices: Action, Algorithm, AnalyticalExpression, Assignment, Comp
 using QuantumLattices: periods
 using QuantumLattices: ID, MatrixRepresentation, Operator, Operators, OperatorUnitToTuple, iidtype
 using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon, PID, isannihilation, iscreation
-using QuantumLattices: AbstractLattice, BrillouinZone, Neighbors, ReciprocalPath, ReciprocalZone, bonds, icoordinate, rcoordinate
+using QuantumLattices: AbstractLattice, BrillouinZone, Neighbors, ReciprocalPath, ReciprocalSpace, ReciprocalZone, bonds, icoordinate, rcoordinate, ticks
 using QuantumLattices: atol, rtol, decimaltostr, getcontent
 using RecipesBase: RecipesBase, @recipe, @series, @layout
-using TimerOutputs: @timeit
+using TimerOutputs: TimerOutput, @timeit_debug
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian
 import QuantumLattices: add!, dimension, kind, matrix, update!
@@ -23,6 +23,8 @@ export Bosonic, Fermionic, Phononic, TBAKind
 export AbstractTBA, TBA, TBAMatrix, TBAMatrixRepresentation, commutator
 export BerryCurvature, EnergyBands, InelasticNeutronScatteringSpectra
 export SampleNode, deviation, optimize!
+
+const tbatimer = TimerOutput()
 
 """
     TBAKind{K}
@@ -253,55 +255,73 @@ end
 
 Get the matrix representation of a free quantum lattice system.
 """
+@inline matrix(tba::Algorithm{<:AbstractTBA}; kwargs...) = matrix(tba.frontend; kwargs...)
 @inline function matrix(tba::AbstractTBA; k=nothing, gauge=:icoordinate, kwargs...)
     return TBAMatrix{typeof(kind(tba))}(Hermitian(TBAMatrixRepresentation(tba, k; gauge=gauge)(expand(getcontent(tba, :H)); kwargs...)), getcontent(tba, :commutator))
 end
 @inline function matrix(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression}; kwargs...)
     return TBAMatrix{typeof(kind(tba))}(Hermitian(getcontent(tba, :H)(; kwargs...)), getcontent(tba, :commutator))
 end
-@inline matrix(tba::Algorithm{<:AbstractTBA}; kwargs...) = matrix(tba.frontend; kwargs...)
 
 """
     eigen(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}; kwargs...) -> Eigen
+    eigen(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, reciprocalspace::ReciprocalSpace; kwargs...) -> Tuple{Vector{<:Vector{<:Number}}, Vector{<:Matrix{<:Number}}}
 
 Get the eigen values and eigen vectors of a free quantum lattice system.
 """
-@inline eigen(tba::AbstractTBA; kwargs...) = eigen(matrix(tba; kwargs...))
-@inline function eigen(tba::Algorithm{<:AbstractTBA}; kwargs...)
-    @timeit tba.timer "eigen" begin
-        @timeit tba.timer "matrix" (m = matrix(tba; kwargs...))
-        @timeit tba.timer "diagonalization" (eigensystem = eigen(m))
+@inline eigen(tba::Algorithm{<:AbstractTBA}; kwargs...) = eigen(tba.frontend; timer=tba.timer, kwargs...)
+@inline function eigen(tba::AbstractTBA; timer::TimerOutput=tbatimer, kwargs...)
+    @timeit_debug timer "eigen" begin
+        @timeit_debug timer "matrix" (m = matrix(tba; kwargs...))
+        @timeit_debug timer "diagonalization" (eigensystem = eigen(m))
     end
     return eigensystem
+end
+@inline eigen(tba::Algorithm{<:AbstractTBA}, reciprocalspace::ReciprocalSpace; kwargs...) = eigen(tba.frontend, reciprocalspace; timer=tba.timer, kwargs...)
+function eigen(tba::AbstractTBA, reciprocalspace::ReciprocalSpace; timer::TimerOutput=tbatimer, kwargs...)
+    datatype = eltype(eltype(reciprocalspace))
+    values, vectors = Vector{datatype}[], Matrix{promote_type(datatype, Complex{Int})}[]
+    for momentum in reciprocalspace
+        eigensystem = eigen(tba; k=momentum, timer=timer, kwargs...)
+        push!(values, eigensystem.values)
+        push!(vectors, eigensystem.vectors)
+    end
+    return values, vectors
 end
 
 """
     eigvals(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}; kwargs...) -> Vector
+    eigvals(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, reciprocalspace::ReciprocalSpace; kwargs...) -> Vector{<:Vector}
 
 Get the eigen values of a free quantum lattice system.
 """
-@inline eigvals(tba::AbstractTBA; kwargs...) = eigvals(matrix(tba; kwargs...))
-@inline function eigvals(tba::Algorithm{<:AbstractTBA}; kwargs...)
-    @timeit tba.timer "eigvals" begin
-        @timeit tba.timer "matrix" (m = matrix(tba; kwargs...))
-        @timeit tba.timer "values" (eigenvalues = eigvals(m))
+@inline eigvals(tba::Algorithm{<:AbstractTBA}; kwargs...) = eigvals(tba.frontend; timer=tba.timer, kwargs...)
+@inline function eigvals(tba::AbstractTBA; timer::TimerOutput=tbatimer, kwargs...)
+    @timeit_debug timer "eigvals" begin
+        @timeit_debug timer "matrix" (m = matrix(tba; kwargs...))
+        @timeit_debug timer "values" (eigenvalues = eigvals(m))
     end
     return eigenvalues
 end
+@inline eigvals(tba::Algorithm{<:AbstractTBA}, reciprocalspace::ReciprocalSpace; kwargs...) = eigvals(tba.frontend, reciprocalspace; timer=tba.timer, kwargs...)
+@inline eigvals(tba::AbstractTBA, reciprocalspace::ReciprocalSpace; timer::TimerOutput=tbatimer, kwargs...) = [eigvals(tba; k=momentum, timer=timer, kwargs...) for momentum in reciprocalspace]
 
 """
     eigvecs(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}; kwargs...) -> Matrix
+    eigvecs(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, reciprocalspace::ReciprocalSpace; kwargs...) -> Vector{<:Matrix}
 
 Get the eigen vectors of a free quantum lattice system.
 """
-@inline eigvecs(tba::AbstractTBA; kwargs...) = eigvecs(matrix(tba; kwargs...))
-@inline function eigvecs(tba::Algorithm{<:AbstractTBA}; kwargs...)
-    @timeit tba.timer "eigvecs" begin
-        @timeit tba.timer "matrix" (m = matrix(tba; kwargs...))
-        @timeit tba.timer "vectors" (eigenvectors = eigvecs(m))
+@inline eigvecs(tba::Algorithm{<:AbstractTBA}; kwargs...) = eigvecs(tba.frontend; timer=tba.timer, kwargs...)
+@inline function eigvecs(tba::AbstractTBA; timer::TimerOutput=tbatimer, kwargs...)
+    @timeit_debug timer "eigvecs" begin
+        @timeit_debug timer "matrix" (m = matrix(tba; kwargs...))
+        @timeit_debug timer "vectors" (eigenvectors = eigvecs(m))
     end
     return eigenvectors
 end
+@inline eigvecs(tba::Algorithm{<:AbstractTBA}, reciprocalspace::ReciprocalSpace; kwargs...) = eigvecs(tba.frontend, reciprocalspace; timer=tba.timer, kwargs...)
+@inline eigvecs(tba::AbstractTBA, reciprocalspace::ReciprocalSpace; timer::TimerOutput=tbatimer, kwargs...) = [eigvecs(tba; k=momentum, timer=timer, kwargs...) for momentum in reciprocalspace]
 
 """
     TBA{K, L<:AbstractLattice, H<:RepresentationGenerator, G<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, H, G}
@@ -352,23 +372,38 @@ end
 Energy bands by tight-binding-approximation for quantum lattice systems.
 """
 struct EnergyBands{P, L<:Union{Colon, Vector{Int}}, O} <: Action
-    path::P
+    basespace::P
     levels::L
     options::O
 end
-@inline EnergyBands(path, levels::Union{Colon, Vector{Int}}=Colon(); options...) = EnergyBands(path, levels, convert(Dict{Symbol, Any}, options))
-@inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (collect(Float64, 0:(length(eb.path)-1)), zeros(Float64, length(eb.path), dimension(tba)))
-@inline initialize(eb::EnergyBands{P, Vector{Int}}, tba::AbstractTBA) where P = (collect(Float64, 0:(length(eb.path)-1)), zeros(Float64, length(eb.path), length(eb.levels)))
-@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.path))) eb.id
+@inline EnergyBands(basespace, levels::Union{Colon, Vector{Int}}=Colon(); options...) = EnergyBands(basespace, levels, options)
+@inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (collect(eb.basespace), zeros(Float64, length(eb.basespace), dimension(tba)))
+@inline initialize(eb::EnergyBands{P, Vector{Int}}, tba::AbstractTBA) where P = (collect(eb.basespace), zeros(Float64, length(eb.basespace), length(eb.levels)))
+@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.basespace))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     atol = get(eb.action.options, :atol, 10^-12)
-    for (i, params) in enumerate(pairs(eb.action.path))
+    for (i, params) in enumerate(pairs(eb.action.basespace))
         update!(tba; params...)
-        length(params)==1 && isa(first(params), Number) && (eb.data[1][i] = first(params))
         eigenvalues = eigvals(tba; params..., eb.action.options...)[eb.action.levels]
         @assert norm(imag(eigenvalues))<atol "run! error: imaginary eigen energies at $(params) with the norm of all imaginary parts being $(norm(imag(eigenvalues)))."
         eb.data[2][i, :] = real(eigenvalues)
     end
+end
+# Plot the energy bands along a high symmetric path
+@recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:EnergyBands{<:ReciprocalPath}}})
+    title --> nameof(pack[1], pack[2])
+    titlefontsize --> 10
+    legend --> false
+    seriestype --> :path
+    yminorticks --> 10
+    xminorticks --> 10
+    minorgrid --> true
+    ylabel --> "E"
+    path = pack[2].action.basespace
+    xticks --> ticks(path)
+    xlabel --> string(names(path)[1])
+    xlims --> (0, length(path)-1)
+    collect(0:length(path)-1), pack[2].data[2]
 end
 
 """
@@ -377,16 +412,16 @@ end
 Berry curvature of energy bands with the spirit of a momentum space discretization method by [Fukui et al, JPSJ 74, 1674 (2005)](https://journals.jps.jp/doi/10.1143/JPSJ.74.1674).
 """
 struct BerryCurvature{B<:Union{BrillouinZone, ReciprocalZone}, O} <: Action
-    reciprocalspace::B
+    basespace::B
     levels::Vector{Int}
     options::O
 end
-@inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, levels::Vector{Int}; options...) = BerryCurvature(reciprocalspace, levels, convert(Dict{Symbol, Any}, options))
+@inline BerryCurvature(basespace::Union{BrillouinZone, ReciprocalZone}, levels::Vector{Int}; options...) = BerryCurvature(basespace, levels, convert(Dict{Symbol, Any}, options))
 
 # For the Berry curvature and Chern number on the first Brillouin zone
 @inline function initialize(bc::BerryCurvature{<:BrillouinZone}, tba::AbstractTBA)
-    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    N₁, N₂ = periods(keytype(bc.reciprocalspace))
+    @assert length(bc.basespace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
+    N₁, N₂ = periods(keytype(bc.basespace))
     x = collect(Float64, 0:(N₁-1))/N₁
     y = collect(Float64, 0:(N₂-1))/N₂
     z = zeros(Float64, length(y), length(x), length(bc.levels))
@@ -394,43 +429,42 @@ end
     return (x, y, z, n)
 end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
-    N₁, N₂ = length(bc.data[1]), length(bc.data[2])
-    eigenvectors = zeros(ComplexF64, N₁+1, N₂+1, dimension(tba.frontend), length(bc.action.levels))
-    for i = 1:(N₁+1), j=1:(N₂+1)
-        momentum = mapreduce(*, +, (i/N₁, j/N₂), bc.action.reciprocalspace.reciprocals)
-        eigenvectors[i, j, :, :] = eigvecs(tba; k=momentum, bc.action.options...)[:, bc.action.levels]
+    eigenvectors = eigvecs(tba, bc.action.basespace; bc.action.options...)
+    result = Matrix{eltype(eigenvectors)}(undef, length(bc.data[1])+1, length(bc.data[2])+1)
+    for i=1:length(bc.data[1])+1, j=1:length(bc.data[2])+1
+        result[i, j] = eigenvectors[Int(keytype(bc.action.basespace)(i, j))][:, bc.action.levels]
     end
-    return eigenvectors
+    return result
 end
 
 # For the Berry curvature on a specific zone in the reciprocal space
 @inline function initialize(bc::BerryCurvature{<:ReciprocalZone}, tba::AbstractTBA)
-    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    x = collect(bc.reciprocalspace.bounds[1])[1:end-1]
-    y = collect(bc.reciprocalspace.bounds[2])[1:end-1]
+    @assert length(bc.basespace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
+    x = collect(bc.basespace.bounds[1])[1:end-1]
+    y = collect(bc.basespace.bounds[2])[1:end-1]
     z = zeros(Float64, length(y), length(x), length(bc.levels))
     return (x, y, z)
 end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalZone}})
-    N₁, N₂ = length(bc.data[1]), length(bc.data[2])
-    indices = CartesianIndices((1:(N₂+1), 1:(N₁+1)))
-    eigenvectors = zeros(ComplexF64, N₁+1, N₂+1, dimension(tba.frontend), length(bc.action.levels))
-    for (index, momentum) in enumerate(bc.action.reciprocalspace)
-        j, i = Tuple(indices[index])
-        eigenvectors[i, j, :, :] = eigvecs(tba; k=momentum, bc.action.options...)[:, bc.action.levels]
+    eigenvectors = eigvecs(tba, bc.action.basespace; bc.action.options...)
+    result = Matrix{eltype(eigenvectors)}(undef, length(bc.data[1])+1, length(bc.data[2])+1)
+    count = 1
+    for i=1:length(bc.data[1])+1, j=1:length(bc.data[2])+1
+        result[i, j] = eigenvectors[count][:, bc.action.levels]
+        count += 1
     end
-    return eigenvectors
+    return result
 end
 
 # Compute the Berry curvature and optionally, the Chern number
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
-    @timeit tba.timer "eigenvectors" eigenvectors = eigvecs(tba, bc)
+    eigenvectors = eigvecs(tba, bc)
     g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba.frontend))) : inv(getcontent(tba.frontend, :commutator))
-    @timeit tba.timer "Berry curvature" for i = 1:length(bc.data[1]), j = 1:length(bc.data[2])
-        vs₁ = eigenvectors[i, j, :, :]
-        vs₂ = eigenvectors[i+1, j, :, :]
-        vs₃ = eigenvectors[i+1, j+1, :, :]
-        vs₄ = eigenvectors[i, j+1, :, :]
+    @timeit_debug tba.timer "Berry curvature" for i = 1:length(bc.data[1]), j = 1:length(bc.data[2])
+        vs₁ = eigenvectors[i, j]
+        vs₂ = eigenvectors[i+1, j]
+        vs₃ = eigenvectors[i+1, j+1]
+        vs₄ = eigenvectors[i, j+1]
         for k = 1:length(bc.action.levels)
             p₁ = vs₁[:, k]'*g*vs₂[:, k]
             p₂ = vs₂[:, k]'*g*vs₃[:, k]
@@ -484,22 +518,22 @@ end
 end
 
 """
-    InelasticNeutronScatteringSpectra{P<:ReciprocalPath, E<:AbstractVector, O} <: Action
+    InelasticNeutronScatteringSpectra{P<:ReciprocalSpace, E<:AbstractVector, O} <: Action
 
 Inelastic neutron scattering spectra.
 """
-struct InelasticNeutronScatteringSpectra{P<:ReciprocalPath, E<:AbstractVector, O} <: Action
-    path::P
+struct InelasticNeutronScatteringSpectra{P<:ReciprocalSpace, E<:AbstractVector, O} <: Action
+    reciprocalspace::P
     energies::E
     options::O
-    function InelasticNeutronScatteringSpectra(path::ReciprocalPath, energies::AbstractVector, options)
-        @assert names(path)==(:k,) "InelasticNeutronScatteringSpectra error: the name of the momenta in the path must be :k."
-        new{typeof(path), typeof(energies), typeof(options)}(path, energies, options)
+    function InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector, options)
+        @assert names(reciprocalspace)==(:k,) "InelasticNeutronScatteringSpectra error: the name of the momenta in the reciprocalspace must be :k."
+        new{typeof(reciprocalspace), typeof(energies), typeof(options)}(reciprocalspace, energies, options)
     end
 end
-@inline InelasticNeutronScatteringSpectra(path::ReciprocalPath, energies::AbstractVector; options...) = InelasticNeutronScatteringSpectra(path, energies, options)
+@inline InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector; options...) = InelasticNeutronScatteringSpectra(reciprocalspace, energies, options)
 @inline function initialize(inss::InelasticNeutronScatteringSpectra, tba::AbstractTBA)
-    x = collect(Float64, 0:(length(inss.path)-1))
+    x = collect(inss.reciprocalspace)
     y = collect(Float64, inss.energies)
     z = zeros(Float64, length(y), length(x))
     return (x, y, z)
@@ -511,19 +545,19 @@ function run!(tba::Algorithm{<:AbstractTBA{Phononic}}, inss::Assignment{<:Inelas
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     check = get(inss.action.options, :check, true)
     sequences = Dict(site=>[tba.frontend.H.table[Index(site, PID('u', Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.H.hilbert))
-    for (i, momentum) in enumerate(inss.action.path)
-        eigenvalues, eigenvectors = eigen(tba; k=momentum, inss.action.options...)
-        check && @timeit tba.timer "check" check_polarizations(@views(eigenvectors[(dim÷2+1):dim, 1:(dim÷2)]), @views(eigenvectors[(dim÷2+1):dim, dim:-1:(dim÷2+1)]), momentum./pi)
-        @timeit tba.timer "spectra" begin
+    eigenvalues, eigenvectors = eigen(tba, inss.action.reciprocalspace; inss.action.options...)
+    for (i, (momentum, values, vectors)) in enumerate(zip(inss.action.reciprocalspace, eigenvalues, eigenvectors))
+        check && @timeit_debug tba.timer "check" check_polarizations(@views(vectors[(dim÷2+1):dim, 1:(dim÷2)]), @views(vectors[(dim÷2+1):dim, dim:-1:(dim÷2+1)]), momentum./pi)
+        @timeit_debug tba.timer "spectra" begin
             for j = 1:dim
                 factor = 0
                 for (site, sequence) in pairs(sequences)
-                    factor += dot(momentum, eigenvectors[sequence, j])*exp(1im*dot(momentum, tba.frontend.lattice[site]))
+                    factor += dot(momentum, vectors[sequence, j])*exp(1im*dot(momentum, tba.frontend.lattice[site]))
                 end
                 factor = abs2(factor)/√(2pi)/σ
                 for (nₑ, e) in enumerate(inss.action.energies)
                     # instead of the Lorentz broadening of δ function, the convolution with a FWHM Gaussian is used.
-                    inss.data[3][nₑ, i] += factor*exp(-(e-eigenvalues[j])^2/2/σ^2)
+                    inss.data[3][nₑ, i] += factor*exp(-(e-values[j])^2/2/σ^2)
                 end
             end
         end
@@ -535,6 +569,23 @@ end
     isapprox(inner, 1; atol=100*atol, rtol=100*rtol) || begin
         @warn("check_polarizations: small inner product $inner at π*$momentum, indication of degeneracy, otherwise inconsistent polarization vectors.")
     end
+end
+
+# Plot the inelastic neutron scattering spectra along a high symmetric path
+@recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:InelasticNeutronScatteringSpectra{<:ReciprocalPath}}})
+    title --> nameof(pack[1], pack[2])
+    titlefontsize --> 10
+    legend --> false
+    seriestype --> :heatmap
+    yminorticks --> 10
+    xminorticks --> 10
+    minorgrid --> true
+    ylabel --> "E"
+    path = pack[2].action.reciprocalspace
+    xticks --> ticks(path)
+    xlabel --> string(names(path)[1])
+    xlims --> (0, length(path)-1)
+    collect(0:length(path)-1), pack[2].data[2], pack[2].data[3]
 end
 
 """
