@@ -9,8 +9,8 @@ using QuantumLattices: Action, Algorithm, AnalyticalExpression, Assignment, Comp
 using QuantumLattices: periods
 using QuantumLattices: ID, MatrixRepresentation, Operator, Operators, OperatorUnitToTuple, iidtype
 using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon, PID, isannihilation, iscreation
-using QuantumLattices: AbstractLattice, BrillouinZone, Neighbors, ReciprocalPath, ReciprocalSpace, ReciprocalZone, bonds, icoordinate, rcoordinate, ticks
-using QuantumLattices: atol, rtol, decimaltostr, getcontent
+using QuantumLattices: AbstractLattice, BrillouinZone, Neighbors, ReciprocalPath, ReciprocalSpace, ReciprocalZone, bonds, icoordinate, rcoordinate, shrink
+using QuantumLattices: atol, rtol, decimaltostr, getcontent, shape
 using RecipesBase: RecipesBase, @recipe, @series, @layout
 using TimerOutputs: TimerOutput, @timeit_debug
 
@@ -377,8 +377,8 @@ struct EnergyBands{P, L<:Union{Colon, Vector{Int}}, O} <: Action
     options::O
 end
 @inline EnergyBands(basespace, levels::Union{Colon, Vector{Int}}=Colon(); options...) = EnergyBands(basespace, levels, options)
-@inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (collect(eb.basespace), zeros(Float64, length(eb.basespace), dimension(tba)))
-@inline initialize(eb::EnergyBands{P, Vector{Int}}, tba::AbstractTBA) where P = (collect(eb.basespace), zeros(Float64, length(eb.basespace), length(eb.levels)))
+@inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (eb.basespace, zeros(Float64, length(eb.basespace), dimension(tba)))
+@inline initialize(eb::EnergyBands{P, Vector{Int}}, ::AbstractTBA) where P = (eb.basespace, zeros(Float64, length(eb.basespace), length(eb.levels)))
 @inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.basespace))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     atol = get(eb.action.options, :atol, 10^-12)
@@ -389,22 +389,6 @@ function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
         eb.data[2][i, :] = real(eigenvalues)
     end
 end
-# Plot the energy bands along a high symmetric path
-@recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:EnergyBands{<:ReciprocalPath}}})
-    title --> nameof(pack[1], pack[2])
-    titlefontsize --> 10
-    legend --> false
-    seriestype --> :path
-    yminorticks --> 10
-    xminorticks --> 10
-    minorgrid --> true
-    ylabel --> "E"
-    path = pack[2].action.basespace
-    xticks --> ticks(path)
-    xlabel --> string(names(path)[1])
-    xlims --> (0, length(path)-1)
-    collect(0:length(path)-1), pack[2].data[2]
-end
 
 """
     BerryCurvature{B<:Union{BrillouinZone, ReciprocalZone}, O} <: Action
@@ -412,44 +396,43 @@ end
 Berry curvature of energy bands with the spirit of a momentum space discretization method by [Fukui et al, JPSJ 74, 1674 (2005)](https://journals.jps.jp/doi/10.1143/JPSJ.74.1674).
 """
 struct BerryCurvature{B<:Union{BrillouinZone, ReciprocalZone}, O} <: Action
-    basespace::B
+    reciprocalspace::B
     levels::Vector{Int}
     options::O
 end
-@inline BerryCurvature(basespace::Union{BrillouinZone, ReciprocalZone}, levels::Vector{Int}; options...) = BerryCurvature(basespace, levels, convert(Dict{Symbol, Any}, options))
+@inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, levels::Vector{Int}; options...) = BerryCurvature(reciprocalspace, levels, convert(Dict{Symbol, Any}, options))
 
 # For the Berry curvature and Chern number on the first Brillouin zone
-@inline function initialize(bc::BerryCurvature{<:BrillouinZone}, tba::AbstractTBA)
-    @assert length(bc.basespace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    N₁, N₂ = periods(keytype(bc.basespace))
-    x = collect(Float64, 0:(N₁-1))/N₁
-    y = collect(Float64, 0:(N₂-1))/N₂
-    z = zeros(Float64, length(y), length(x), length(bc.levels))
+@inline function initialize(bc::BerryCurvature{<:BrillouinZone}, ::AbstractTBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
+    ny, nx = map(length, shape(bc.reciprocalspace))
+    z = zeros(Float64, ny, nx, length(bc.levels))
     n = zeros(Float64, length(bc.levels))
-    return (x, y, z, n)
+    return (bc.reciprocalspace, z, n)
 end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
-    eigenvectors = eigvecs(tba, bc.action.basespace; bc.action.options...)
-    result = Matrix{eltype(eigenvectors)}(undef, length(bc.data[1])+1, length(bc.data[2])+1)
-    for i=1:length(bc.data[1])+1, j=1:length(bc.data[2])+1
-        result[i, j] = eigenvectors[Int(keytype(bc.action.basespace)(i, j))][:, bc.action.levels]
+    eigenvectors = eigvecs(tba, bc.action.reciprocalspace; bc.action.options...)
+    ny, nx = map(length, shape(bc.action.reciprocalspace))
+    result = Matrix{eltype(eigenvectors)}(undef, nx+1, ny+1)
+    for i=1:nx+1, j=1:ny+1
+        result[i, j] = eigenvectors[Int(keytype(bc.action.reciprocalspace)(i, j))][:, bc.action.levels]
     end
     return result
 end
 
 # For the Berry curvature on a specific zone in the reciprocal space
-@inline function initialize(bc::BerryCurvature{<:ReciprocalZone}, tba::AbstractTBA)
-    @assert length(bc.basespace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    x = collect(bc.basespace.bounds[1])[1:end-1]
-    y = collect(bc.basespace.bounds[2])[1:end-1]
-    z = zeros(Float64, length(y), length(x), length(bc.levels))
-    return (x, y, z)
+@inline function initialize(bc::BerryCurvature{<:ReciprocalZone}, ::AbstractTBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
+    ny, nx = map(length, shape(bc.reciprocalspace))
+    z = zeros(Float64, ny-1, nx-1, length(bc.levels))
+    return (shrink(bc.reciprocalspace, 1:nx-1, 1:ny-1), z)
 end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalZone}})
-    eigenvectors = eigvecs(tba, bc.action.basespace; bc.action.options...)
-    result = Matrix{eltype(eigenvectors)}(undef, length(bc.data[1])+1, length(bc.data[2])+1)
+    eigenvectors = eigvecs(tba, bc.action.reciprocalspace; bc.action.options...)
+    ny, nx = map(length, shape(bc.action.reciprocalspace))
+    result = Matrix{eltype(eigenvectors)}(undef, nx, ny)
     count = 1
-    for i=1:length(bc.data[1])+1, j=1:length(bc.data[2])+1
+    for i=1:nx, j=1:ny
         result[i, j] = eigenvectors[count][:, bc.action.levels]
         count += 1
     end
@@ -460,7 +443,7 @@ end
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
     eigenvectors = eigvecs(tba, bc)
     g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba.frontend))) : inv(getcontent(tba.frontend, :commutator))
-    @timeit_debug tba.timer "Berry curvature" for i = 1:length(bc.data[1]), j = 1:length(bc.data[2])
+    @timeit_debug tba.timer "Berry curvature" for i = 1:size(eigenvectors)[1]-1, j = 1:size(eigenvectors)[2]-1
         vs₁ = eigenvectors[i, j]
         vs₂ = eigenvectors[i+1, j]
         vs₃ = eigenvectors[i+1, j+1]
@@ -470,8 +453,8 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
             p₂ = vs₂[:, k]'*g*vs₃[:, k]
             p₃ = vs₃[:, k]'*g*vs₄[:, k]
             p₄ = vs₄[:, k]'*g*vs₁[:, k]
-            bc.data[3][j, i, k] = angle(p₁*p₂*p₃*p₄)
-            length(bc.data)==4 && (bc.data[4][k] += bc.data[3][j, i, k]/2pi)
+            bc.data[2][j, i, k] = angle(p₁*p₂*p₃*p₄)
+            length(bc.data)==3 && (bc.data[3][k] += bc.data[2][j, i, k]/2pi)
         end
     end
     length(bc.data)==4 && @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn level for (cn, level) in zip(bc.data[4], bc.action.levels)], ", "))
@@ -479,42 +462,15 @@ end
 
 # Plot the Berry curvature and optionally, the Chern number
 @recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:BerryCurvature}})
-    titles = if length(pack[2].data)==4
-        [@sprintf("level %s (C = %s)", level, decimaltostr(chn)) for (level, chn) in zip(pack[2].action.levels, pack[2].data[4])]
+    subtitles --> if length(pack[2].data)==3
+        [@sprintf("level %s (C = %s)", level, decimaltostr(chn)) for (level, chn) in zip(pack[2].action.levels, pack[2].data[3])]
     else
         [@sprintf("level %s", level) for level in pack[2].action.levels]
     end
-    nr = round(Int, sqrt(length(titles)))
-    nc = ceil(Int, length(titles)/nr)
-    layout := @layout [(nr, nc); b{0.05h}]
-    Δ₁ = pack[2].data[1][2]-pack[2].data[1][1]
-    Δ₂ = pack[2].data[2][2]-pack[2].data[2][1]
-    xlims = (pack[2].data[1][1]-Δ₁, pack[2].data[1][end]+Δ₁)
-    ylims = (pack[2].data[2][1]-Δ₂, pack[2].data[2][end]+Δ₂)
-    clims = extrema(pack[2].data[3])
-    for i = 1:length(titles)
-        @series begin
-            seriestype := :heatmap
-            title := titles[i]
-            titlefontsize := 8
-            colorbar := false
-            aspect_ratio := :equal
-            subplot := i
-            xlims := xlims
-            ylims := ylims
-            clims := clims
-            xlabel := "k₁"
-            ylabel := "k₂"
-            pack[2].data[1], pack[2].data[2], pack[2].data[3][:, :, i]
-        end
-    end
+    subtitlefontsize --> 8
     plot_title --> nameof(pack[1], pack[2])
     plot_titlefontsize --> 10
-    seriestype := :heatmap
-    colorbar := false
-    subplot := nr*nc+1
-    yticks := (0:1, ("", ""))
-    LinRange(clims..., 100), [0, 1], [LinRange(clims..., 100)'; LinRange(clims..., 100)']
+    pack[2].data[1:2]
 end
 
 """
@@ -532,12 +488,7 @@ struct InelasticNeutronScatteringSpectra{P<:ReciprocalSpace, E<:AbstractVector, 
     end
 end
 @inline InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector; options...) = InelasticNeutronScatteringSpectra(reciprocalspace, energies, options)
-@inline function initialize(inss::InelasticNeutronScatteringSpectra, tba::AbstractTBA)
-    x = collect(inss.reciprocalspace)
-    y = collect(Float64, inss.energies)
-    z = zeros(Float64, length(y), length(x))
-    return (x, y, z)
-end
+@inline initialize(inss::InelasticNeutronScatteringSpectra, ::AbstractTBA) = (inss.reciprocalspace, inss.energies, zeros(Float64, length(inss.energies), length(inss.reciprocalspace)))
 
 # Inelastic neutron scattering spectra for phonons.
 function run!(tba::Algorithm{<:AbstractTBA{Phononic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
@@ -569,23 +520,6 @@ end
     isapprox(inner, 1; atol=100*atol, rtol=100*rtol) || begin
         @warn("check_polarizations: small inner product $inner at π*$momentum, indication of degeneracy, otherwise inconsistent polarization vectors.")
     end
-end
-
-# Plot the inelastic neutron scattering spectra along a high symmetric path
-@recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:InelasticNeutronScatteringSpectra{<:ReciprocalPath}}})
-    title --> nameof(pack[1], pack[2])
-    titlefontsize --> 10
-    legend --> false
-    seriestype --> :heatmap
-    yminorticks --> 10
-    xminorticks --> 10
-    minorgrid --> true
-    ylabel --> "E"
-    path = pack[2].action.reciprocalspace
-    xticks --> ticks(path)
-    xlabel --> string(names(path)[1])
-    xlims --> (0, length(path)-1)
-    collect(0:length(path)-1), pack[2].data[2], pack[2].data[3]
 end
 
 """
