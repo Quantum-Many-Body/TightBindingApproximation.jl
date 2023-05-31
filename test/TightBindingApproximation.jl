@@ -1,10 +1,10 @@
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Plots: plot, plot!, savefig
 using QuantumLattices: dimension, kind, matrix, update!
-using QuantumLattices: Coupling, Hilbert, Metric, OperatorUnitToTuple
+using QuantumLattices: Coupling, Hilbert, MatrixCoupling, Metric, OperatorUnitToTuple
 using QuantumLattices: Algorithm, Parameters
 using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon
-using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, azimuth, rcoordinate, reciprocals, @rectangle_str
+using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, azimuth, rcoordinate, reciprocals, @rectangle_str, @σ_str
 using QuantumLattices: contentnames
 using TightBindingApproximation
 
@@ -100,7 +100,7 @@ end
     @test isapprox(op.minimizer, [-1.0, 0.0], atol=10^-10)
 end
 
-@time @testset "plot" begin
+@time @testset "EnergyBands and BerryCurvature" begin
     unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
     t = Hopping(:t, 1.0, 1)
@@ -108,27 +108,36 @@ end
     Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(:, FID, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
     @test eigen(sc) == Eigen(eigvals(sc), eigvecs(sc))
+
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
     @test eigen(sc, path) == (eigvals(sc, path), eigvecs(sc, path))
-    energybands = sc(:EB, EnergyBands(path))
-    plt = plot(energybands)
-    display(plt)
-    savefig(plt, "eb.png")
+    savefig(plot(sc(:EB, EnergyBands(path))), "eb.png")
 
     brillouin = BrillouinZone(reciprocals(unitcell), 100)
-    berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
-    plt = plot(berry)
-    display(plt)
-    savefig(plt, "bc.png")
+    savefig(plot(sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]))), "bc.png")
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=201, ends=(true, true))
-    berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
-    plt = plot(berry)
-    display(plt)
-    savefig(plt, "bcextended.png")
+    savefig(plot(sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))), "bcextended.png")
 end
 
-@time @testset "phonon" begin
+@time @testset "FermiSurface and DensityOfStates" begin
+    unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+    hilbert = Hilbert(site=>Fock{:f}(1, 2) for site=1:length(unitcell))
+    t = Hopping(:t, 1.0, 1)
+    h = Onsite(:h, 0.1, MatrixCoupling(:, FID, :, σ"z", :))
+    tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
+
+    brillouin = BrillouinZone(reciprocals(unitcell), 200)
+    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "fs-all.png")
+    savefig(plot(tba(Symbol("FermiSurface-SpinDependent"), FermiSurface(brillouin, 0.0, [1], [2]))), "fs-spin.png")
+    savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, [1], [2]))), "dos.png")
+
+    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=401, ends=(true, true))
+    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "fs-extended-all.png")
+    savefig(plot(tba(Symbol("FermiSurfaceExtended-SpinDependent"), FermiSurface(reciprocalzone, 0.0, [1], [2]))), "fs-extended-spin.png")
+end
+
+@time @testset "InelasticNeutronScatteringSpectra" begin
     unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(site=>Phonon(2) for site=1:length(unitcell))
     T = Kinetic(:T, 0.5)
@@ -138,14 +147,11 @@ end
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
 
     energybands = phonon(:EB, EnergyBands(path))
-    plt = plot(energybands)
-    display(plt)
-    savefig(plt, "phonon.png")
+    savefig(plot(energybands), "phonon.png")
 
     inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, scale=log))
     plt = plot()
     plot!(plt, inelastic)
     plot!(plt, energybands, color=:white, linestyle=:dash)
-    display(plt)
     savefig("inelastic.png")
 end

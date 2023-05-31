@@ -21,7 +21,7 @@ import QuantumLattices: contentnames
 
 export Bosonic, Fermionic, Phononic, TBAKind
 export AbstractTBA, TBA, TBAMatrix, TBAMatrixRepresentation, commutator
-export BerryCurvature, EnergyBands, InelasticNeutronScatteringSpectra
+export BerryCurvature, DensityOfStates, EnergyBands, FermiSurface, InelasticNeutronScatteringSpectra
 export SampleNode, deviation, optimize!
 
 const tbatimer = TimerOutput()
@@ -471,6 +471,93 @@ end
     plot_title --> nameof(pack[1], pack[2])
     plot_titlefontsize --> 10
     pack[2].data[1:2]
+end
+
+function spectralfunction(tbakind::TBAKind, ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, orbitals::Union{Colon, Vector{Int}}=:; σ::Real)
+    result = zero(ω)
+    start = isa(tbakind, TBAKind{:TBA}) ? 1 : length(values)÷2
+    for i = start:length(values)
+        factor = mapreduce(abs2, +, vectors[orbitals, i])
+        result += factor*exp(-(ω-values[i])^2/2/σ^2)
+    end
+    return result/√(2pi)/σ
+end
+"""
+    FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+
+Fermi surface of a free fermionic system.
+"""
+struct FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+    reciprocalspace::B
+    μ::Float64
+    orbitals::L
+    options::O
+end
+@inline FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, orbitals::Union{Colon, Vector{Int}}...=:; options...) = FermiSurface(reciprocalspace, μ, orbitals, options)
+function initialize(fs::FermiSurface, ::AbstractTBA)
+    @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only two dimensional reciprocal spaces are supported."
+    ny, nx = map(length, shape(fs.reciprocalspace))
+    z = zeros(Float64, ny, nx, length(fs.orbitals))
+    return (fs.reciprocalspace, z)
+end
+function run!(tba::Algorithm{<:AbstractTBA{<:Fermionic{:TBA}}}, fs::Assignment{<:FermiSurface})
+    count = 1
+    σ = get(fs.action.options, :fwhm, 0.1)/2/√(2*log(2))
+    eigenvalues, eigenvectors = eigen(tba, fs.action.reciprocalspace)
+    ny, nx = map(length, shape(fs.action.reciprocalspace))
+    for i=1:nx, j=1:ny
+        for (k, orbitals) in enumerate(fs.action.orbitals)
+            fs.data[2][j, i, k] += spectralfunction(kind(tba.frontend), fs.action.μ, eigenvalues[count], eigenvectors[count], orbitals; σ=σ)
+        end
+        count += 1
+    end
+end
+@recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:FermiSurface}})
+    if size(pack[2].data[2])[3]==1
+        title --> nameof(pack...)
+        titlefontsize --> 10
+        pack[2].data[1], pack[2].data[2][:, :, 1]
+    else
+        subtitles --> [@sprintf("orbitals: %s", (orbitals==:) ? "all" : join(orbitals, ", ")) for orbitals in pack[2].action.orbitals]
+        subtitlefontsize --> 8
+        plot_title --> nameof(pack[1], pack[2])
+        plot_titlefontsize --> 10
+        pack[2].data
+    end
+end
+
+"""
+    DensityOfStates{B<:BrillouinZone, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+
+Density of states of a tight-binding system.
+"""
+struct DensityOfStates{B<:BrillouinZone, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+    brillouinzone::B
+    orbitals::L
+    options::O
+end
+@inline DensityOfStates(brillouinzone::BrillouinZone, orbitals::Union{Colon, Vector{Int}}...=:; options...) = DensityOfStates(brillouinzone, orbitals, options)
+@inline function initialize(dos::DensityOfStates, ::AbstractTBA)
+    ne = get(dos.options, :ne, 100)
+    x = zeros(Float64, ne)
+    z = zeros(Float64, ne, length(dos.orbitals))
+    return (x, z)
+end
+function run!(tba::Algorithm{<:AbstractTBA{<:Fermionic{:TBA}}}, dos::Assignment{<:DensityOfStates})
+    σ = get(dos.action.options, :fwhm, 0.1)/2/√(2*log(2))
+    eigenvalues, eigenvectors = eigen(tba, dos.action.brillouinzone)
+    emin = get(dos.action.options, :emin, mapreduce(minimum, min, eigenvalues))
+    emax = get(dos.action.options, :emin, mapreduce(maximum, max, eigenvalues))
+    ne = get(dos.action.options, :ne, 100)
+    nk = length(dos.action.brillouinzone)
+    for (i, ω) in enumerate(LinRange(emin, emax, ne))
+        dos.data[1][i] = ω
+        for (j, orbitals) in enumerate(dos.action.orbitals)
+            for (values, vectors) in zip(eigenvalues, eigenvectors)
+                dos.data[2][i, j] += spectralfunction(kind(tba.frontend), ω, values, vectors, orbitals; σ=σ)/nk
+            end
+        end
+    end
 end
 
 """
