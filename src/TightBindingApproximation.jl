@@ -547,14 +547,15 @@ function run!(tba::Algorithm{<:AbstractTBA{<:Fermionic{:TBA}}}, dos::Assignment{
     σ = get(dos.action.options, :fwhm, 0.1)/2/√(2*log(2))
     eigenvalues, eigenvectors = eigen(tba, dos.action.brillouinzone)
     emin = get(dos.action.options, :emin, mapreduce(minimum, min, eigenvalues))
-    emax = get(dos.action.options, :emin, mapreduce(maximum, max, eigenvalues))
+    emax = get(dos.action.options, :emax, mapreduce(maximum, max, eigenvalues))
     ne = get(dos.action.options, :ne, 100)
     nk = length(dos.action.brillouinzone)
+    dE = (emax-emin)/(ne-1)
     for (i, ω) in enumerate(LinRange(emin, emax, ne))
         dos.data[1][i] = ω
         for (j, orbitals) in enumerate(dos.action.orbitals)
             for (values, vectors) in zip(eigenvalues, eigenvectors)
-                dos.data[2][i, j] += spectralfunction(kind(tba.frontend), ω, values, vectors, orbitals; σ=σ)/nk
+                dos.data[2][i, j] += spectralfunction(kind(tba.frontend), ω, values, vectors, orbitals; σ=σ)/nk*dE
             end
         end
     end

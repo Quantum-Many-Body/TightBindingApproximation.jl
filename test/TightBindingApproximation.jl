@@ -130,7 +130,8 @@ end
     brillouin = BrillouinZone(reciprocals(unitcell), 200)
     savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "fs-all.png")
     savefig(plot(tba(Symbol("FermiSurface-SpinDependent"), FermiSurface(brillouin, 0.0, [1], [2]))), "fs-spin.png")
-    savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, [1], [2]))), "dos.png")
+    savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, [1], [2]; emin=-5.0, emax=5.0, ne=201, fwhm=0.05))), "dos.png")
+    @test isapprox(sum(tba.assignments[:DensityOfStates].data[2][:, 1]), 2.0; atol=10^-3)
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=401, ends=(true, true))
     savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "fs-extended-all.png")
