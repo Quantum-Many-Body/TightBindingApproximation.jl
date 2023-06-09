@@ -235,7 +235,13 @@ abstract type AbstractTBA{K<:TBAKind, H<:RepresentationGenerator, G<:Union{Nothi
 @inline kind(::Type{<:AbstractTBA{K}}) where K = K()
 @inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, H}}) where {H<:RepresentationGenerator} = valtype(eltype(H))
 @inline dimension(tba::AbstractTBA{<:TBAKind, <:CompositeGenerator}) = length(getcontent(getcontent(tba, :H), :table))
-@inline dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression}) = dimension(getcontent(tba, :H).expression)
+function dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression})
+    try
+        return dimension(getcontent(tba, :H).expression)
+    catch
+        return size(matrix(tba))[1]
+    end
+end
 @inline update!(tba::AbstractTBA; k=nothing, kwargs...) = ((length(kwargs)>0 && update!(getcontent(tba, :H); kwargs...)); tba)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
 
@@ -345,10 +351,14 @@ end
 @inline contentnames(::Type{<:TBA}) = (:lattice, :H, :commutator)
 
 """
+    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Term...; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
     TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
 
 Construct a tight-binding quantum lattice system.
 """
+@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Term...; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
+    return TBA(lattice, hilbert, terms; neighbors=neighbors, boundary=boundary)
+end
 @inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
     tbakind = TBAKind(typeof(terms), valtype(hilbert))
     table = Table(hilbert, Metric(tbakind, hilbert))

@@ -49,7 +49,7 @@ end
     t = Hopping(:t, 1.0, 1)
     μ = Onsite(:μ, 0.0)
 
-    tba = TBA(lattice, hilbert, (t, μ))
+    tba = TBA(lattice, hilbert, t, μ)
     @test kind(tba) == kind(typeof(tba)) == Fermionic(:TBA)
     @test valtype(tba) == valtype(typeof(tba)) == Float64
     @test dimension(tba) == 1
@@ -60,7 +60,7 @@ end
     @test m[1, 1] == m.H[1, 1]
     @test ishermitian(m) == ishermitian(typeof(m)) == true
 
-    A(t, μ; k) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
+    A(t, μ; k=[0.0, 0.0]) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
     tbaₐ = TBA{Fermionic{:TBA}}(lattice, A, (t=1.0, μ=0.0))
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
@@ -68,6 +68,7 @@ end
         mₐ = matrix(tbaₐ; kv...)
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.0; kv...))
     end
+    @test dimension(tbaₐ) == 1
     @test eigen(tbaₐ, path) == (eigvals(tbaₐ, path), eigvecs(tbaₐ, path))
     update!(tba, μ=0.5)
     update!(tbaₐ, μ=0.5)
