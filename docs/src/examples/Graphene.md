@@ -4,6 +4,8 @@ CurrentModule = TightBindingApproximation
 
 # Graphene
 
+In this section, it is illustrated how the **energy bands** and **edge states** of tight-binding systems can be computed with the monolayer graphene as the example.
+
 ## Energy bands
 
 The following codes could compute the energy bands of the monolayer graphene.
@@ -20,10 +22,10 @@ unitcell = Lattice(
     vectors=[[1.0, 0.0], [0.5, √3/2]]
 )
 
-# define the Hilbert space of graphene (single-orbital spin-1/2 complex fermion)
-hilbert = Hilbert(site=>Fock{:f}(1, 2) for site=1:length(unitcell))
+# define the Hilbert space of graphene (single-orbital spinless complex fermion)
+hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
 
-# define the terms, i.e. the nearest-neighbor hopping
+# define the terms, i.e., the nearest-neighbor hopping
 t = Hopping(:t, -1.0, 1)
 
 # define the tight-binding-approximation algorithm for graphene

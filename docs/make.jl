@@ -18,6 +18,7 @@ makedocs(;
         "Examples" => [
             "examples/Introduction.md",
             "examples/Graphene.md",
+            "examples/Kagome.md",
             "examples/Superconductor.md",
             "examples/Phonon.md",
         ]

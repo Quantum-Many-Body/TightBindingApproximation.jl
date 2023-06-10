@@ -4,6 +4,8 @@ CurrentModule = TightBindingApproximation
 
 # p+ip Superconductor on Square Lattice
 
+In this section, it is illustrated how the **Berry curvatures** and **Chern numbers** of free energy bands can be computed with the p+ip superconductor on the square lattice as the example.
+
 ## Energy bands
 
 The following codes could compute the energy bands of the Bogoliubov quasiparticles of the p+ip topological superconductor on the square lattice.

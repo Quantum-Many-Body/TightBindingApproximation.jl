@@ -4,6 +4,8 @@ CurrentModule = TightBindingApproximation
 
 # Phonons on Square lattice
 
+In this section, it is illustrated how **harmonic phonon bands** and **inelastic neutron scattering spectra of phonons** can be computed.
+
 ## Energy bands
 
 The following codes could compute the energy bands of the phonons on the square lattice using the harmonic approximation on the phonon potential.

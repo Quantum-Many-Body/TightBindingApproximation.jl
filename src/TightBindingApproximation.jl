@@ -377,24 +377,24 @@ Construct a tight-binding quantum lattice system by providing the analytical exp
 end
 
 """
-    EnergyBands{P, L<:Union{Colon, Vector{Int}}, O} <: Action
+    EnergyBands{P, L<:Union{Colon, AbstractVector{Int}}, O} <: Action
 
 Energy bands by tight-binding-approximation for quantum lattice systems.
 """
-struct EnergyBands{P, L<:Union{Colon, Vector{Int}}, O} <: Action
-    basespace::P
-    levels::L
+struct EnergyBands{P, L<:Union{Colon, AbstractVector{Int}}, O} <: Action
+    reciprocalspace::P
+    bands::L
     options::O
 end
-@inline EnergyBands(basespace, levels::Union{Colon, Vector{Int}}=Colon(); options...) = EnergyBands(basespace, levels, options)
-@inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (eb.basespace, zeros(Float64, length(eb.basespace), dimension(tba)))
-@inline initialize(eb::EnergyBands{P, Vector{Int}}, ::AbstractTBA) where P = (eb.basespace, zeros(Float64, length(eb.basespace), length(eb.levels)))
-@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.basespace))) eb.id
+@inline EnergyBands(reciprocalspace, bands::Union{Colon, AbstractVector{Int}}=Colon(); options...) = EnergyBands(reciprocalspace, bands, options)
+@inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), dimension(tba)))
+@inline initialize(eb::EnergyBands{P, AbstractVector{Int}}, ::AbstractTBA) where P = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), length(eb.bands)))
+@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.reciprocalspace))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     atol = get(eb.action.options, :atol, 10^-12)
-    for (i, params) in enumerate(pairs(eb.action.basespace))
+    for (i, params) in enumerate(pairs(eb.action.reciprocalspace))
         update!(tba; params...)
-        eigenvalues = eigvals(tba; params..., eb.action.options...)[eb.action.levels]
+        eigenvalues = eigvals(tba; params..., eb.action.options...)[eb.action.bands]
         @assert norm(imag(eigenvalues))<atol "run! error: imaginary eigen energies at $(params) with the norm of all imaginary parts being $(norm(imag(eigenvalues)))."
         eb.data[2][i, :] = real(eigenvalues)
     end
@@ -407,17 +407,17 @@ Berry curvature of energy bands with the spirit of a momentum space discretizati
 """
 struct BerryCurvature{B<:Union{BrillouinZone, ReciprocalZone}, O} <: Action
     reciprocalspace::B
-    levels::Vector{Int}
+    bands::Vector{Int}
     options::O
 end
-@inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, levels::Vector{Int}; options...) = BerryCurvature(reciprocalspace, levels, convert(Dict{Symbol, Any}, options))
+@inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}; options...) = BerryCurvature(reciprocalspace, collect(bands), options)
 
 # For the Berry curvature and Chern number on the first Brillouin zone
 @inline function initialize(bc::BerryCurvature{<:BrillouinZone}, ::AbstractTBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
     ny, nx = map(length, shape(bc.reciprocalspace))
-    z = zeros(Float64, ny, nx, length(bc.levels))
-    n = zeros(Float64, length(bc.levels))
+    z = zeros(Float64, ny, nx, length(bc.bands))
+    n = zeros(Float64, length(bc.bands))
     return (bc.reciprocalspace, z, n)
 end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
@@ -425,7 +425,7 @@ function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{
     ny, nx = map(length, shape(bc.action.reciprocalspace))
     result = Matrix{eltype(eigenvectors)}(undef, nx+1, ny+1)
     for i=1:nx+1, j=1:ny+1
-        result[i, j] = eigenvectors[Int(keytype(bc.action.reciprocalspace)(i, j))][:, bc.action.levels]
+        result[i, j] = eigenvectors[Int(keytype(bc.action.reciprocalspace)(i, j))][:, bc.action.bands]
     end
     return result
 end
@@ -434,7 +434,7 @@ end
 @inline function initialize(bc::BerryCurvature{<:ReciprocalZone}, ::AbstractTBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
     ny, nx = map(length, shape(bc.reciprocalspace))
-    z = zeros(Float64, ny-1, nx-1, length(bc.levels))
+    z = zeros(Float64, ny-1, nx-1, length(bc.bands))
     return (shrink(bc.reciprocalspace, 1:nx-1, 1:ny-1), z)
 end
 function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalZone}})
@@ -443,7 +443,7 @@ function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{
     result = Matrix{eltype(eigenvectors)}(undef, nx, ny)
     count = 1
     for i=1:nx, j=1:ny
-        result[i, j] = eigenvectors[count][:, bc.action.levels]
+        result[i, j] = eigenvectors[count][:, bc.action.bands]
         count += 1
     end
     return result
@@ -458,7 +458,7 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
         vs₂ = eigenvectors[i+1, j]
         vs₃ = eigenvectors[i+1, j+1]
         vs₄ = eigenvectors[i, j+1]
-        for k = 1:length(bc.action.levels)
+        for k = 1:length(bc.action.bands)
             p₁ = vs₁[:, k]'*g*vs₂[:, k]
             p₂ = vs₂[:, k]'*g*vs₃[:, k]
             p₃ = vs₃[:, k]'*g*vs₄[:, k]
@@ -467,15 +467,15 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
             length(bc.data)==3 && (bc.data[3][k] += bc.data[2][j, i, k]/2pi)
         end
     end
-    length(bc.data)==4 && @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn level for (cn, level) in zip(bc.data[4], bc.action.levels)], ", "))
+    length(bc.data)==4 && @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn level for (cn, level) in zip(bc.data[4], bc.action.bands)], ", "))
 end
 
 # Plot the Berry curvature and optionally, the Chern number
 @recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:BerryCurvature}})
     subtitles --> if length(pack[2].data)==3
-        [@sprintf("level %s (C = %s)", level, decimaltostr(chn)) for (level, chn) in zip(pack[2].action.levels, pack[2].data[3])]
+        [@sprintf("level %s (C = %s)", level, decimaltostr(chn)) for (level, chn) in zip(pack[2].action.bands, pack[2].data[3])]
     else
-        [@sprintf("level %s", level) for level in pack[2].action.levels]
+        [@sprintf("level %s", level) for level in pack[2].action.bands]
     end
     subtitlefontsize --> 8
     plot_title --> nameof(pack[1], pack[2])
@@ -483,7 +483,7 @@ end
     pack[2].data[1:2]
 end
 
-function spectralfunction(tbakind::TBAKind, ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::Union{Colon, Vector{Int}}=:, orbitals::Union{Colon, Vector{Int}}=:; σ::Real)
+function spectralfunction(tbakind::TBAKind, ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}=:; σ::Real)
     result = zero(ω)
     if isa(bands, Colon)
         bands = (isa(tbakind, TBAKind{:TBA}) ? 1 : length(values)÷2):length(values)
@@ -495,18 +495,20 @@ function spectralfunction(tbakind::TBAKind, ω::Real, values::Vector{<:Real}, ve
     return result/√(2pi)/σ
 end
 """
-    FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, Vector{Int}}, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+    FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
 
 Fermi surface of a free fermionic system.
 """
-struct FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, Vector{Int}}, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+struct FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
     reciprocalspace::B
     μ::Float64
     bands::A
     orbitals::L
     options::O
 end
-@inline FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, Vector{Int}}=:, orbitals::Union{Colon, Vector{Int}}...=:; options...) = FermiSurface(reciprocalspace, μ, bands, orbitals, options)
+@inline function FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...)
+    return FermiSurface(reciprocalspace, convert(Float64, μ), bands, orbitals, options)
+end
 function initialize(fs::FermiSurface, ::AbstractTBA)
     @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only two dimensional reciprocal spaces are supported."
     ny, nx = map(length, shape(fs.reciprocalspace))
@@ -539,20 +541,20 @@ end
     end
 end
 @inline tostr(::Colon) = "all"
-@inline tostr(contents::Vector{Int}) = join(contents, ", ")
+@inline tostr(contents::AbstractVector{Int}) = join(contents, ", ")
 
 """
-    DensityOfStates{B<:BrillouinZone, A<:Union{Colon, Vector{Int}}, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+    DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
 
 Density of states of a tight-binding system.
 """
-struct DensityOfStates{B<:BrillouinZone, A<:Union{Colon, Vector{Int}}, L<:Tuple{Vararg{Union{Colon, Vector{Int}}}}, O} <: Action
+struct DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
     brillouinzone::B
     bands::A
     orbitals::L
     options::O
 end
-@inline DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, Vector{Int}}=:, orbitals::Union{Colon, Vector{Int}}...=:; options...) = DensityOfStates(brillouinzone, bands, orbitals, options)
+@inline DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...) = DensityOfStates(brillouinzone, bands, orbitals, options)
 @inline function initialize(dos::DensityOfStates, ::AbstractTBA)
     ne = get(dos.options, :ne, 100)
     x = zeros(Float64, ne)
@@ -627,24 +629,24 @@ end
 end
 
 """
-    SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratio::Number)
-    SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratios::Vector=ones(length(levels)))
+    SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, bands::AbstractVector{Int}, values::Vector, ratio::Number)
+    SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, bands::AbstractVector{Int}, values::Vector, ratios::Vector=ones(length(bands)))
 
 A sample node of a momentum-eigenvalues pair.
 """
 struct SampleNode
     k::Vector{Float64}
-    levels::Vector{Int64}
+    bands::Vector{Int}
     values::Vector{Float64}
     ratios::Vector{Float64}
 end
-@inline function SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratio::Number)
-    return SampleNode(reciprocals, position, levels, values, ones(length(levels))*ratio)
+@inline function SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, bands::AbstractVector{Int}, values::Vector, ratio::Number)
+    return SampleNode(reciprocals, position, bands, values, ones(length(bands))*ratio)
 end
-function SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, levels::Vector{Int}, values::Vector, ratios::Vector=ones(length(levels)))
+function SampleNode(reciprocals::AbstractVector{<:AbstractVector}, position::Vector, bands::AbstractVector{Int}, values::Vector, ratios::Vector=ones(length(bands)))
     @assert length(reciprocals)==length(position) "SampleNode error: mismatched reciprocals and position."
-    @assert length(levels)==length(values)==length(ratios) "SampleNode error: mismatched levels, values and ratios."
-    return SampleNode(mapreduce(*, +, reciprocals, position), levels, values, ratios)
+    @assert length(bands)==length(values)==length(ratios) "SampleNode error: mismatched bands, values and ratios."
+    return SampleNode(mapreduce(*, +, reciprocals, position), collect(bands), values, ratios)
 end
 
 """
@@ -654,7 +656,7 @@ end
 Get the deviation of the eigenvalues between the sample points and model points.
 """
 function deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplenode::SampleNode)
-    diff = eigvals(matrix(tba; k=samplenode.k))[samplenode.levels] .- samplenode.values
+    diff = eigvals(matrix(tba; k=samplenode.k))[samplenode.bands] .- samplenode.values
     return real(sum(conj(diff) .* diff .* samplenode.ratios))
 end
 function deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode})
