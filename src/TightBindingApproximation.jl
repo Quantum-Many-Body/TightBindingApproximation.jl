@@ -388,7 +388,7 @@ struct EnergyBands{P, L<:Union{Colon, AbstractVector{Int}}, O} <: Action
 end
 @inline EnergyBands(reciprocalspace, bands::Union{Colon, AbstractVector{Int}}=Colon(); options...) = EnergyBands(reciprocalspace, bands, options)
 @inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), dimension(tba)))
-@inline initialize(eb::EnergyBands{P, AbstractVector{Int}}, ::AbstractTBA) where P = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), length(eb.bands)))
+@inline initialize(eb::EnergyBands{P, <:AbstractVector{Int}}, ::AbstractTBA) where P = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), length(eb.bands)))
 @inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.reciprocalspace))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     atol = get(eb.action.options, :atol, 10^-12)
