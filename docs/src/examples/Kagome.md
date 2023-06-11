@@ -2,7 +2,7 @@
 CurrentModule = TightBindingApproximation
 ```
 
-# Kagome
+# Free Spinless Fermions on Kagome Lattice
 
 In this section, it is illustrated how the **density of states** (DOS) and **Fermi surfaces** (FS) of tight-binding systems can be computed with the free spinless fermions on Kagome lattice as the example.
 

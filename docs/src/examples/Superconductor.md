@@ -65,7 +65,7 @@ The Berry curvatures can also be computed on a reciprocal zone beyond the recipr
 ```@example p+ip
 # define the reciprocal zone
 reciprocalzone = ReciprocalZone(
-    reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0];
+    reciprocals(unitcell), -2.0=>2.0, -2.0=>2.0;
     length=201, ends=(true, true)
 )
 
@@ -89,7 +89,7 @@ hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
 # define the new Bogoliubov-de Gennes formula
 sc = Algorithm(Symbol("p+ip"), TBA(lattice, hilbert, (t, μ, Δ)))
 
-# define new the path in the reciprocal space to compute the edge states
+# define the new path in the reciprocal space to compute the edge states
 path = ReciprocalPath(reciprocals(lattice), line"Γ₁-Γ₂", length=100)
 
 # compute the energy bands along the above path

@@ -54,7 +54,7 @@ hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
 # define the new tight-binding-approximation algorithm
 zigzag = Algorithm(:Graphene, TBA(lattice, hilbert, t))
 
-# define new the path in the reciprocal space to compute the edge states
+# define the new path in the reciprocal space to compute the edge states
 path = ReciprocalPath(reciprocals(lattice), line"Γ₁-Γ₂", length=100)
 
 # compute the energy bands along the above path

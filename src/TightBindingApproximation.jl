@@ -467,15 +467,15 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
             length(bc.data)==3 && (bc.data[3][k] += bc.data[2][j, i, k]/2pi)
         end
     end
-    length(bc.data)==4 && @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn level for (cn, level) in zip(bc.data[4], bc.action.bands)], ", "))
+    length(bc.data)==4 && @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn band for (cn, band) in zip(bc.data[4], bc.action.bands)], ", "))
 end
 
 # Plot the Berry curvature and optionally, the Chern number
 @recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:BerryCurvature}})
     subtitles --> if length(pack[2].data)==3
-        [@sprintf("level %s (C = %s)", level, decimaltostr(chn)) for (level, chn) in zip(pack[2].action.bands, pack[2].data[3])]
+        [@sprintf("band %s (C = %s)", band, decimaltostr(chn)) for (band, chn) in zip(pack[2].action.bands, pack[2].data[3])]
     else
-        [@sprintf("level %s", level) for level in pack[2].action.bands]
+        [@sprintf("band %s", band) for band in pack[2].action.bands]
     end
     subtitlefontsize --> 8
     plot_title --> nameof(pack[1], pack[2])

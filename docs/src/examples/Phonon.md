@@ -2,7 +2,7 @@
 CurrentModule = TightBindingApproximation
 ```
 
-# Phonons on Square lattice
+# Phonons on Square Lattice
 
 In this section, it is illustrated how **harmonic phonon bands** and **inelastic neutron scattering spectra of phonons** can be computed.
 
