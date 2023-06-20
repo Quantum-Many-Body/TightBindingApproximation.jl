@@ -242,6 +242,7 @@ function dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression})
         return size(matrix(tba))[1]
     end
 end
+@inline dimension(tba::Algorithm{<:AbstractTBA}) = dimension(tba.frontend)
 @inline update!(tba::AbstractTBA; k=nothing, kwargs...) = ((length(kwargs)>0 && update!(getcontent(tba, :H); kwargs...)); tba)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
 
@@ -452,7 +453,7 @@ end
 # Compute the Berry curvature and optionally, the Chern number
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
     eigenvectors = eigvecs(tba, bc)
-    g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba.frontend))) : inv(getcontent(tba.frontend, :commutator))
+    g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba))) : inv(getcontent(tba.frontend, :commutator))
     @timeit_debug tba.timer "Berry curvature" for i = 1:size(eigenvectors)[1]-1, j = 1:size(eigenvectors)[2]-1
         vs₁ = eigenvectors[i, j]
         vs₂ = eigenvectors[i+1, j]
@@ -598,7 +599,7 @@ end
 
 # Inelastic neutron scattering spectra for phonons.
 function run!(tba::Algorithm{<:AbstractTBA{Phononic}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
-    dim = dimension(tba.frontend)
+    dim = dimension(tba)
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     check = get(inss.action.options, :check, true)
     sequences = Dict(site=>[tba.frontend.H.table[Index(site, PID('u', Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.H.hilbert))
