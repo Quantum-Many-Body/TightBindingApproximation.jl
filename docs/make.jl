@@ -6,7 +6,6 @@ DocMeta.setdocmeta!(TightBindingApproximation, :DocTestSetup, :(using TightBindi
 makedocs(;
     modules=[TightBindingApproximation],
     authors="waltergu <waltergu1989@gmail.com>",
-    repo="https://github.com/Quantum-Many-Body/TightBindingApproximation.jl/blob/{commit}{path}#{line}",
     sitename="TightBindingApproximation.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
@@ -21,7 +20,8 @@ makedocs(;
             "examples/Superconductor.md",
             "examples/Kagome.md",
             "examples/Phonon.md",
-        ]
+        ],
+        "Manual" => "manual.md",
     ],
 )
 
