@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.com/Quantum-Many-Body/TightBindingApproximation.jl.svg?branch=master)](https://travis-ci.com/Quantum-Many-Body/TightBindingApproximation.jl)
 [![codecov](https://codecov.io/gh/Quantum-Many-Body/TightBindingApproximation.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/Quantum-Many-Body/TightBindingApproximation.jl)
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://quantum-many-body.github.io/TightBindingApproximation.jl/latest/)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://quantum-many-body.github.io/TightBindingApproximation.jl/dev/)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://quantum-many-body.github.io/TightBindingApproximation.jl/stable/)
 [![996.icu](https://img.shields.io/badge/link-996.icu-red.svg)](https://996.icu)
 [![LICENSE](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
