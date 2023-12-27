@@ -467,6 +467,7 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
             bc.data[2][j, i, k] = angle(p₁*p₂*p₃*p₄)
             length(bc.data)==3 && (bc.data[3][k] += bc.data[2][j, i, k]/2pi)
         end
+        for 
     end
     length(bc.data)==4 && @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn band for (cn, band) in zip(bc.data[4], bc.action.bands)], ", "))
 end
