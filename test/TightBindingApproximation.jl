@@ -120,10 +120,10 @@ end
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=201, ends=(true, true))
     savefig(plot(sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))), "bcextended.png")
-    kubobc = sc(:BerryCurvatureKubo, BerryCurvature(reciprocalzone, Kubo(0; dx=[0.001, 0.0], dy=[0.0, 0.001])))
+    kubobc = sc(:BerryCurvatureKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))
     savefig(plot(kubobc), "bcextended_Kubo.png")
 
-    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, Kubo()))), "bcpath.png")
+    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path; method=Kubo(0.0)))), "bcpath.png")
 end
 
 @time @testset "FermiSurface and DensityOfStates" begin

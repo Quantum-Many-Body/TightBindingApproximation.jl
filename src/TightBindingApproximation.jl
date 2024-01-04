@@ -1,6 +1,6 @@
 module TightBindingApproximation
 
-using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, inv, norm, logdet, det
+using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, inv, norm, logdet, normalize
 using Optim: LBFGS, Options, optimize
 using Printf: @sprintf
 using QuantumLattices: expand
@@ -22,7 +22,7 @@ import QuantumLattices: contentnames
 
 export Bosonic, Fermionic, Phononic, TBAKind
 export AbstractTBA, TBA, TBAMatrix, TBAMatrixRepresentation, commutator
-export BerryCurvature, DensityOfStates, EnergyBands, FermiSurface, InelasticNeutronScatteringSpectra, Kubo, Fukui, AbstractMethod
+export BerryCurvature, DensityOfStates, EnergyBands, FermiSurface, InelasticNeutronScatteringSpectra, Kubo, Fukui, BerryCurvatureMethod
 export SampleNode, deviation, optimize!
 
 const tbatimer = TimerOutput()
@@ -402,29 +402,29 @@ function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     end
 end
 """
-    abstract type AbstractMethod end
+    abstract type BerryCurvatureMethod end
 
 Abstract type for calculation of Berry curvature.
 """
-abstract type AbstractMethod end
+abstract type BerryCurvatureMethod end
 """
-    Fukui <: AbstractMethod
+    Fukui <: BerryCurvatureMethod
 
 Fukui method to calculate Berry curvature of energy bands. see [Fukui et al, JPSJ 74, 1674 (2005)](https://journals.jps.jp/doi/10.1143/JPSJ.74.1674). Hall conductivity (single band) is given by 
 ```math
 \\sigma_{xy} = -{e^2\\over h}\\sum_n c_n, \\nonumber \\\\
-c_n = -{1\\over 2\\pi}\\int_{BZ}{dk_x dk_y Ω_{xy}}, 
+c_n = {1\\over 2\\pi}\\int_{BZ}{dk_x dk_y Ω_{xy}}, 
 \\Omega_{xy}=(\\nabla\\times {\\bm A})_z,
 A_{x}=i\\langle u_n|\\partial_x|u_n\\rangle.
 ```
 """
-struct Fukui <: AbstractMethod
+struct Fukui <: BerryCurvatureMethod
     bands::Vector{Int}
     abelian::Bool
 end
 @inline Fukui(bands::AbstractVector{Int}; abelian::Bool=true) = Fukui(collect(bands), abelian)
 """
-    Kubo{O} <: AbstractMethod
+    Kubo{K<:Union{Nothing, Vector{Float64}}} <: BerryCurvatureMethod 
     
 Kubo method to calculate the total Berry curvature of occupied energy bands. The Kubo formula is given by 
 ```math
@@ -440,23 +440,24 @@ Hall conductivity in 2D space is given by
 \\sigma_{xy}=-{e^2\\over h}\\int_{BZ}{dk_x dk_y\\over 2\\pi}{\\Omega_{xy}}
 ```
 """
-struct Kubo{O} <: AbstractMethod 
+struct Kubo{K<:Union{Nothing, Vector{Float64}}} <: BerryCurvatureMethod 
     μ::Float64
-    options::O
+    d::Float64
+    kx::K
+    ky::K
 end
-@inline Kubo(; options...) = Kubo(0.0, options)
-@inline Kubo(μ::Real; options...) = Kubo(convert(Float64, μ), options)
+@inline Kubo(μ::Real; d::Float64=0.1, kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}} = Kubo(convert(Float64, μ), d, kx, ky)
 """
-    BerryCurvature{B<:ReciprocalSpace, M<:AbstractMethod, O} <: Action
+    BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
 
 Berry curvature of energy bands.
 """
-struct BerryCurvature{B<:ReciprocalSpace, M<:AbstractMethod, O} <: Action
+struct BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
     reciprocalspace::B
     method::M
     options::O
 end
-@inline BerryCurvature(reciprocalspace::ReciprocalSpace, method::AbstractMethod; options...) = BerryCurvature(reciprocalspace, method, options)
+@inline BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; options...) = BerryCurvature(reciprocalspace, method, options)
 @inline BerryCurvature(reciprocalspace::ReciprocalPath; method=Kubo(0.0), options...) = BerryCurvature(reciprocalspace, method, options)
 @inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}, abelian::Bool=true; options...) = BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), options)
 
@@ -497,6 +498,7 @@ function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{
 end
 # For the Berry curvature and Berry phase (÷2π) on the Brillouin zone or reciprocal zone.
 @inline function initialize(bc::BerryCurvature{<:Union{ReciprocalZone, BrillouinZone}, <:Kubo}, ::AbstractTBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
     ny, nx = map(length, shape(bc.reciprocalspace))
     z = zeros(Float64, ny, nx, 1)
     n = zeros(1)
@@ -508,12 +510,26 @@ end
     z = zeros(Float64, np)
     return (bc.reciprocalspace, z)
 end
+function _minilength(rs::ReciprocalSpace)
+    if typeof(rs) <: ReciprocalPath
+        d = minimum([step(rs, i) for i in 1:length(rs)-1])
+    else
+        ny, nx = map(length, shape(rs))
+        d = minimum(norm, [rs.reciprocals[1]/nx, rs.reciprocals[2]/ny])
+    end
+    return d 
+end
 function _kubo(tba::Algorithm{<:AbstractTBA},  bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}})
     dim = dimension(bc.action.reciprocalspace)
     @assert dim ∈(2, 3) "_eigendHk error: only two-dimensional and three-dimensional reciprocal spaces are supported."
-    vx, vy = dim==2 ? ([0.001, 0.0], [0.0, 0.001]) : ([0.001, 0.0, 0.0], [0.0, 0.001, 0.0])
-    dx, dy = get(bc.action.method.options, :dx, vx), get(bc.action.method.options, :dy, vy)
-    @assert dot(dx, dy) == 0.0 "_eigendHk error: the vectors dx and dy should be perpendicular to each other in the plane."
+    d, kx, ky = bc.action.method.d, bc.action.method.kx, bc.action.method.ky
+    ml = _minilength(bc.action.reciprocalspace)
+    if isa(kx, Nothing)
+        dx, dy = dim==2 ? (d*ml*[1.0, 0.0], d*ml*[0.0, 1.]) : (d*ml*[1., 0.0, 0.0], d*ml*[0.0, 1., 0.0])
+    else
+        dx, dy = ml*d*normalize(kx), ml*d*normalize(ky)
+    end
+    @assert dot(dx, dy) == 0.0 "_eigendHk error: kx vector and ky vector should be perpendicular to each other in the plane."
     μ = bc.action.method.μ
     Ωxys = Float64[] 
     for momentum in bc.action.reciprocalspace
@@ -575,7 +591,7 @@ function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
                 bc.data[2][j, i, 1] = -imag(logdet(p₁*p₂*p₃*p₄))/area
                 length(bc.data)==3 && (bc.data[3][1] += bc.data[2][j, i, 1]*area/2pi)
             end
-            @warn "This method (nonabelian case for `Fukui`) is not verified in bosonic system."
+            @warn "This method (nonabelian case for `Fukui` method) is not verified in bosonic system."
         end
     else isa(alg, Kubo)
         Ωxys = _kubo(tba, bc)
