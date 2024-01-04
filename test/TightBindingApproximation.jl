@@ -116,9 +116,14 @@ end
 
     brillouin = BrillouinZone(reciprocals(unitcell), 100)
     savefig(plot(sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]))), "bc.png")
+    savefig(plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "bctwobands.png")
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=201, ends=(true, true))
     savefig(plot(sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))), "bcextended.png")
+    kubobc = sc(:BerryCurvatureKubo, BerryCurvature(reciprocalzone, Kubo(0; dx=[0.001, 0.0], dy=[0.0, 0.001])))
+    savefig(plot(kubobc), "bcextended_Kubo.png")
+
+    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, Kubo()))), "bcpath.png")
 end
 
 @time @testset "FermiSurface and DensityOfStates" begin
