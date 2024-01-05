@@ -76,6 +76,15 @@ berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
 plot(berry)
 ```
 
+The total Berry curvatures of occupied bands can also be computed on a reciprocal path with Kubo method:
+```@example p+ip
+# compute the total Berry curvature 
+berry = sc(:BerryCurvaturePath, BerryCurvature(path, Kubo(0.0)))
+
+# plot the Berry curvature
+plot(berry)
+```
+
 ## Edge states
 
 With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:

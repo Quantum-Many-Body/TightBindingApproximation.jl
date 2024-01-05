@@ -1,18 +1,19 @@
 module TightBindingApproximation
 
-using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, inv, norm
+using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, inv, norm, logdet, normalize
 using Optim: LBFGS, Options, optimize
 using Printf: @sprintf
 using QuantumLattices: expand
 using QuantumLattices: plain, Boundary, CompositeIndex, Hilbert, Index, Internal, Metric, Table, Term, statistics
 using QuantumLattices: Action, Algorithm, AnalyticalExpression, Assignment, CompositeGenerator, Entry, Frontend, OperatorGenerator, Parameters, RepresentationGenerator
-using QuantumLattices: periods
+using QuantumLattices: periods, volume
 using QuantumLattices: ID, MatrixRepresentation, Operator, Operators, OperatorUnitToTuple, iidtype
 using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon, PID, isannihilation, iscreation
 using QuantumLattices: AbstractLattice, BrillouinZone, Neighbors, ReciprocalPath, ReciprocalSpace, ReciprocalZone, bonds, icoordinate, rcoordinate, shrink
 using QuantumLattices: atol, rtol, decimaltostr, getcontent, shape
 using RecipesBase: RecipesBase, @recipe, @series, @layout
 using TimerOutputs: TimerOutput, @timeit_debug
+
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian
 import QuantumLattices: add!, dimension, kind, matrix, update!
@@ -21,7 +22,7 @@ import QuantumLattices: contentnames
 
 export Bosonic, Fermionic, Phononic, TBAKind
 export AbstractTBA, TBA, TBAMatrix, TBAMatrixRepresentation, commutator
-export BerryCurvature, DensityOfStates, EnergyBands, FermiSurface, InelasticNeutronScatteringSpectra
+export BerryCurvature, DensityOfStates, EnergyBands, FermiSurface, InelasticNeutronScatteringSpectra, Kubo, Fukui, BerryCurvatureMethod
 export SampleNode, deviation, optimize!
 
 const tbatimer = TimerOutput()
@@ -400,83 +401,225 @@ function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
         eb.data[2][i, :] = real(eigenvalues)
     end
 end
-
 """
-    BerryCurvature{B<:Union{BrillouinZone, ReciprocalZone}, O} <: Action
+    abstract type BerryCurvatureMethod end
 
-Berry curvature of energy bands with the spirit of a momentum space discretization method by [Fukui et al, JPSJ 74, 1674 (2005)](https://journals.jps.jp/doi/10.1143/JPSJ.74.1674).
+Abstract type for calculation of Berry curvature.
 """
-struct BerryCurvature{B<:Union{BrillouinZone, ReciprocalZone}, O} <: Action
-    reciprocalspace::B
+abstract type BerryCurvatureMethod end
+"""
+    Fukui <: BerryCurvatureMethod
+
+Fukui method to calculate Berry curvature of energy bands. see [Fukui et al, JPSJ 74, 1674 (2005)](https://journals.jps.jp/doi/10.1143/JPSJ.74.1674). Hall conductivity (single band) is given by 
+```math
+\\sigma_{xy} = -{e^2\\over h}\\sum_n c_n, \\nonumber \\\\
+c_n = {1\\over 2\\pi}\\int_{BZ}{dk_x dk_y Ω_{xy}}, 
+\\Omega_{xy}=(\\nabla\\times {\\bm A})_z,
+A_{x}=i\\langle u_n|\\partial_x|u_n\\rangle.
+```
+"""
+struct Fukui <: BerryCurvatureMethod
     bands::Vector{Int}
+    abelian::Bool
+end
+@inline Fukui(bands::AbstractVector{Int}; abelian::Bool=true) = Fukui(collect(bands), abelian)
+"""
+    Kubo{K<:Union{Nothing, Vector{Float64}}} <: BerryCurvatureMethod 
+    
+Kubo method to calculate the total Berry curvature of occupied energy bands. The Kubo formula is given by 
+```math
+\\Omega_{ij}(\\bm k)=\\epsilon_{ijl}\\sum_{n}f(\\epsilon_n(\\bm k))b_n^l(\\bm k)=-2{\\rm Im}\\sum_v\\sum_c{V_{vc,i}(\\bm k)V_{cv,j}(\\bm k)\\over [\\omega_c(\\bm k)-\\omega_v(\\bm k)]^2},
+```
+where 
+```math
+ V_{cv,j}={\\langle u_{c\\bm k}|{\\partial H\\over \\partial {\\bm k}_j}|u_{v\\bm k}\\rangle}
+``` 
+v and c subscripts denote valence (occupied) and conduction (unoccupied) bands, respectively.
+Hall conductivity in 2D space is given by 
+```math
+\\sigma_{xy}=-{e^2\\over h}\\int_{BZ}{dk_x dk_y\\over 2\\pi}{\\Omega_{xy}}
+```
+"""
+struct Kubo{K<:Union{Nothing, Vector{Float64}}} <: BerryCurvatureMethod 
+    μ::Float64
+    d::Float64
+    kx::K
+    ky::K
+end
+@inline Kubo(μ::Real; d::Float64=0.1, kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}} = Kubo(convert(Float64, μ), d, kx, ky)
+"""
+    BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
+
+Berry curvature of energy bands.
+"""
+struct BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
+    reciprocalspace::B
+    method::M
     options::O
 end
-@inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}; options...) = BerryCurvature(reciprocalspace, collect(bands), options)
+@inline BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; options...) = BerryCurvature(reciprocalspace, method, options)
+@inline BerryCurvature(reciprocalspace::ReciprocalPath; method=Kubo(0.0), options...) = BerryCurvature(reciprocalspace, method, options)
+@inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}, abelian::Bool=true; options...) = BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), options)
 
-# For the Berry curvature and Chern number on the first Brillouin zone
-@inline function initialize(bc::BerryCurvature{<:BrillouinZone}, ::AbstractTBA)
+# For the Berry curvature and Chern number (Berry phase ÷ 2π) on the first Brillouin zone
+@inline function initialize(bc::BerryCurvature{<:BrillouinZone, <:Fukui}, ::AbstractTBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
     ny, nx = map(length, shape(bc.reciprocalspace))
-    z = zeros(Float64, ny, nx, length(bc.bands))
-    n = zeros(Float64, length(bc.bands))
+    z, n = bc.method.abelian ? (zeros(Float64, ny, nx, length(bc.method.bands)), zeros(Float64, length(bc.method.bands))) : (zeros(Float64, ny, nx, 1), zeros(Float64, 1))
     return (bc.reciprocalspace, z, n)
 end
-function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone}})
+function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone, <:Fukui}})
     eigenvectors = eigvecs(tba, bc.action.reciprocalspace; bc.action.options...)
     ny, nx = map(length, shape(bc.action.reciprocalspace))
     result = Matrix{eltype(eigenvectors)}(undef, nx+1, ny+1)
     for i=1:nx+1, j=1:ny+1
-        result[i, j] = eigenvectors[Int(keytype(bc.action.reciprocalspace)(i, j))][:, bc.action.bands]
+        result[i, j] = eigenvectors[Int(keytype(bc.action.reciprocalspace)(i, j))][:, bc.action.method.bands]
     end
     return result
 end
 
-# For the Berry curvature on a specific zone in the reciprocal space
-@inline function initialize(bc::BerryCurvature{<:ReciprocalZone}, ::AbstractTBA)
+# For the Berry curvature and Berry phase (÷2π) on a specific zone in the reciprocal space
+@inline function initialize(bc::BerryCurvature{<:ReciprocalZone, <:Fukui}, ::AbstractTBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
     ny, nx = map(length, shape(bc.reciprocalspace))
-    z = zeros(Float64, ny-1, nx-1, length(bc.bands))
-    return (shrink(bc.reciprocalspace, 1:nx-1, 1:ny-1), z)
+    z, n = bc.method.abelian ? (zeros(Float64, ny-1, nx-1, length(bc.method.bands)), zeros(Float64, length(bc.method.bands))) : (zeros(Float64, ny-1, nx-1, 1), zeros(Float64, 1))
+    return (shrink(bc.reciprocalspace, 1:nx-1, 1:ny-1), z, n)
 end
-function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalZone}})
+function eigvecs(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalZone, <:Fukui}})
     eigenvectors = eigvecs(tba, bc.action.reciprocalspace; bc.action.options...)
     ny, nx = map(length, shape(bc.action.reciprocalspace))
     result = Matrix{eltype(eigenvectors)}(undef, nx, ny)
     count = 1
     for i=1:nx, j=1:ny
-        result[i, j] = eigenvectors[count][:, bc.action.bands]
+        result[i, j] = eigenvectors[count][:, bc.action.method.bands]
         count += 1
     end
     return result
 end
+# For the Berry curvature and Berry phase (÷2π) on the Brillouin zone or reciprocal zone.
+@inline function initialize(bc::BerryCurvature{<:Union{ReciprocalZone, BrillouinZone}, <:Kubo}, ::AbstractTBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
+    ny, nx = map(length, shape(bc.reciprocalspace))
+    z = zeros(Float64, ny, nx, 1)
+    n = zeros(1)
+    return (bc.reciprocalspace, z, n)
+end
+# For the Berry curvature on a specific path in the reciprocal space.
+@inline function initialize(bc::BerryCurvature{<:ReciprocalPath, <:Kubo}, ::AbstractTBA)
+    np = length(bc.reciprocalspace)
+    z = zeros(Float64, np)
+    return (bc.reciprocalspace, z)
+end
+function _minilength(rs::ReciprocalSpace)
+    if typeof(rs) <: ReciprocalPath
+        d = minimum([step(rs, i) for i in 1:length(rs)-1])
+    else
+        ny, nx = map(length, shape(rs))
+        d = minimum(norm, [rs.reciprocals[1]/nx, rs.reciprocals[2]/ny])
+    end
+    return d 
+end
+function _kubo(tba::Algorithm{<:AbstractTBA},  bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}})
+    dim = dimension(bc.action.reciprocalspace)
+    @assert dim ∈(2, 3) "_eigendHk error: only two-dimensional and three-dimensional reciprocal spaces are supported."
+    d, kx, ky = bc.action.method.d, bc.action.method.kx, bc.action.method.ky
+    ml = _minilength(bc.action.reciprocalspace)
+    if isa(kx, Nothing)
+        dx, dy = dim==2 ? (d*ml*[1.0, 0.0], d*ml*[0.0, 1.]) : (d*ml*[1., 0.0, 0.0], d*ml*[0.0, 1., 0.0])
+    else
+        dx, dy = ml*d*normalize(kx), ml*d*normalize(ky)
+    end
+    @assert dot(dx, dy) == 0.0 "_eigendHk error: kx vector and ky vector should be perpendicular to each other in the plane."
+    μ = bc.action.method.μ
+    Ωxys = Float64[] 
+    for momentum in bc.action.reciprocalspace
+        eigensystem = eigen(tba; k=momentum, bc.action.options...)
+        mx₁, mx₂ = matrix(tba; k=momentum + dx, bc.action.options...), matrix(tba; k=momentum - dx, bc.action.options...)
+        my₁, my₂ = matrix(tba; k=momentum + dy, bc.action.options...), matrix(tba; k=momentum - dy, bc.action.options...)
+        dHx = (mx₂ - mx₁)/norm(2*dx)
+        dHy = (my₂ - my₁)/norm(2*dy)
+        res = 0.0
+        for (i, valv) in enumerate(eigensystem.values)
+            valv > μ && continue
+            vs₁ = eigensystem.vectors[:, i]
+            for (j, valc) in enumerate(eigensystem.values)
+                valc < μ && continue
+                vs₂ = eigensystem.vectors[:, j] 
+                velocity_x = vs₁'*dHx*vs₂
+                velocity_y = vs₂'*dHy*vs₁
+                res += -2*imag(velocity_x*velocity_y/(valc-valv)^2)
+            end
+        end
+        push!(Ωxys, res)
+    end
+    return Ωxys
+end
 
-# Compute the Berry curvature and optionally, the Chern number
+# Compute the Berry curvature and optionally, the Chern number or Berry phase (÷ 2π)
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
-    eigenvectors = eigvecs(tba, bc)
-    g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba))) : inv(getcontent(tba.frontend, :commutator))
-    @timeit_debug tba.timer "Berry curvature" for i = 1:size(eigenvectors)[1]-1, j = 1:size(eigenvectors)[2]-1
-        vs₁ = eigenvectors[i, j]
-        vs₂ = eigenvectors[i+1, j]
-        vs₃ = eigenvectors[i+1, j+1]
-        vs₄ = eigenvectors[i, j+1]
-        for k = 1:length(bc.action.bands)
-            p₁ = vs₁[:, k]'*g*vs₂[:, k]
-            p₂ = vs₂[:, k]'*g*vs₃[:, k]
-            p₃ = vs₃[:, k]'*g*vs₄[:, k]
-            p₄ = vs₄[:, k]'*g*vs₁[:, k]
-            bc.data[2][j, i, k] = angle(p₁*p₂*p₃*p₄)
-            length(bc.data)==3 && (bc.data[3][k] += bc.data[2][j, i, k]/2pi)
+    alg = bc.action.method
+    isa(bc.action.reciprocalspace, BrillouinZone) && (area = volume(bc.action.reciprocalspace.reciprocals)/length(bc.action.reciprocalspace))
+    isa(bc.action.reciprocalspace, ReciprocalZone) && ( area = bc.action.reciprocalspace.volume/length(bc.action.reciprocalspace))
+    if isa(alg, Fukui) 
+        eigenvectors = eigvecs(tba, bc)
+        g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba))) : inv(getcontent(tba.frontend, :commutator))
+        if alg.abelian
+            @timeit_debug tba.timer "Berry curvature" for i = 1:size(eigenvectors)[1]-1, j = 1:size(eigenvectors)[2]-1
+                vs₁ = eigenvectors[i, j]
+                vs₂ = eigenvectors[i+1, j]
+                vs₃ = eigenvectors[i+1, j+1]
+                vs₄ = eigenvectors[i, j+1]
+                for k = 1:length(alg.bands)
+                    p₁ = vs₁[:, k]'*g*vs₂[:, k]
+                    p₂ = vs₂[:, k]'*g*vs₃[:, k]
+                    p₃ = vs₃[:, k]'*g*vs₄[:, k]
+                    p₄ = vs₄[:, k]'*g*vs₁[:, k]
+                    bc.data[2][j, i, k] = -angle(p₁*p₂*p₃*p₄)/area
+                    length(bc.data)==3 && (bc.data[3][k] += bc.data[2][j, i, k]*area/2pi)
+                end
+            end
+        else
+            @timeit_debug tba.timer "Berry curvature" for i = 1:size(eigenvectors)[1]-1, j = 1:size(eigenvectors)[2]-1
+                vs₁ = eigenvectors[i, j]
+                vs₂ = eigenvectors[i+1, j]
+                vs₃ = eigenvectors[i+1, j+1]
+                vs₄ = eigenvectors[i, j+1]
+                p₁ = (vs₁'*g*vs₂)
+                p₂ = (vs₂'*g*vs₃)
+                p₃ = (vs₃'*g*vs₄)
+                p₄ = (vs₄'*g*vs₁)
+                bc.data[2][j, i, 1] = -imag(logdet(p₁*p₂*p₃*p₄))/area
+                length(bc.data)==3 && (bc.data[3][1] += bc.data[2][j, i, 1]*area/2pi)
+            end
+            @warn "This method (nonabelian case for `Fukui` method) is not verified in bosonic system."
+        end
+    else isa(alg, Kubo)
+        Ωxys = _kubo(tba, bc)
+        if typeof(bc.action.reciprocalspace) <: Union{ReciprocalZone, BrillouinZone}
+            ny, nx = map(length, shape(bc.action.reciprocalspace))
+            bc.data[2][:, :, 1] = reshape(Ωxys, ny, nx)
+            bc.data[3][1] =  sum(Ωxys*area)/2pi
+        else 
+            bc.data[2][:] = Ωxys[:]
         end
     end
     length(bc.data)==4 && @info (@sprintf "Chern numbers: %s" join([@sprintf "%s(%s)" cn band for (cn, band) in zip(bc.data[4], bc.action.bands)], ", "))
 end
 
-# Plot the Berry curvature and optionally, the Chern number
+# Plot the Berry curvature and optionally, the Chern number or Berry phase (÷2π)
 @recipe function plot(pack::Tuple{Algorithm{<:AbstractTBA}, Assignment{<:BerryCurvature}})
     subtitles --> if length(pack[2].data)==3
-        [@sprintf("band %s (C = %s)", band, decimaltostr(chn)) for (band, chn) in zip(pack[2].action.bands, pack[2].data[3])]
+        if isa(pack[2].action.method, Fukui)
+            if pack[2].action.method.abelian 
+                [@sprintf("band %s (ϕ/2π = %s)", band, decimaltostr(chn)) for (band, chn) in zip(pack[2].action.method.bands, pack[2].data[3])]
+            else
+                [@sprintf("sum bands %s (ϕ/2π = %s)", pack[2].action.method.bands, decimaltostr(pack[2].data[3][1]))]
+            end
+        else
+            [@sprintf("occupied bands (μ = %s) (ϕ/2π = %s)", pack[2].action.method.μ, decimaltostr(pack[2].data[3][1]))]
+        end
     else
-        [@sprintf("band %s", band) for band in pack[2].action.bands]
+        [@sprintf("occupied band (μ = %s)", pack[2].action.method.μ)]
     end
     subtitlefontsize --> 8
     plot_title --> nameof(pack[1], pack[2])
