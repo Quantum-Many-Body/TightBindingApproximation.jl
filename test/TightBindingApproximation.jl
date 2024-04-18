@@ -49,7 +49,7 @@ end
     t = Hopping(:t, 1.0, 1)
     μ = Onsite(:μ, 0.0)
 
-    tba = TBA(lattice, hilbert, t, μ)
+    tba = TBA(lattice, hilbert, (t, μ))
     @test kind(tba) == kind(typeof(tba)) == Fermionic(:TBA)
     @test valtype(tba) == valtype(typeof(tba)) == Float64
     @test dimension(tba) == 1

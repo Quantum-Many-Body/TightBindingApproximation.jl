@@ -353,21 +353,20 @@ end
 @inline contentnames(::Type{<:TBA}) = (:lattice, :H, :commutator)
 
 """
-    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Term...; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
-    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
+    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Union{Term, Tuple{Term, Vararg{Term}}}, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
 
 Construct a tight-binding quantum lattice system.
 """
-@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Term...; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
-    return TBA(lattice, hilbert, terms; neighbors=neighbors, boundary=boundary)
-end
-@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Tuple{Vararg{Term}}; neighbors::Union{Nothing, Int, Neighbors}=nothing, boundary::Boundary=plain)
+@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Union{Term, Tuple{Term, Vararg{Term}}}, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
+    terms = wrapper(terms)
     tbakind = TBAKind(typeof(terms), valtype(hilbert))
     table = Table(hilbert, Metric(tbakind, hilbert))
     commt = commutator(tbakind, hilbert)
     isnothing(neighbors) && (neighbors = maximum(term->term.bondkind, terms))
-    return TBA{typeof(tbakind)}(lattice, OperatorGenerator(terms, bonds(lattice, neighbors), hilbert; half=false, table=table, boundary=boundary), commt)
+    return TBA{typeof(tbakind)}(lattice, OperatorGenerator(terms, bonds(lattice, neighbors), hilbert, boundary, table; half=false), commt)
 end
+@inline wrapper(x) = (x,)
+@inline wrapper(xs::Tuple) = xs
 
 """
     TBA{K}(lattice::AbstractLattice, hamiltonian::Function, parameters::Parameters, commt::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
