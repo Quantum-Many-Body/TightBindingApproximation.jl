@@ -123,7 +123,7 @@ end
     kubobc = sc(:BerryCurvatureKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))
     savefig(plot(kubobc), "bcextended_Kubo.png")
 
-    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path; method=Kubo(0.0)))), "bcpath.png")
+    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "bcpath.png")
 end
 
 @time @testset "FermiSurface and DensityOfStates" begin

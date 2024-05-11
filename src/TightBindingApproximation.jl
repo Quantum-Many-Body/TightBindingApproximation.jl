@@ -14,7 +14,6 @@ using QuantumLattices: atol, rtol, decimaltostr, getcontent, shape
 using RecipesBase: RecipesBase, @recipe, @series, @layout
 using TimerOutputs: TimerOutput, @timeit_debug
 
-
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian
 import QuantumLattices: add!, dimension, kind, matrix, update!
 import QuantumLattices: initialize, run!
@@ -453,6 +452,9 @@ end
     BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
 
 Berry curvature of energy bands.
+
+!!! note
+    To obtain a rotation-symmetric Berry curvature, the `:rcoordinate` gauge should be used. Otherwise, artificial slight rotation symmetry breaking will occur.
 """
 struct BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
     reciprocalspace::B
@@ -460,7 +462,7 @@ struct BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
     options::O
 end
 @inline BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; options...) = BerryCurvature(reciprocalspace, method, options)
-@inline BerryCurvature(reciprocalspace::ReciprocalPath; method=Kubo(0.0), options...) = BerryCurvature(reciprocalspace, method, options)
+@inline BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real, d::Real=0.1, kx::T=nothing, ky::T=nothing; options...) where {T<:Union{Nothing, Vector{Float64}}} = BerryCurvature(reciprocalspace, Kubo(μ, d, kx, ky), options)
 @inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}, abelian::Bool=true; options...) = BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), options)
 
 # For the Berry curvature and Chern number (Berry phase ÷ 2π) on the first Brillouin zone
@@ -563,7 +565,7 @@ end
 function run!(tba::Algorithm{<:AbstractTBA}, bc::Assignment{<:BerryCurvature})
     alg = bc.action.method
     isa(bc.action.reciprocalspace, BrillouinZone) && (area = volume(bc.action.reciprocalspace.reciprocals)/length(bc.action.reciprocalspace))
-    isa(bc.action.reciprocalspace, ReciprocalZone) && ( area = bc.action.reciprocalspace.volume/length(bc.action.reciprocalspace))
+    isa(bc.action.reciprocalspace, ReciprocalZone) && (area = bc.action.reciprocalspace.volume/length(bc.action.reciprocalspace))
     if isa(alg, Fukui) 
         eigenvectors = eigvecs(tba, bc)
         g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba))) : inv(getcontent(tba.frontend, :commutator))
@@ -824,7 +826,7 @@ end
 Optimize the parameters of a tight binding system whose names are specified by `variables` so that the total deviations of the eigenvalues between the model points and sample points minimize.
 """
 function optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba)); verbose=false, method=LBFGS(), options=Options())
-    v₀ = collect(getfield(Parameters(tba), name) for name in variables)
+    v₀ = collect(real(getfield(Parameters(tba), name)) for name in variables)
     function diff(v::Vector)
         parameters = Parameters{variables}(v...)
         update!(tba; parameters...)
