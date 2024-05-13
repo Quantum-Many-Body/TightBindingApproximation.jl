@@ -206,7 +206,7 @@ function _add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation{<:TBAKind{:BdG}
     dest[seq₁, seq₂] += m.value*phase+atol
     if iscreation(m[1]) && isannihilation(m[2])
         seq₁, seq₂ = mr.table[m[1].index], mr.table[m[2].index']
-        dest[seq₁, seq₂] += sign*m.value*phase'+atol
+        dest[seq₂, seq₁] += sign*m.value*phase'+atol
     end
     return dest
 end
