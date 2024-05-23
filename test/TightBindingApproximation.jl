@@ -61,7 +61,7 @@ end
     @test ishermitian(m) == ishermitian(typeof(m)) == true
 
     A(t, μ; k=[0.0, 0.0]) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
-    tbaₐ = TBA{Fermionic{:TBA}}(lattice, A, (t=1.0, μ=0.0))
+    tbaₐ = TBA{Fermionic{:TBA}}(A, (t=1.0, μ=0.0))
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
         m = matrix(tba; kv...)
@@ -85,7 +85,7 @@ end
     @test Parameters(bdg) == (t=1.0, μ=0.5, Δ=Complex(0.1))
 
     A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ -2im*Δ*sin(k[1])-2Δ*sin(k[2]); 2im*Δ*sin(k[1])-2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
-    bdgₐ = TBA{Fermionic{:BdG}}(lattice, A, (t=1.0, μ=0.5, Δ=0.1))
+    bdgₐ = TBA{Fermionic{:BdG}}(A, (t=1.0, μ=0.5, Δ=0.1))
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
         m = matrix(bdg; kv...)
