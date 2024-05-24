@@ -277,7 +277,6 @@ abstract type AbstractTBA{K<:TBAKind, Hₘ<:RepresentationGenerator, C<:Union{No
 @inline kind(::Type{<:AbstractTBA{K}}) where K = K()
 @inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, Hₘ}}) where {Hₘ<:Image} = valtype(eltype(Hₘ))
 @inline dimension(tba::AbstractTBA{<:TBAKind, <:Image}) = length(getcontent(tba, :Hₘ).transformation.table)
-@inline dimension(tba::AbstractTBA{<:TBAKind, <:OperatorGenerator}) = length(getcontent(tba, :Hₘ).transformation.table)
 function dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression})
     try
         return dimension(getcontent(tba, :Hₘ).expression)
@@ -423,7 +422,7 @@ Construct a tight-binding quantum lattice system.
     table = Table(hilbert, Metric(tbakind, hilbert))
     commt = commutator(tbakind, hilbert)
     isnothing(neighbors) && (neighbors = maximum(term->term.bondkind, terms))
-    H = OperatorGenerator(terms, bonds(lattice, neighbors), hilbert, boundary, nothing, lazy; half=false)
+    H = OperatorGenerator(terms, bonds(lattice, neighbors), hilbert, boundary, lazy; half=false)
     return TBA{typeof(tbakind)}(lattice, H, QuadraticFormalize{typeof(tbakind)}(table), commt)
 end
 @inline wrapper(x) = (x,)
