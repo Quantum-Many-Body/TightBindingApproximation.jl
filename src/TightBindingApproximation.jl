@@ -190,18 +190,18 @@ end
 @inline Base.promote_rule(::Type{Quadratic{V₁, C}}, ::Type{Quadratic{V₂, C}}) where {V₁<:Number, V₂<:Number, C<:AbstractVector} = Quadratic{promote_type(V₁, V₂), C}
 
 """
-    QuadraticFormalize{K<:TBAKind, D<:Number, T<:Table} <: LinearTransformation
+    QuadraticFormalize{K<:TBAKind, T<:Table} <: LinearTransformation
 
 The linear transformation that converts a rank-2 operator to its unified quadratic form.
 """
-struct QuadraticFormalize{K<:TBAKind, D<:Number, T<:Table} <: LinearTransformation
+struct QuadraticFormalize{K<:TBAKind, T<:Table} <: LinearTransformation
     table::T
-    QuadraticFormalize{K, D}(table::Table) where {K<:TBAKind, D<:Number} = new{K, D, typeof(table)}(table)
+    QuadraticFormalize{K}(table::Table) where {K<:TBAKind} = new{K, typeof(table)}(table)
 end
-@inline function Base.valtype(::Type{<:QuadraticFormalize{<:TBAKind, D}}, O::Type{<:Union{Operator, OperatorSet}}) where {D<:Number}
+@inline function Base.valtype(::Type{<:QuadraticFormalize{<:TBAKind}}, O::Type{<:Union{Operator, OperatorSet}})
     P = optype(O)
     @assert rank(P)==2 "valtype error: QuadraticFormalize only applies to rank-2 operator."
-    M = Quadratic{promote_type(D, valtype(P)), parametertype(eltype(idtype(P)), :coordination)}
+    M = Quadratic{valtype(P), parametertype(eltype(idtype(P)), :coordination)}
     return OperatorSum{M, idtype(M)}
 end
 (qf::QuadraticFormalize)(m::Operator; kwargs...) = add!(zero(qf, m), qf, m; kwargs)
@@ -424,7 +424,7 @@ Construct a tight-binding quantum lattice system.
     commt = commutator(tbakind, hilbert)
     isnothing(neighbors) && (neighbors = maximum(term->term.bondkind, terms))
     H = OperatorGenerator(terms, bonds(lattice, neighbors), hilbert, boundary, nothing, lazy; half=false)
-    return TBA{typeof(tbakind)}(lattice, H, QuadraticFormalize{typeof(tbakind), valtype(eltype(H))}(table), commt)
+    return TBA{typeof(tbakind)}(lattice, H, QuadraticFormalize{typeof(tbakind)}(table), commt)
 end
 @inline wrapper(x) = (x,)
 @inline wrapper(xs::Tuple) = xs
