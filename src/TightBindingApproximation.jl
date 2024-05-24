@@ -207,13 +207,13 @@ end
 (qf::QuadraticFormalize)(m::Operator; kwargs...) = add!(zero(qf, m), qf, m; kwargs)
 
 """
-    add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...) -> typeof(dest)
     add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...) -> typeof(dest)
     add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}, 2}}; kwargs...) -> typeof(dest)
 
 Get the unified quadratic form of a rank-2 operator and add it to `dest`.
 """
-function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...)
     return add!(dest, Quadratic(m.value, (qf.table[m[1]'], qf.table[m[2]]), rcoordinate(m), icoordinate(m)))
 end
 function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...)
@@ -277,6 +277,7 @@ abstract type AbstractTBA{K<:TBAKind, Hₘ<:RepresentationGenerator, C<:Union{No
 @inline kind(::Type{<:AbstractTBA{K}}) where K = K()
 @inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, Hₘ}}) where {Hₘ<:Image} = valtype(eltype(Hₘ))
 @inline dimension(tba::AbstractTBA{<:TBAKind, <:Image}) = length(getcontent(tba, :Hₘ).transformation.table)
+@inline dimension(tba::AbstractTBA{<:TBAKind, <:OperatorGenerator}) = length(getcontent(tba, :Hₘ).transformation.table)
 function dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression})
     try
         return dimension(getcontent(tba, :Hₘ).expression)
