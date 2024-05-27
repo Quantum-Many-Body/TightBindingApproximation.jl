@@ -1,6 +1,6 @@
 # TightBindingApproximation
 
-[![Build Status](https://travis-ci.com/Quantum-Many-Body/TightBindingApproximation.jl.svg?branch=master)](https://travis-ci.com/Quantum-Many-Body/TightBindingApproximation.jl)
+[![CI](https://github.com/Quantum-Many-Body/TightBindingApproximation.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/Quantum-Many-Body/TightBindingApproximation.jl/actions/workflows/CI.yml)
 [![codecov](https://codecov.io/gh/Quantum-Many-Body/TightBindingApproximation.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/Quantum-Many-Body/TightBindingApproximation.jl)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://quantum-many-body.github.io/TightBindingApproximation.jl/dev/)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://quantum-many-body.github.io/TightBindingApproximation.jl/stable/)
