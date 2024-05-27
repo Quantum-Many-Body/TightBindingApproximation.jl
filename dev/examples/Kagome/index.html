@@ -13,7 +13,7 @@ unitcell = Lattice(
 lattice = Lattice(unitcell, (8, 8))
 
 # plot the finite lattice
-plot(lattice, 1)</code></pre><img src="144d2a7a.svg" alt="Example block output"/><h2 id="Energy-bands"><a class="docs-heading-anchor" href="#Energy-bands">Energy bands</a><a id="Energy-bands-1"></a><a class="docs-heading-anchor-permalink" href="#Energy-bands" title="Permalink"></a></h2><p>Now let&#39;s calculate the energy bands of the Kagome lattice:</p><pre><code class="language-julia hljs">using TightBindingApproximation
+plot(lattice, 1)</code></pre><img src="33a3c79b.svg" alt="Example block output"/><h2 id="Energy-bands"><a class="docs-heading-anchor" href="#Energy-bands">Energy bands</a><a id="Energy-bands-1"></a><a class="docs-heading-anchor-permalink" href="#Energy-bands" title="Permalink"></a></h2><p>Now let&#39;s calculate the energy bands of the Kagome lattice:</p><pre><code class="language-julia hljs">using TightBindingApproximation
 
 # define the Hilbert space (single-orbital spinless complex fermion)
 hilbert = Hilbert(site=&gt;Fock{:f}(1, 1) for site=1:length(unitcell))
@@ -31,7 +31,7 @@ path = ReciprocalPath(reciprocals(unitcell), hexagon&quot;Γ-K-M-Γ&quot;, lengt
 energybands = kagome(:EB, EnergyBands(path))
 
 # plot the energy bands
-plot(energybands)</code></pre><img src="a5e3c7c3.svg" alt="Example block output"/><h2 id="Density-of-states"><a class="docs-heading-anchor" href="#Density-of-states">Density of states</a><a id="Density-of-states-1"></a><a class="docs-heading-anchor-permalink" href="#Density-of-states" title="Permalink"></a></h2><p>The total DOS can be computed as follows:</p><pre><code class="language-julia hljs"># define the Brillouin zone
+plot(energybands)</code></pre><img src="0a3b63a3.svg" alt="Example block output"/><h2 id="Density-of-states"><a class="docs-heading-anchor" href="#Density-of-states">Density of states</a><a id="Density-of-states-1"></a><a class="docs-heading-anchor-permalink" href="#Density-of-states" title="Permalink"></a></h2><p>The total DOS can be computed as follows:</p><pre><code class="language-julia hljs"># define the Brillouin zone
 brillouinzone = BrillouinZone(reciprocals(unitcell), 120)
 
 # compute the total DOS and plot the results
@@ -39,22 +39,22 @@ dos = kagome(
     :TotalDensityOfStates,
     DensityOfStates(brillouinzone; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
-plot(dos)</code></pre><img src="1a8dc71a.svg" alt="Example block output"/><p>There are three peaks in the DOS. The one at 2 reflects the flat upper energy band, and the ones at 0 and -2 implies the Van Hove singularities of the middle and lower energy bands, respectively.</p><p>On the other hand, the DOS of a specific generalized orbital on a given sets of bands can also be computed:</p><pre><code class="language-julia hljs"># the total DOS of the lower two bands
+plot(dos)</code></pre><img src="f536ade3.svg" alt="Example block output"/><p>There are three peaks in the DOS. The one at 2 reflects the flat upper energy band, and the ones at 0 and -2 implies the Van Hove singularities of the middle and lower energy bands, respectively.</p><p>On the other hand, the DOS of a specific generalized orbital on a given sets of bands can also be computed:</p><pre><code class="language-julia hljs"># the total DOS of the lower two bands
 dos = kagome(
     :DensityOfStatesWithoutUpperBand,
     DensityOfStates(brillouinzone, 1:2; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
-plot(dos)</code></pre><img src="195d87c1.svg" alt="Example block output"/><pre><code class="language-julia hljs"># the total DOS of the three sublattices, respectively (degenerate)
+plot(dos)</code></pre><img src="44b0e77b.svg" alt="Example block output"/><pre><code class="language-julia hljs"># the total DOS of the three sublattices, respectively (degenerate)
 dos = kagome(
     :SublatticeDensityOfStates,
     DensityOfStates(brillouinzone, :, [1], [2], [3]; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
-plot(dos; labels=[&quot;Sublattice 1&quot; &quot;Sublattice 2&quot; &quot;Sublattice 3&quot;], legend=true)</code></pre><img src="876035bd.svg" alt="Example block output"/><pre><code class="language-julia hljs"># the DOS of the three sublattices on the lower two bands, respectively (degenerate)
+plot(dos; labels=[&quot;Sublattice 1&quot; &quot;Sublattice 2&quot; &quot;Sublattice 3&quot;], legend=true)</code></pre><img src="abfc5867.svg" alt="Example block output"/><pre><code class="language-julia hljs"># the DOS of the three sublattices on the lower two bands, respectively (degenerate)
 dos = kagome(
     :SublatticeDensityOfStatesWithoutUpperBand,
     DensityOfStates(brillouinzone, 1:2, [1], [2], [3]; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
-plot(dos; labels=[&quot;Sublattice 1&quot; &quot;Sublattice 2&quot; &quot;Sublattice 3&quot;], legend=true)</code></pre><img src="2fdf1e8a.svg" alt="Example block output"/><h2 id="Fermi-surface"><a class="docs-heading-anchor" href="#Fermi-surface">Fermi surface</a><a id="Fermi-surface-1"></a><a class="docs-heading-anchor-permalink" href="#Fermi-surface" title="Permalink"></a></h2><p>When the Fermi level of the system sets at the Van Hove singularity of the lower band, the FS is also in the shape of a Kagome lattice:</p><pre><code class="language-julia hljs"># define a reciprocal zone proper to show the FS
+plot(dos; labels=[&quot;Sublattice 1&quot; &quot;Sublattice 2&quot; &quot;Sublattice 3&quot;], legend=true)</code></pre><img src="2b84050e.svg" alt="Example block output"/><h2 id="Fermi-surface"><a class="docs-heading-anchor" href="#Fermi-surface">Fermi surface</a><a id="Fermi-surface-1"></a><a class="docs-heading-anchor-permalink" href="#Fermi-surface" title="Permalink"></a></h2><p>When the Fermi level of the system sets at the Van Hove singularity of the lower band, the FS is also in the shape of a Kagome lattice:</p><pre><code class="language-julia hljs"># define a reciprocal zone proper to show the FS
 reciprocalzone = ReciprocalZone(
     [[4*pi/√3, 0.0], [0.0, 4*pi/√3]], -1.0=&gt;1.0, -1.0=&gt;1.0;
     length=600, ends=(true, true)
@@ -62,8 +62,8 @@ reciprocalzone = ReciprocalZone(
 
 # Fermi level at -2, i.e., the lower Van Hove singularity
 fs = kagome(:FermiSurface, FermiSurface(reciprocalzone, -2))
-plot(fs; size=(450, 400), clims=(0, 10))</code></pre><img src="cbe48254.svg" alt="Example block output"/><p>As is similar to DOS, specific orbital components of a specific set of bands on the Fermi level can also be computed.</p><p>When the Fermi level sets at -2, actually, only the lower band contributes to the Fermi surface. Therefore, the contributions of the upper two bands are zero, as will be shown by the following computation:</p><pre><code class="language-julia hljs"># Fermi level at -2, the contributions of the upper two bands to the FS
+plot(fs; size=(450, 400), clims=(0, 10))</code></pre><img src="0314fa29.svg" alt="Example block output"/><p>As is similar to DOS, specific orbital components of a specific set of bands on the Fermi level can also be computed.</p><p>When the Fermi level sets at -2, actually, only the lower band contributes to the Fermi surface. Therefore, the contributions of the upper two bands are zero, as will be shown by the following computation:</p><pre><code class="language-julia hljs"># Fermi level at -2, the contributions of the upper two bands to the FS
 fs = kagome(:FermiSurfaceWithoutLowerBand, FermiSurface(reciprocalzone, -2, 2:3))
-plot(fs; size=(450, 400), clims=(0, 5))</code></pre><img src="4e2c03ae.svg" alt="Example block output"/><p>The components of the three sublattices at the FS can be computed as follows:</p><pre><code class="language-julia hljs"># Fermi level at -2, the three sublattice components at the FS, respectively
+plot(fs; size=(450, 400), clims=(0, 5))</code></pre><img src="630de166.svg" alt="Example block output"/><p>The components of the three sublattices at the FS can be computed as follows:</p><pre><code class="language-julia hljs"># Fermi level at -2, the three sublattice components at the FS, respectively
 fs = kagome(:SublatticeFermiSurface, FermiSurface(reciprocalzone, -2, :, [1], [2], [3]))
-plot(fs; nrow=1, ncol=3, size=(780, 330), clims=(0, 5), xlabelfontsize=8, ylabelfontsize=8)</code></pre><img src="07a5a95f.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Superconductor/">« p+ip Superconductor on Square Lattice</a><a class="docs-footer-nextpage" href="../Phonon/">Phonons on Square Lattice »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.0 on <span class="colophon-date" title="Monday 13 May 2024 12:50">Monday 13 May 2024</span>. Using Julia version 1.10.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+plot(fs; nrow=1, ncol=3, size=(780, 330), clims=(0, 5), xlabelfontsize=8, ylabelfontsize=8)</code></pre><img src="35a7b392.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Superconductor/">« p+ip Superconductor on Square Lattice</a><a class="docs-footer-nextpage" href="../Phonon/">Phonons on Square Lattice »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Monday 27 May 2024 14:23">Monday 27 May 2024</span>. Using Julia version 1.10.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
