@@ -1,12 +1,9 @@
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Plots: plot, plot!, savefig
-using QuantumLattices: dimension, kind, matrix, update!
-using QuantumLattices: Coupling, Hilbert, MatrixCoupling, Metric, OperatorUnitToTuple
-using QuantumLattices: Algorithm, Parameters
-using QuantumLattices: Elastic, FID, Fock, Hooke, Hopping, Kinetic, Onsite, Pairing, Phonon
-using QuantumLattices: BrillouinZone, Lattice, ReciprocalPath, ReciprocalZone, azimuth, rcoordinate, reciprocals, @rectangle_str, @σ_str
-using QuantumLattices: contentnames
+using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FID, Fock, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone
+using QuantumLattices: azimuth, contentnames, dimension, kind, matrix, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
 using TightBindingApproximation
+using TightBindingApproximation.Fitting
 
 @time @testset "prerequisite" begin
     @test promote_type(Fermionic{:TBA}, Fermionic{:TBA}) == Fermionic{:TBA}
