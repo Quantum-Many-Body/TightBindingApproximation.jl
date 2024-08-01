@@ -1,10 +1,8 @@
 using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, AnalyticalExpression, Assignment, BrillouinZone, Boundary, CompositeIndex, Elastic, FID, Fock, Frontend, Hilbert, Hooke, Hopping, ID, Image, Index, Internal, Kinetic, LinearTransformation, MatrixRepresentation, Metric, Neighbors, Onsite, Operator, OperatorGenerator, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, PID, ReciprocalPath, ReciprocalSpace, ReciprocalZone, RepresentationGenerator, Table, Term
+using QuantumLattices: AbstractLattice, Action, Algorithm, AnalyticalExpression, Assignment, BrillouinZone, Boundary, CategorizedGenerator, CompositeIndex, Elastic, FID, Fock, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Image, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, Onsite, Operator, OperatorGenerator, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, PID, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Representation, Table, Term
 using QuantumLattices: bonds, decimaltostr, expand, icoordinate, idtype, isannihilation, iscreation, optype, parametertype, rank, rcoordinate, shape, shrink, statistics, volume
-
-
 using RecipesBase: RecipesBase, @recipe, @series, @layout
 using TimerOutputs: TimerOutput, @timeit_debug
 
@@ -177,33 +175,33 @@ end
 @inline Base.promote_rule(::Type{Quadratic{V₁, C}}, ::Type{Quadratic{V₂, C}}) where {V₁<:Number, V₂<:Number, C<:AbstractVector} = Quadratic{promote_type(V₁, V₂), C}
 
 """
-    QuadraticFormalize{K<:TBAKind, T<:Table} <: LinearTransformation
+    Quadraticization{K<:TBAKind, T<:Table} <: LinearTransformation
 
 The linear transformation that converts a rank-2 operator to its unified quadratic form.
 """
-struct QuadraticFormalize{K<:TBAKind, T<:Table} <: LinearTransformation
+struct Quadraticization{K<:TBAKind, T<:Table} <: LinearTransformation
     table::T
-    QuadraticFormalize{K}(table::Table) where {K<:TBAKind} = new{K, typeof(table)}(table)
+    Quadraticization{K}(table::Table) where {K<:TBAKind} = new{K, typeof(table)}(table)
 end
-@inline function Base.valtype(::Type{<:QuadraticFormalize{<:TBAKind}}, O::Type{<:Union{Operator, OperatorSet}})
+@inline function Base.valtype(::Type{<:Quadraticization{<:TBAKind}}, O::Type{<:Union{Operator, OperatorSet}})
     P = optype(O)
-    @assert rank(P)==2 "valtype error: QuadraticFormalize only applies to rank-2 operator."
+    @assert rank(P)==2 "valtype error: Quadraticization only applies to rank-2 operator."
     M = Quadratic{valtype(P), parametertype(eltype(idtype(P)), :coordination)}
     return OperatorSum{M, idtype(M)}
 end
-(qf::QuadraticFormalize)(m::Operator; kwargs...) = add!(zero(qf, m), qf, m; kwargs)
+(qf::Quadraticization)(m::Operator; kwargs...) = add!(zero(qf, m), qf, m; kwargs)
 
 """
-    add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...) -> typeof(dest)
-    add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...) -> typeof(dest)
-    add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}, 2}}; kwargs...) -> typeof(dest)
 
 Get the unified quadratic form of a rank-2 operator and add it to `dest`.
 """
-function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...)
     return add!(dest, Quadratic(m.value, (qf.table[m[1]'], qf.table[m[2]]), rcoordinate(m), icoordinate(m)))
 end
-function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...)
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     add!(dest, Quadratic(m.value, (qf.table[m[1]'], qf.table[m[2]]), rcoord, icoord))
     if iscreation(m[1]) && isannihilation(m[2])
@@ -212,7 +210,7 @@ function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Ope
     end
     return dest
 end
-function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}, 2}}; kwargs...)
     seq₁, seq₂ = qf.table[m[1]], qf.table[m[2]]
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     add!(dest, Quadratic(m.value, (seq₁, seq₂), rcoord, icoord))
@@ -221,29 +219,29 @@ function add!(dest::OperatorSum, qf::QuadraticFormalize{<:TBAKind{:BdG}}, m::Ope
 end
 
 """
-    TBAMatrixRepresentation{D<:Number, V} <: MatrixRepresentation
+    TBAMatrixization{D<:Number, V} <: Matrixization
 
 Matrix representation of the Hamiltonian of a tight-binding system.
 """
-struct TBAMatrixRepresentation{D<:Number, V} <: MatrixRepresentation
+struct TBAMatrixization{D<:Number, V} <: Matrixization
     k::V
     dim::Int
     gauge::Symbol
-    function TBAMatrixRepresentation{D}(k, dim::Integer, gauge::Symbol=:icoordinate) where {D<:Number}
-        @assert gauge∈(:rcoordinate, :icoordinate) "TBAMatrixRepresentation error: gauge must be `:rcoordinate` or `:icoordinate`."
+    function TBAMatrixization{D}(k, dim::Integer, gauge::Symbol=:icoordinate) where {D<:Number}
+        @assert gauge∈(:rcoordinate, :icoordinate) "TBAMatrixization error: gauge must be `:rcoordinate` or `:icoordinate`."
         return new{D, typeof(k)}(k, dim, gauge)
     end
 end
-@inline Base.valtype(::Type{<:TBAMatrixRepresentation{D}}, ::Type{<:Union{Quadratic, OperatorSet{<:Quadratic}}}) where {D<:Number} = Matrix{D}
-@inline Base.zero(mr::TBAMatrixRepresentation, m::Union{Quadratic, OperatorSet{<:Quadratic}}) = zeros(eltype(valtype(mr, m)), mr.dim, mr.dim)
-@inline (mr::TBAMatrixRepresentation)(m::Quadratic; kwargs...) = add!(zero(mr, m), mr, m; kwargs...)
+@inline Base.valtype(::Type{<:TBAMatrixization{D}}, ::Type{<:Union{Quadratic, OperatorSet{<:Quadratic}}}) where {D<:Number} = Matrix{D}
+@inline Base.zero(mr::TBAMatrixization, m::Union{Quadratic, OperatorSet{<:Quadratic}}) = zeros(eltype(valtype(mr, m)), mr.dim, mr.dim)
+@inline (mr::TBAMatrixization)(m::Quadratic; kwargs...) = add!(zero(mr, m), mr, m; kwargs...)
 
 """
-    add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation, m::Quadratic; infinitesimal=0, kwargs...) -> typeof(dest)
+    add!(dest::AbstractMatrix, mr::TBAMatrixization, m::Quadratic; infinitesimal=0, kwargs...) -> typeof(dest)
 
 Get the matrix representation of a quadratic form and add it to `dest`.
 """
-function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation, m::Quadratic; infinitesimal=0, kwargs...)
+function add!(dest::AbstractMatrix, mr::TBAMatrixization, m::Quadratic; infinitesimal=0, kwargs...)
     coordinate = mr.gauge==:rcoordinate ? m.rcoordinate : m.icoordinate
     phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
     dest[m.position...] += m.value*phase
@@ -254,16 +252,16 @@ function add!(dest::AbstractMatrix, mr::TBAMatrixRepresentation, m::Quadratic; i
 end
 
 """
-    AbstractTBA{K<:TBAKind, Hₘ<:RepresentationGenerator, C<:Union{Nothing, AbstractMatrix}} <: Frontend
+    AbstractTBA{K<:TBAKind, Hₘ<:Representation, C<:Union{Nothing, AbstractMatrix}} <: Frontend
 
 Abstract type for free quantum lattice systems using the tight-binding approximation.
 """
-abstract type AbstractTBA{K<:TBAKind, Hₘ<:RepresentationGenerator, C<:Union{Nothing, AbstractMatrix}} <: Frontend end
+abstract type AbstractTBA{K<:TBAKind, Hₘ<:Representation, C<:Union{Nothing, AbstractMatrix}} <: Frontend end
 @inline contentnames(::Type{<:AbstractTBA}) = (:Hₘ, :commutator)
 @inline kind(tba::AbstractTBA) = kind(typeof(tba))
 @inline kind(::Type{<:AbstractTBA{K}}) where K = K()
-@inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, Hₘ}}) where {Hₘ<:Image} = valtype(eltype(Hₘ))
-@inline dimension(tba::AbstractTBA{<:TBAKind, <:Image}) = length(getcontent(tba, :Hₘ).transformation.table)
+@inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, Hₘ}}) where {Hₘ<:Image{<:CategorizedGenerator, <:Quadraticization}} = valtype(eltype(Hₘ))
+@inline Base.valtype(::Type{<:AbstractTBA{<:TBAKind, Hₘ}}) where {Hₘ<:OperatorSet{<:Quadratic}} = valtype(eltype(Hₘ))
 function dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression})
     try
         return dimension(getcontent(tba, :Hₘ).expression)
@@ -271,6 +269,14 @@ function dimension(tba::AbstractTBA{<:TBAKind, <:AnalyticalExpression})
         return size(matrix(tba))[1]
     end
 end
+function dimension(tba::AbstractTBA{<:TBAKind, <:OperatorSet{<:Quadratic}})
+    result = 0
+    for op in getcontent(tba, :Hₘ)
+        result = max(result, op.position...)
+    end
+    return result
+end
+@inline dimension(tba::AbstractTBA{<:TBAKind, <:Image{<:CategorizedGenerator, <:Quadraticization}}) = length(getcontent(tba, :Hₘ).transformation.table)
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :Hₘ))
 
 """
@@ -282,8 +288,15 @@ Get the matrix representation of a free quantum lattice system.
 @inline function matrix(tba::Algorithm{<:AbstractTBA}; k=nothing, gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba.frontend)), kwargs...)
     return matrix(tba.frontend; k=k, gauge=gauge, infinitesimal=infinitesimal, kwargs...)
 end
-@inline function matrix(tba::AbstractTBA; k=nothing, gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)), kwargs...)
-    m = TBAMatrixRepresentation{datatype(valtype(tba), k)}(k, dimension(tba), gauge)(expand(getcontent(tba, :Hₘ)); infinitesimal=infinitesimal, kwargs...)
+@inline function matrix(tba::AbstractTBA{<:TBAKind, <:OperatorSet{<:Quadratic}}; k=nothing, gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)), kwargs...)
+    m = TBAMatrixization{datatype(valtype(tba), k)}(k, dimension(tba), gauge)(getcontent(tba, :Hₘ); infinitesimal=infinitesimal, kwargs...)
+    commutator = getcontent(tba, :commutator)
+    return TBAMatrix{typeof(kind(tba))}(Hermitian(m), commutator)
+end
+@inline function matrix(tba::AbstractTBA{<:TBAKind, <:Generator}; k=nothing, gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)), kwargs...)
+    ops = expand(getcontent(tba, :Hₘ))
+    @assert eltype(ops) <: Quadratic "matrix error: not supported."
+    m = TBAMatrixization{datatype(valtype(tba), k)}(k, dimension(tba), gauge)(ops; infinitesimal=infinitesimal, kwargs...)
     commutator = getcontent(tba, :commutator)
     return TBAMatrix{typeof(kind(tba))}(Hermitian(m), commutator)
 end
@@ -356,24 +369,18 @@ end
 @inline eigvecs(tba::AbstractTBA, reciprocalspace::ReciprocalSpace; timer::TimerOutput=tbatimer, kwargs...) = [eigvecs(tba; k=momentum, timer=timer, kwargs...) for momentum in reciprocalspace]
 
 """
-    TBA{K, L<:Union{AbstractLattice, Nothing}, H<:Union{OperatorGenerator, Nothing}, Hₘ<:RepresentationGenerator, C<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, Hₘ, C}
+    TBA{K, L<:Union{AbstractLattice, Nothing}, H<:Union{Representation, Nothing}, Hₘ<:Representation, C<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, Hₘ, C}
 
 The usual tight binding approximation for quantum lattice systems.
 """
-struct TBA{K, L<:Union{AbstractLattice, Nothing}, H<:Union{OperatorGenerator, Nothing}, Hₘ<:RepresentationGenerator, C<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, Hₘ, C}
+struct TBA{K, L<:Union{AbstractLattice, Nothing}, H<:Union{Representation, Nothing}, Hₘ<:Representation, C<:Union{AbstractMatrix, Nothing}} <: AbstractTBA{K, Hₘ, C}
     lattice::L
     H::H
     Hₘ::Hₘ
     commutator::C
-    function TBA{K}(lattice::AbstractLattice, H::OperatorGenerator, qf::QuadraticFormalize, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
+    function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{Representation, Nothing}, Hₘ::Representation, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
         @assert check_commutator(commutator) "TBA error: unsupported input commutator."
-        Hₘ = qf(H)
         new{K, typeof(lattice), typeof(H), typeof(Hₘ), typeof(commutator)}(lattice, H, Hₘ, commutator)
-    end
-    function TBA{K}(hamiltonian::Function, parameters::Parameters, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-        @assert check_commutator(commutator) "TBA error: unsupported input commutator."
-        Hₘ = AnalyticalExpression(hamiltonian, parameters)
-        new{K, Nothing, Nothing, typeof(Hₘ), typeof(commutator)}(nothing, nothing, Hₘ, commutator)
     end
 end
 @inline check_commutator(::Nothing) =true
@@ -397,12 +404,18 @@ end
 end
 
 """
+    TBA{K}(Hₘ::Representation, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     TBA{K}(hamiltonian::Function, parameters::Parameters, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-    TBA{K}(lattice::AbstractLattice, H::OperatorGenerator, qf::QuadraticFormalize, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
+    TBA{K}(H::Representation, qf::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+    TBA{K}(lattice::AbstractLattice, H::Representation, qf::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Union{Term, Tuple{Term, Vararg{Term}}}, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
 
 Construct a tight-binding quantum lattice system.
 """
+@inline TBA{K}(Hₘ::Representation, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind} = TBA{K}(nothing, nothing, Hₘ, commutator)
+@inline TBA{K}(hamiltonian::Function, parameters::Parameters, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind} = TBA{K}(AnalyticalExpression(hamiltonian, parameters), commutator)
+@inline TBA{K}(H::Representation, qf::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind} = TBA{K}(nothing, H, qf, commutator)
+@inline TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Representation, qf::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind} = TBA{K}(lattice, H, qf(H), commutator)
 @inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Union{Term, Tuple{Term, Vararg{Term}}}, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
     terms = wrapper(terms)
     tbakind = TBAKind(typeof(terms), valtype(hilbert))
@@ -410,7 +423,7 @@ Construct a tight-binding quantum lattice system.
     commt = commutator(tbakind, hilbert)
     isnothing(neighbors) && (neighbors = maximum(term->term.bondkind, terms))
     H = OperatorGenerator(terms, bonds(lattice, neighbors), hilbert, boundary, lazy; half=false)
-    return TBA{typeof(tbakind)}(lattice, H, QuadraticFormalize{typeof(tbakind)}(table), commt)
+    return TBA{typeof(tbakind)}(lattice, H, Quadraticization{typeof(tbakind)}(table), commt)
 end
 @inline wrapper(x) = (x,)
 @inline wrapper(xs::Tuple) = xs
@@ -428,7 +441,7 @@ end
 @inline EnergyBands(reciprocalspace, bands::Union{Colon, AbstractVector{Int}}=Colon(); options...) = EnergyBands(reciprocalspace, bands, options)
 @inline initialize(eb::EnergyBands{P, Colon}, tba::AbstractTBA) where P = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), dimension(tba)))
 @inline initialize(eb::EnergyBands{P, <:AbstractVector{Int}}, ::AbstractTBA) where P = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), length(eb.bands)))
-@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba, ∉(names(eb.action.reciprocalspace))) eb.id
+@inline Base.nameof(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba; context=:select=>∉(names(eb.action.reciprocalspace))) eb.id
 function run!(tba::Algorithm{<:AbstractTBA}, eb::Assignment{<:EnergyBands})
     atol = get(eb.action.options, :atol, 10^-12)
     for (i, params) in enumerate(pairs(eb.action.reciprocalspace))

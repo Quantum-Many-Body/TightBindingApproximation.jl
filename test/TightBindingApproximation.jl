@@ -1,7 +1,7 @@
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Plots: plot, plot!, savefig
 using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FID, Fock, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone
-using QuantumLattices: azimuth, contentnames, dimension, kind, matrix, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
+using QuantumLattices: azimuth, contentnames, dimension, expand, kind, matrix, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
 
@@ -52,6 +52,13 @@ end
     @test dimension(tba) == 1
     @test Parameters(tba) == (t=1.0, μ=0.0)
 
+    tba₁ = TBA{Fermionic{:TBA}}(tba.H, tba.Hₘ.transformation)
+    tba₂ = TBA{Fermionic{:TBA}}(expand(tba.H), tba.Hₘ.transformation)
+    tba₃ = TBA{Fermionic{:TBA}}(expand(tba.Hₘ))
+    @test dimension(tba₁) == dimension(tba₂) == dimension(tba₃) == 1
+    @test Parameters(tba₁) == (t=1.0, μ=0.0)
+    @test Parameters(tba₂) == Parameters(tba₃) == NamedTuple()
+
     m = matrix(tba)
     @test size(m) == (1, 1)
     @test m[1, 1] == m.H[1, 1]
@@ -59,14 +66,20 @@ end
 
     A(t, μ; k=[0.0, 0.0]) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
     tbaₐ = TBA{Fermionic{:TBA}}(A, (t=1.0, μ=0.0))
+    @test dimension(tbaₐ) == 1
+    @test Parameters(tbaₐ) == (t=1.0, μ=0.0)
+
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
         m = matrix(tba; kv...)
+        m₁ = matrix(tba₁; kv...)
+        m₂ = matrix(tba₂; kv...)
+        m₃ = matrix(tba₃; kv...)
         mₐ = matrix(tbaₐ; kv...)
-        @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.0; kv...))
+        @test m.H ≈ m₁.H ≈ m₂.H ≈ m₃.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.0; kv...))
     end
-    @test dimension(tbaₐ) == 1
     @test eigen(tbaₐ, path) == (eigvals(tbaₐ, path), eigvecs(tbaₐ, path))
+
     update!(tba, μ=0.5)
     update!(tbaₐ, μ=0.5)
     for kv in pairs(path)
