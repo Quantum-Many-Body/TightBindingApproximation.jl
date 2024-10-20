@@ -1,6 +1,6 @@
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Plots: plot, plot!, savefig
-using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FID, Fock, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone
+using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FockIndex, Fock, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone
 using QuantumLattices: azimuth, contentnames, dimension, expand, kind, matrix, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
@@ -28,11 +28,11 @@ using TightBindingApproximation.Fitting
     @test Metric(Fermionic(:BdG), Hilbert(1=>Fock{:f}(1, 1))) == OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
     @test Metric(Bosonic(:TBA), Hilbert(1=>Fock{:b}(1, 1))) == OperatorUnitToTuple(:site, :orbital, :spin)
     @test Metric(Bosonic(:BdG), Hilbert(1=>Fock{:b}(1, 1))) == OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
-    @test Metric(Phononic(), Hilbert(1=>Phonon(2))) == OperatorUnitToTuple(:tag, :site, :direction)
+    @test Metric(Phononic(), Hilbert(1=>Phonon(2))) == OperatorUnitToTuple(kind, :site, :direction)
 
-    @test commutator(Fermionic(:TBA), Hilbert(1=>Fock{:f}(1, 2))) == nothing
-    @test commutator(Fermionic(:BdG), Hilbert(1=>Fock{:f}(1, 2))) == nothing
-    @test commutator(Bosonic(:TBA), Hilbert(1=>Fock{:b}(1, 2))) == nothing
+    @test isnothing(commutator(Fermionic(:TBA), Hilbert(1=>Fock{:f}(1, 2))))
+    @test isnothing(commutator(Fermionic(:BdG), Hilbert(1=>Fock{:f}(1, 2))))
+    @test isnothing(commutator(Bosonic(:TBA), Hilbert(1=>Fock{:b}(1, 2))))
     @test commutator(Bosonic(:BdG), Hilbert(1=>Fock{:b}(1, 2))) == Diagonal([1, 1, -1, -1])
     @test commutator(Phononic(), Hilbert(1=>Phonon(2))) == Hermitian([0 0 -im 0; 0 0 0 -im; im 0 0 0; 0 im 0 0])
 
@@ -88,7 +88,7 @@ end
         @test m.H ≈ mₐ.H ≈ Hermitian(A(1.0, 0.5; kv...))
     end
 
-    Δ = Pairing(:Δ, Complex(0.1), 1, Coupling(:, FID, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
+    Δ = Pairing(:Δ, Complex(0.1), 1, Coupling(:, FockIndex, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     bdg = TBA(lattice, hilbert, (t, μ, Δ))
     @test kind(bdg) == kind(typeof(bdg)) == Fermionic(:BdG)
     @test valtype(bdg) == valtype(typeof(bdg)) == Complex{Float64}
@@ -116,7 +116,7 @@ end
     hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
     t = Hopping(:t, 1.0, 1)
     μ = Onsite(:μ, 3.5)
-    Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(:, FID, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
+    Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(:, FockIndex, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
     @test eigen(sc) == Eigen(eigvals(sc), eigvecs(sc))
 
@@ -140,7 +140,7 @@ end
     unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(site=>Fock{:f}(1, 2) for site=1:length(unitcell))
     t = Hopping(:t, 1.0, 1)
-    h = Onsite(:h, 0.1, MatrixCoupling(:, FID, :, σ"z", :))
+    h = Onsite(:h, 0.1, MatrixCoupling(:, FockIndex, :, σ"z", :))
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
     brillouin = BrillouinZone(reciprocals(unitcell), 200)

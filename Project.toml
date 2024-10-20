@@ -1,19 +1,23 @@
 name = "TightBindingApproximation"
 uuid = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
 authors = ["waltergu <waltergu1989@gmail.com>"]
-version = "0.1.23"
+version = "0.2.0"
 
 [deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 QuantumLattices = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
 RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
+DelimitedFiles = "1.9 - 1"
 Optim = "1.7"
-QuantumLattices = "0.9.16"
+QuantumLattices = "0.10.0"
 RecipesBase = "1.2"
+StaticArrays = "1.4 - 1"
 TimerOutputs = "0.5"
-julia = "1.9 - 1.10"
+julia = "1.9 - 1.11"

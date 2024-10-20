@@ -1,13 +1,13 @@
 using LinearAlgebra: Diagonal, Eigen, Hermitian, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, AnalyticalExpression, Assignment, BrillouinZone, Boundary, CategorizedGenerator, CompositeIndex, Elastic, FID, Fock, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Image, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, Onsite, Operator, OperatorGenerator, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, PID, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Representation, Table, Term
-using QuantumLattices: bonds, decimaltostr, expand, icoordinate, idtype, isannihilation, iscreation, optype, parametertype, rank, rcoordinate, shape, shrink, statistics, volume
+using QuantumLattices: AbstractLattice, Action, Algorithm, AnalyticalExpression, Assignment, BrillouinZone, Boundary, CategorizedGenerator, CoordinatedIndex, Elastic, FockIndex, Fock, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Image, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, Onsite, Operator, OperatorGenerator, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, PhononIndex, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Representation, Term
+using QuantumLattices: ⊕, bonds, tostr, expand, icoordinate, idtype, isannihilation, iscreation, optype, parametertype, rank, rcoordinate, shape, shrink, statistics, volume
 using RecipesBase: RecipesBase, @recipe, @series, @layout
 using TimerOutputs: TimerOutput, @timeit_debug
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian
-import QuantumLattices: add!, contentnames, dimension, getcontent, initialize, kind, matrix, parameternames, run!, update!
+import QuantumLattices: Table, add!, contentnames, dimension, getcontent, initialize, kind, matrix, parameternames, run!, update!
 
 const tbatimer = TimerOutput()
 
@@ -71,7 +71,7 @@ end
     infinitesimal(::TBAKind{:BdG}) -> atol/5
     infinitesimal(::Fermionic{:BdG}) -> 0
 
-Infinitesimal used in the matrix representation of a tight-binding approximation to be able to capture the Goldstone mode.
+Infinitesimal used in the matrixization of a tight-binding approximation to be able to capture the Goldstone mode.
 """
 @inline infinitesimal(::TBAKind{:TBA}) = 0
 @inline infinitesimal(::TBAKind{:BdG}) = atol/5
@@ -89,7 +89,17 @@ Get the index-to-tuple metric for a free fermionic/bosonic/phononic system.
 @inline @generated Metric(::Bosonic{:TBA}, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:site, :orbital, :spin)
 @inline @generated Metric(::Fermionic{:BdG}, hilbert::Hilbert{<:Fock{:f}}) = OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
 @inline @generated Metric(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
-@inline @generated Metric(::Phononic, hilbert::Hilbert{<:Phonon}) = OperatorUnitToTuple(:tag, :site, :direction)
+@inline @generated Metric(::Phononic, hilbert::Hilbert{<:Phonon}) = OperatorUnitToTuple(kind, :site, :direction)
+
+"""
+    Table(hilbert::Hilbert{Phonon{:}}, by::OperatorUnitToTuple{(kind, :site, :direction)})
+
+Construct a index-sequence table for a phononic system.
+"""
+@inline function Table(hilbert::Hilbert{Phonon{:}}, by::OperatorUnitToTuple{(kind, :site, :direction)})
+    new = Hilbert(site=>filter(PhononIndex{:u}, internal)⊕filter(PhononIndex{:p}, internal) for (site, internal) in hilbert)
+    return Table(new, by)
+end
 
 """
     commutator(k::TBAKind, hilbert::Hilbert{<:Internal}) -> Union{AbstractMatrix, Nothing}
@@ -100,7 +110,7 @@ Get the commutation relation of the single-particle operators of a free quantum 
 @inline commutator(::Fermionic, ::Hilbert{<:Fock{:f}}) = nothing
 @inline commutator(::Bosonic{:TBA}, ::Hilbert{<:Fock{:b}}) = nothing
 @inline commutator(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
-@inline commutator(::Phononic, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, sum(length, values(hilbert))÷2))))
+@inline commutator(::Phononic, hilbert::Hilbert{<:Phonon}) = Hermitian(kron([0 -1im; 1im 0], Diagonal(ones(Int, sum(length, values(hilbert))))))
 
 """
     TBAMatrix{K<:TBAKind, C<:Union{AbstractMatrix, Nothing}, T, H<:AbstractMatrix{T}} <: AbstractMatrix{T}
@@ -192,16 +202,16 @@ end
 (qf::Quadraticization)(m::Operator; kwargs...) = add!(zero(qf, m), qf, m; kwargs)
 
 """
-    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...) -> typeof(dest)
-    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...) -> typeof(dest)
-    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:PhononIndex}}, 2}}; kwargs...) -> typeof(dest)
 
 Get the unified quadratic form of a rank-2 operator and add it to `dest`.
 """
-function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index}, 2}}; kwargs...)
     return add!(dest, Quadratic(m.value, (qf.table[m[1]'], qf.table[m[2]]), rcoordinate(m), icoordinate(m)))
 end
-function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:FID}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex}}, 2}}; kwargs...)
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     add!(dest, Quadratic(m.value, (qf.table[m[1]'], qf.table[m[2]]), rcoord, icoord))
     if iscreation(m[1]) && isannihilation(m[2])
@@ -210,7 +220,7 @@ function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Opera
     end
     return dest
 end
-function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CompositeIndex{<:Index{Int, <:PID}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:PhononIndex}}, 2}}; kwargs...)
     seq₁, seq₂ = qf.table[m[1]], qf.table[m[2]]
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     add!(dest, Quadratic(m.value, (seq₁, seq₂), rcoord, icoord))
@@ -219,11 +229,11 @@ function add!(dest::OperatorSum, qf::Quadraticization{<:TBAKind{:BdG}}, m::Opera
 end
 
 """
-    TBAMatrixization{D<:Number, V} <: Matrixization
+    TBAMatrixization{D<:Number, V<:Union{AbstractVector{<:Number}, Nothing}} <: Matrixization
 
-Matrix representation of the Hamiltonian of a tight-binding system.
+Matrixization of the Hamiltonian of a tight-binding system.
 """
-struct TBAMatrixization{D<:Number, V} <: Matrixization
+struct TBAMatrixization{D<:Number, V<:Union{AbstractVector{<:Number}, Nothing}} <: Matrixization
     k::V
     dim::Int
     gauge::Symbol
@@ -239,7 +249,7 @@ end
 """
     add!(dest::AbstractMatrix, mr::TBAMatrixization, m::Quadratic; infinitesimal=0, kwargs...) -> typeof(dest)
 
-Get the matrix representation of a quadratic form and add it to `dest`.
+Matrixize a quadratic form and add it to `dest`.
 """
 function add!(dest::AbstractMatrix, mr::TBAMatrixization, m::Quadratic; infinitesimal=0, kwargs...)
     coordinate = mr.gauge==:rcoordinate ? m.rcoordinate : m.icoordinate
@@ -669,12 +679,12 @@ end
     subtitles --> if length(pack[2].data)==3
         if isa(pack[2].action.method, Fukui)
             if pack[2].action.method.abelian 
-                [@sprintf("band %s (ϕ/2π = %s)", band, decimaltostr(chn)) for (band, chn) in zip(pack[2].action.method.bands, pack[2].data[3])]
+                [@sprintf("band %s (ϕ/2π = %s)", band, tostr(chn)) for (band, chn) in zip(pack[2].action.method.bands, pack[2].data[3])]
             else
-                [@sprintf("sum bands %s (ϕ/2π = %s)", pack[2].action.method.bands, decimaltostr(pack[2].data[3][1]))]
+                [@sprintf("sum bands %s (ϕ/2π = %s)", pack[2].action.method.bands, tostr(pack[2].data[3][1]))]
             end
         else
-            [@sprintf("occupied bands (μ = %s) (ϕ/2π = %s)", pack[2].action.method.μ, decimaltostr(pack[2].data[3][1]))]
+            [@sprintf("occupied bands (μ = %s) (ϕ/2π = %s)", pack[2].action.method.μ, tostr(pack[2].data[3][1]))]
         end
     else
         [@sprintf("occupied band (μ = %s)", pack[2].action.method.μ)]
@@ -735,15 +745,15 @@ end
         titlefontsize --> 10
         pack[2].data[1], pack[2].data[2][:, :, 1]
     else
-        subtitles --> [@sprintf("orbitals: %s\n bands: %s", tostr(orbitals), tostr(pack[2].action.bands)) for orbitals in pack[2].action.orbitals]
+        subtitles --> [@sprintf("orbitals: %s\n bands: %s", str(orbitals), str(pack[2].action.bands)) for orbitals in pack[2].action.orbitals]
         subtitlefontsize --> 8
         plot_title --> nameof(pack[1], pack[2])
         plot_titlefontsize --> 10
         pack[2].data
     end
 end
-@inline tostr(::Colon) = "all"
-@inline tostr(contents::AbstractVector{Int}) = join(contents, ", ")
+@inline str(::Colon) = "all"
+@inline str(contents::AbstractVector{Int}) = join(contents, ", ")
 
 """
     DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
@@ -803,7 +813,7 @@ function run!(tba::Algorithm{<:AbstractTBA{Phononic}}, inss::Assignment{<:Inelas
     dim = dimension(tba.frontend)
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     check = get(inss.action.options, :check, true)
-    sequences = Dict(site=>[tba.frontend.Hₘ.transformation.table[Index(site, PID('u', Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.H.hilbert))
+    sequences = Dict(site=>[tba.frontend.Hₘ.transformation.table[Index(site, PhononIndex{:u}(Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.H.hilbert))
     eigenvalues, eigenvectors = eigen(tba, inss.action.reciprocalspace; inss.action.options...)
     for (i, (momentum, values, vectors)) in enumerate(zip(inss.action.reciprocalspace, eigenvalues, eigenvectors))
         check && @timeit_debug tba.timer "check" check_polarizations(@views(vectors[(dim÷2+1):dim, 1:(dim÷2)]), @views(vectors[(dim÷2+1):dim, dim:-1:(dim÷2+1)]), momentum./pi)

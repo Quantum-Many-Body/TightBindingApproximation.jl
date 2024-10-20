@@ -10,6 +10,6 @@ export BerryCurvature, DensityOfStates, EnergyBands, FermiSurface, InelasticNeut
 include("Fitting.jl")
 
 # Integration with Wannier90
-# include("Wannier90.jl")
+include("Wannier90.jl")
 
 end # module
