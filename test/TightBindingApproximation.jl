@@ -1,7 +1,7 @@
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Plots: plot, plot!, savefig
 using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FockIndex, Fock, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone
-using QuantumLattices: azimuth, contentnames, dimension, expand, kind, matrix, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
+using QuantumLattices: azimuth, contentnames, dimension, dtype, expand, kind, matrix, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
 
@@ -48,13 +48,13 @@ end
 
     tba = TBA(lattice, hilbert, (t, μ))
     @test kind(tba) == kind(typeof(tba)) == Fermionic(:TBA)
-    @test valtype(tba) == valtype(typeof(tba)) == Float64
+    @test dtype(tba.H) == dtype(typeof(tba.H)) == Float64
     @test dimension(tba) == 1
     @test Parameters(tba) == (t=1.0, μ=0.0)
 
-    tba₁ = TBA{Fermionic{:TBA}}(tba.H, tba.Hₘ.transformation)
-    tba₂ = TBA{Fermionic{:TBA}}(expand(tba.H), tba.Hₘ.transformation)
-    tba₃ = TBA{Fermionic{:TBA}}(expand(tba.Hₘ))
+    tba₁ = TBA{Fermionic{:TBA}}(tba.H.system, tba.H.transformation)
+    tba₂ = TBA{Fermionic{:TBA}}(expand(tba.H.system), tba.H.transformation)
+    tba₃ = TBA{Fermionic{:TBA}}(expand(tba.H.representation))
     @test dimension(tba₁) == dimension(tba₂) == dimension(tba₃) == 1
     @test Parameters(tba₁) == (t=1.0, μ=0.0)
     @test Parameters(tba₂) == Parameters(tba₃) == NamedTuple()
@@ -64,7 +64,7 @@ end
     @test m[1, 1] == m.H[1, 1]
     @test ishermitian(m) == ishermitian(typeof(m)) == true
 
-    A(t, μ; k=[0.0, 0.0]) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
+    A(t, μ; k=[0.0, 0.0], kwargs...) = hcat(2t*cos(k[1])+2t*cos(k[2])+μ)
     tbaₐ = TBA{Fermionic{:TBA}}(A, (t=1.0, μ=0.0))
     @test dimension(tbaₐ) == 1
     @test Parameters(tbaₐ) == (t=1.0, μ=0.0)
@@ -91,10 +91,10 @@ end
     Δ = Pairing(:Δ, Complex(0.1), 1, Coupling(:, FockIndex, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     bdg = TBA(lattice, hilbert, (t, μ, Δ))
     @test kind(bdg) == kind(typeof(bdg)) == Fermionic(:BdG)
-    @test valtype(bdg) == valtype(typeof(bdg)) == Complex{Float64}
+    @test dtype(bdg.H) == dtype(typeof(bdg.H)) == Complex{Float64}
     @test Parameters(bdg) == (t=1.0, μ=0.5, Δ=Complex(0.1))
 
-    A(t, μ, Δ; k) = [2t*cos(k[1])+2t*cos(k[2])+μ -2im*Δ*sin(k[1])-2Δ*sin(k[2]); 2im*Δ*sin(k[1])-2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
+    A(t, μ, Δ; k, kwargs...) = [2t*cos(k[1])+2t*cos(k[2])+μ -2im*Δ*sin(k[1])-2Δ*sin(k[2]); 2im*Δ*sin(k[1])-2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
     bdgₐ = TBA{Fermionic{:BdG}}(A, (t=1.0, μ=0.5, Δ=0.1))
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for kv in pairs(path)
