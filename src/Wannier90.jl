@@ -2,7 +2,7 @@ module Wannier90
 
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
-using QuantumLattices: Hilbert, Lattice, Matrixization, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Table, kind
+using QuantumLattices: Hamiltonian, Hilbert, Lattice, Matrixization, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, SimpleHamiltonian, Table, add!, kind
 using StaticArrays: SVector
 using ..TightBindingApproximation: AbstractTBA, Fermionic, TBAKind, TBAMatrix
 
@@ -155,13 +155,13 @@ function readhamiltonian(path::AbstractString, prefix::AbstractString="wannier90
         i, j = parse(Int, info[4]), parse(Int, info[5])
         value = parse(Float64, info[6]) + 1im*parse(Float64, info[7])
         if !haskey(ham, point)
-            ham[point] = W90Hoppings(zeros(ComplexF64, num_wan, num_wan), point)
+            ham.contents[point] = W90Hoppings(zeros(ComplexF64, num_wan, num_wan), point)
             deg[point] = degeneracies[index]
             index += 1
         end
-        ham[point].value[i, j] = value/deg[point]
+        ham.contents[point].value[i, j] = value/deg[point]
     end
-    for point in keys(ham)
+    for point in keys(ham.contents)
         @assert haskey(ham, map(-, point)) "readhamiltonian error: did not find the inverse of point $(point)."
     end
     return ham
@@ -216,20 +216,21 @@ function add!(dest::AbstractMatrix, mr::W90Matrixization, m::W90Hoppings; kwargs
 end
 
 """
-    W90{Hₘ<:OperatorSet{W90Hoppings}} <: AbstractTBA{Fermionic{:TBA}, Hₘ, Nothing}
+    W90 <: AbstractTBA{Fermionic{:TBA}, SimpleHamiltonian{OperatorSum{W90Hoppings, NTuple{3, Int}}}, Nothing}
 
 A quantum lattice system based on the information obtained from Wannier90.
 """
-struct W90{Hₘ<:OperatorSet{W90Hoppings}} <: AbstractTBA{Fermionic{:TBA}, Hₘ, Nothing}
+struct W90 <: AbstractTBA{Fermionic{:TBA}, SimpleHamiltonian{OperatorSum{W90Hoppings, NTuple{3, Int}}}, Nothing}
     lattice::Lattice{3, Float64, 3}
     centers::Matrix{Float64}
-    Hₘ::Hₘ
-    function W90(lattice::Lattice{3, <:Real, 3}, centers::AbstractMatrix{<:Real}, Hₘ::OperatorSet{W90Hoppings})
+    H::OperatorSum{W90Hoppings, NTuple{3, Int}}
+    function W90(lattice::Lattice{3, <:Real, 3}, centers::AbstractMatrix{<:Real}, H::OperatorSum{W90Hoppings})
         @assert size(centers)[1]==3 "W90 error: the row number of `centers` must be 3."
-        @assert size(centers)[2]==size(first(Hₘ).value)[1] "W90 error: mismatched size of Wannier centers and hoppings."
-        new{typeof(Hₘ)}(lattice, centers, Hₘ)
+        @assert size(centers)[2]==size(first(H).value)[1] "W90 error: mismatched size of Wannier centers and hoppings."
+        new(lattice, centers, H)
     end
 end
+@inline getcontent(wan::W90, ::Val{:H}) = Hamiltonian(wan.H)
 @inline getcontent(wan::W90, ::Val{:commutator}) = nothing
 @inline dimension(wan::W90) = size(wan.centers)[2]
 
@@ -239,13 +240,13 @@ end
 Get the matrix representation of a quantum lattice system based on the information obtained from Wannier90.
 """
 @inline function matrix(wan::W90; k=SVector(0.0, 0.0, 0.0), gauge=:icoordinate, kwargs...)
-    m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.Hₘ; kwargs...)
+    m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.H; kwargs...)
     return TBAMatrix{typeof(kind(wan))}(Hermitian(m), nothing)
 end
 
 """
-    W90(lattice::Lattice, centers::Matrix{<:Real}, Hₘ::OperatorSet{W90Hoppings})
-    W90(lattice::Lattice, hilbert::Hilbert, Hₘ::OperatorSet{W90Hoppings})
+    W90(lattice::Lattice, centers::Matrix{<:Real}, H::OperatorSum{W90Hoppings})
+    W90(lattice::Lattice, hilbert::Hilbert, H::OperatorSum{W90Hoppings})
 
 Construct a quantum lattice system based on the information obtained from Wannier90.
 
@@ -253,13 +254,13 @@ In general, the Wannier centers could deviate from their corresponding atom posi
 When `centers::Matrix{<:Real}` is used, the the Wannier centers are assigned directly.
 When `hilbert::Hilbert` is used, the Wannier centers will be approximated by their corresponding atom positions.
 """
-function W90(lattice::Lattice, hilbert::Hilbert, Hₘ::OperatorSet{W90Hoppings})
+function W90(lattice::Lattice, hilbert::Hilbert, H::OperatorSum{W90Hoppings})
     table = Table(hilbert, OperatorUnitToTuple(:site, :orbital, :spin))
     centers = zeros(Float64, 3, length(table))
     for (key, index) in pairs(table)
         centers[:, index] = lattice[key[1]]
     end
-    return W90(lattice, centers, Hₘ)
+    return W90(lattice, centers, H)
 end
 
 """
@@ -270,8 +271,8 @@ Construct a quantum lattice system based on the files obtained from Wannier90.
 function W90(path::AbstractString, prefix::AbstractString="wannier90"; name::Symbol=Symbol(prefix), projection::Bool=true)
     lattice = readlattice(path, prefix; name=name, projection=projection)
     centers = readcenters(path, prefix)
-    Hₘ = readhamiltonian(path, prefix)
-    return W90(lattice, centers, Hₘ)
+    H = readhamiltonian(path, prefix)
+    return W90(lattice, centers, H)
 end
 
 """
