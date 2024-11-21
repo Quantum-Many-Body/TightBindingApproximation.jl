@@ -344,6 +344,7 @@ abstract type AbstractTBA{K<:TBAKind, H<:Hamiltonian, C<:Union{Nothing, Abstract
 @inline dimension(tba::AbstractTBA) = dimension(getcontent(tba, :H))
 @inline Parameters(tba::AbstractTBA) = Parameters(getcontent(tba, :H))
 @inline update!(tba::AbstractTBA; parameters...) = (update!(getcontent(tba, :H); parameters...); tba)
+@inline getcontent(tba::AbstractTBA{<:TBAKind, <:Hamiltonian, Nothing}, ::Val{:commutator}) = nothing
 
 """
     matrix(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}; k=nothing, gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba.frontend)), kwargs...) -> TBAMatrix
