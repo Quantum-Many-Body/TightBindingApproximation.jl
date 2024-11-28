@@ -2,9 +2,9 @@ module Wannier90
 
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
-using QuantumLattices: Hamiltonian, Hilbert, Lattice, Matrixization, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, SimpleHamiltonian, Table, add!, kind
+using QuantumLattices: Hilbert, Lattice, Matrixization, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Table, add!, kind
 using StaticArrays: SVector
-using ..TightBindingApproximation: AbstractTBA, Fermionic, TBAKind, TBAMatrix
+using ..TightBindingApproximation: Fermionic, TBA, TBAKind, TBAMatrix
 
 import QuantumLattices: add!, dimension, getcontent, matrix
 
@@ -216,11 +216,11 @@ function add!(dest::AbstractMatrix, mr::W90Matrixization, m::W90Hoppings; kwargs
 end
 
 """
-    W90 <: AbstractTBA{Fermionic{:TBA}, SimpleHamiltonian{OperatorSum{W90Hoppings, NTuple{3, Int}}}, Nothing}
+    W90 <: TBA{Fermionic{:TBA}, OperatorSum{W90Hoppings, NTuple{3, Int}}, Nothing}
 
 A quantum lattice system based on the information obtained from Wannier90.
 """
-struct W90 <: AbstractTBA{Fermionic{:TBA}, SimpleHamiltonian{OperatorSum{W90Hoppings, NTuple{3, Int}}}, Nothing}
+struct W90 <: TBA{Fermionic{:TBA}, OperatorSum{W90Hoppings, NTuple{3, Int}}, Nothing}
     lattice::Lattice{3, Float64, 3}
     centers::Matrix{Float64}
     H::OperatorSum{W90Hoppings, NTuple{3, Int}}
@@ -230,18 +230,17 @@ struct W90 <: AbstractTBA{Fermionic{:TBA}, SimpleHamiltonian{OperatorSum{W90Hopp
         new(lattice, centers, H)
     end
 end
-@inline getcontent(wan::W90, ::Val{:H}) = Hamiltonian(wan.H)
-@inline getcontent(wan::W90, ::Val{:commutator}) = nothing
 @inline dimension(wan::W90) = size(wan.centers)[2]
+@inline update!(wan::W90; parameters...) = wan
 
 """
-    matrix(wan::W90; k=SVector(0.0, 0.0, 0.0), gauge=:icoordinate, kwargs...) -> TBAMatrix
+    matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0.0, 0.0, 0.0); gauge=:icoordinate, kwargs...) -> TBAMatrix
 
 Get the matrix representation of a quantum lattice system based on the information obtained from Wannier90.
 """
-@inline function matrix(wan::W90; k=SVector(0.0, 0.0, 0.0), gauge=:icoordinate, kwargs...)
+@inline function matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0.0, 0.0, 0.0); gauge=:icoordinate, kwargs...)
     m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.H; kwargs...)
-    return TBAMatrix{typeof(kind(wan))}(Hermitian(m), nothing)
+    return TBAMatrix(Hermitian(m), nothing)
 end
 
 """

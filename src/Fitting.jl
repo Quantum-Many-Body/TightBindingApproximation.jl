@@ -3,7 +3,7 @@ module Fitting
 using LinearAlgebra: eigvals
 using Optim: LBFGS, Options, optimize
 using QuantumLattices: Algorithm, Parameters, matrix, update!
-using ..TightBindingApproximation: AbstractTBA
+using ..TightBindingApproximation: TBA
 
 export SampleNode, deviation, optimize!
 
@@ -29,16 +29,16 @@ function SampleNode(reciprocals::AbstractVector{<:AbstractVector{<:Number}}, pos
 end
 
 """
-    deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplenode::SampleNode) -> Float64
-    deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}) -> Float64
+    deviation(tba::Union{TBA, Algorithm{<:TBA}}, samplenode::SampleNode) -> Float64
+    deviation(tba::Union{TBA, Algorithm{<:TBA}}, samplesets::Vector{SampleNode}) -> Float64
 
 Get the deviation of the eigenvalues between the sample points and model points.
 """
-function deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplenode::SampleNode)
-    diff = eigvals(tba; k=samplenode.k)[samplenode.bands] .- samplenode.values
+function deviation(tba::Union{TBA, Algorithm{<:TBA}}, samplenode::SampleNode)
+    diff = eigvals(tba, samplenode.k)[samplenode.bands] .- samplenode.values
     return real(sum(conj(diff) .* diff .* samplenode.ratios))
 end
-function deviation(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode})
+function deviation(tba::Union{TBA, Algorithm{<:TBA}}, samplesets::Vector{SampleNode})
     result = 0.0
     for samplenode in samplesets
         result += deviation(tba, samplenode)
@@ -48,13 +48,13 @@ end
 
 """
     optimize!(
-        tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba));
+        tba::Union{TBA, Algorithm{<:TBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba));
         verbose=false, method=LBFGS(), options=Options()
     ) -> Tuple{typeof(tba), Optim.MultivariateOptimizationResults}
 
 Optimize the parameters of a tight binding system whose names are specified by `variables` so that the total deviations of the eigenvalues between the model points and sample points minimize.
 """
-function optimize!(tba::Union{AbstractTBA, Algorithm{<:AbstractTBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba)); verbose=false, method=LBFGS(), options=Options())
+function optimize!(tba::Union{TBA, Algorithm{<:TBA}}, samplesets::Vector{SampleNode}, variables=keys(Parameters(tba)); verbose=false, method=LBFGS(), options=Options())
     v₀ = collect(real(getfield(Parameters(tba), name)) for name in variables)
     function diff(v::Vector)
         parameters = Parameters{variables}(v...)
