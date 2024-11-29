@@ -16,14 +16,10 @@ using TightBindingApproximation
 using Plots
 
 # define the unitcell of the honeycomb lattice
-unitcell = Lattice(
-    [0.0, 0.0], [0.0, √3/3];
-    name=:Honeycomb,
-    vectors=[[1.0, 0.0], [0.5, √3/2]]
-)
+unitcell = Lattice([0.0, 0.0], [0.0, √3/3]; vectors=[[1.0, 0.0], [0.5, √3/2]])
 
 # define the Hilbert space of graphene (single-orbital spinless complex fermion)
-hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
+hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
 
 # define the terms, i.e., the nearest-neighbor hopping
 t = Hopping(:t, -1.0, 1)
@@ -74,7 +70,6 @@ using TightBindingApproximation
 
 unitcell = Lattice(
     [zero(Sym), zero(Sym)], [zero(Sym), √(one(Sym)*3)/3];
-    name=:Honeycomb,
     vectors=[[one(Sym), zero(Sym)], [one(Sym)/2, √(one(Sym)*3)/2]]
 )
 
@@ -86,5 +81,5 @@ graphene = TBA(unitcell, hilbert, t)
 
 k₁ = symbols("k₁", real=true)
 k₂ = symbols("k₂", real=true)
-m = matrix(graphene; k=[k₁, k₂])
+m = matrix(graphene, [k₁, k₂])
 ```

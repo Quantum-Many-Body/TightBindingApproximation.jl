@@ -15,11 +15,7 @@ using QuantumLattices
 using Plots
 
 # define the unitcell of the Kagome lattice
-unitcell = Lattice(
-    [0.0, 0.0], [0.5, 0.0], [0.25, √3/4];
-    name=:Kagome,
-    vectors=[[1.0, 0.0], [0.5, √3/2]]
-)
+unitcell = Lattice([0.0, 0.0], [0.5, 0.0], [0.25, √3/4]; vectors=[[1.0, 0.0], [0.5, √3/2]])
 
 # define a finite Kagome lattice containing 8×8 unitcells with the open boundary condition
 lattice = Lattice(unitcell, (8, 8))

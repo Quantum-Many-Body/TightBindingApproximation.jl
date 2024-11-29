@@ -16,10 +16,10 @@ using TightBindingApproximation
 using Plots
 
 # define the unitcell of the square lattice
-unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
 
 # define the Hilbert space of the p+ip superconductor (single-orbital spinless complex fermion)
-hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
+hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
 
 # define the terms
 
@@ -31,7 +31,7 @@ t = Hopping(:t, 1.0, 1)
 
 ## p+ip pairing term
 Δ = Pairing(
-    :Δ, Complex(0.5), 1, Coupling(:, FID, :, :, (1, 1));
+    :Δ, Complex(0.5), 1, Coupling(:, 𝕗, :, :, (1, 1));
     amplitude=bond->exp(im*azimuth(rcoordinate(bond)))
 )
 
@@ -127,7 +127,6 @@ using TightBindingApproximation
 
 unitcell = Lattice(
     [zero(Sym), zero(Sym)];
-    name=:Square,
     vectors=[[one(Sym), zero(Sym)], [zero(Sym), one(Sym)]]
 )
 
@@ -136,7 +135,7 @@ hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
 t = Hopping(:t, symbols("t", real=true), 1)
 μ = Onsite(:μ, symbols("μ", real=true))
 Δ = Pairing(
-    :Δ, symbols("Δ", real=true), 1, Coupling(:, FID, :, :, (1, 1));
+    :Δ, symbols("Δ", real=true), 1, Coupling(:, 𝕗, :, :, (1, 1));
     amplitude=bond->exp(im*azimuth(rcoordinate(bond)))
 )
 
@@ -144,5 +143,5 @@ sc = TBA(unitcell, hilbert, (t, μ, Δ))
 
 k₁ = symbols("k₁", real=true)
 k₂ = symbols("k₂", real=true)
-m = matrix(sc; k=[k₁, k₂])
+m = matrix(sc, [k₁, k₂])
 ```

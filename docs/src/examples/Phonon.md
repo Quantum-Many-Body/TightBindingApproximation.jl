@@ -16,7 +16,7 @@ using TightBindingApproximation
 using Plots
 
 # define the unitcell of the square lattice
-unitcell = Lattice([0.0, 0.0]; name=:Square, vectors=[[1.0, 0.0], [0.0, 1.0]])
+unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
 
 # define the Hilbert space of phonons with 2 vibrant directions
 hilbert = Hilbert(site=>Phonon(2) for site=1:length(unitcell))
