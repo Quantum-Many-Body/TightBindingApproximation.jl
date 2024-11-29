@@ -231,7 +231,7 @@ end
 
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
     @test eigen(sc, path) == (eigvals(sc, path), eigvecs(sc, path))
-    savefig(plot(sc(:EB, EnergyBands(path))), "eb.png")
+    savefig(plot(sc(:EB, EnergyBands(path, 1:2))), "eb.png")
 
     brillouin = BrillouinZone(reciprocals(unitcell), 100)
     savefig(plot(sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]))), "bc.png")
@@ -286,9 +286,9 @@ end
     A(t, μ, Δ, k=[0.0, 0.0]; kwargs...) = [2t*cos(k[1])+2t*cos(k[2])+μ -2im*Δ*sin(k[1])-2Δ*sin(k[2]); 2im*Δ*sin(k[1])-2Δ*sin(k[2]) -2t*cos(k[1])-2t*cos(k[2])-μ]
     tba = TBA{Fermionic{:BdG}}(Formula(A, (t=2.0, μ=0.3, Δ=1.0)))
     samplesets = [
-        SampleNode(reciprocals(lattice), [0.0, 0.0], [1, 2], [-16.0, 16.0]),
-        SampleNode(reciprocals(lattice), [0.25, 0.0], [1, 2], [-10.0, 10.0]),
-        SampleNode(reciprocals(lattice), [0.25, 0.25], [1, 2], [-8.485281374238571, 8.485281374238571])
+        SampleNode(reciprocals(lattice), [0.0, 0.0], [1, 2], [-16.0, 16.0], 1.0),
+        SampleNode(reciprocals(lattice), [0.25, 0.0], [1, 2], [-10.0, 10.0], 1.0),
+        SampleNode(reciprocals(lattice), [0.25, 0.25], [1, 2], [-8.485281374238571, 8.485281374238571], 1.0)
     ]
     op = optimize!(tba, samplesets)[2]
     @test isapprox(op.minimizer, [4.0, 0.0, 3.0], atol=5*10^-10)
@@ -296,16 +296,32 @@ end
 
 toml = Artifacts.find_artifacts_toml(@__DIR__)
 const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
-
 @time @testset "Wannier90" begin
     prefix = "silicon"
     wan = Algorithm(Symbol("silicon"), W90(dir, prefix))
+    @test W90Matrixization([0.0, 0.0, 0.0], wan.frontend.lattice.vectors, wan.frontend.centers, :icoordinate)(wan.frontend.H[1]) ≈ ComplexF64[
+        0.016239+4.75e-6im -0.00301675+2.5e-6im -0.0030155-6.0e-6im -0.0030155-3.25e-6im -0.01056425-1.3e-5im 0.00237225+7.5e-7im 0.002374+5.75e-6im 0.0023735+2.5e-6im;
+        -0.0030155+3.25e-6im 0.01623875-2.5e-7im -0.003016-1.0e-6im -0.00301625-3.25e-6im 0.0023735+1.0e-6im 0.00477025+2.5e-7im -0.0055565-2.5e-6im -0.00555775+3.25e-6im;
+        -0.0030175-6.0e-6im -0.0030155+2.5e-7im 0.01623925+5.0e-7im -0.0030155+5.75e-6im 0.0023755+4.25e-6im -0.0055575-1.25e-6im 0.004769+1.5e-6im -0.0055575-2.75e-6im;
+        -0.00301575-1.5e-6im -0.00301625-2.5e-7im -0.00301625+5.75e-6im 0.0162385-1.75e-6im 0.00237375+3.5e-6im -0.00555675+2.75e-6im -0.0055585-4.0e-6im 0.00477075-7.5e-7im;
+        0.008246-3.0e-6im 0.0022645+0.0im 0.00226525+4.25e-6im 0.0022645-7.5e-7im 0.016239+4.75e-6im -0.00301475+4.0e-6im -0.00301675-8.25e-6im -0.003016+2.5e-7im;
+        0.00226475+7.5e-7im -0.00638575-2.25e-6im -0.00396775+1.5e-6im -0.0039695-1.25e-6im -0.00301675+3.0e-6im 0.016238-5.0e-7im -0.0030145+7.5e-7im -0.0030165-1.25e-6im;
+        0.00226725+2.5e-6im -0.00396925+1.75e-6im -0.0063855-3.5e-6im -0.00396775-3.25e-6im -0.0030155-7.5e-6im -0.0030175-7.5e-7im 0.016239+1.0e-6im -0.00301575+5.5e-6im;
+        0.0022645+5.0e-7im -0.003968-1.75e-6im -0.0039695-3.25e-6im -0.00638525+4.25e-6im -0.0030165-2.5e-6im -0.0030155-4.25e-6im -0.00301625+7.0e-6im 0.016239-2.0e-6im
+    ]
     path = ReciprocalPath(
         reciprocals(wan.frontend.lattice), (0.5, 0.5, 0.5)=>(0.0, 0.0, 0.0), (0.0, 0.0, 0.0)=>(0.5, 0.0, 0.5), (0.5, -0.5, 0.0)=>(0.375, -0.375, 0.0), (0.375, -0.375, 0.0)=>(0.0, 0.0, 0.0);
         labels=("L"=>"Γ", "Γ"=>"X", "X'"=>"K", "K"=>"Γ"), length=100
     )
     plt = plot()
-    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=1.5)
-    plot!(plt, wan(:EB, EnergyBands(path)), color=:black)
-    savefig("silicon_wannier90.png")
+    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    plot!(plt, wan(:EB, EnergyBands(path; gauge=:icoordinate)), color=:black)
+    savefig("silicon_wannier90_center.png")
+
+    another = Algorithm(Symbol("silicon"), W90(wan.frontend.lattice, Hilbert(Fock{:f}(4, 1), length(wan.frontend.lattice)), wan.frontend.H))
+    update!(another)
+    plt =  plot()
+    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    plot!(plt, another(:EB, EnergyBands(path; guage=:rcoordinate)), color=:black)
+    savefig("silicon_wannier90_atom.png")
 end

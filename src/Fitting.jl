@@ -20,7 +20,7 @@ struct SampleNode
     ratios::Vector{Float64}
 end
 @inline function SampleNode(reciprocals::AbstractVector{<:AbstractVector{<:Number}}, position::Vector{<:Number}, bands::AbstractVector{Int}, values::Vector{<:Number}, ratio::Number)
-    return SampleNode(reciprocals, position, bands, values, ones(length(bands))*ratio)
+    return SampleNode(reciprocals, position, bands, values, fill(ratio, length(bands)))
 end
 function SampleNode(reciprocals::AbstractVector{<:AbstractVector{<:Number}}, position::Vector{<:Number}, bands::AbstractVector{Int}, values::Vector{<:Number}, ratios::Vector{<:Number}=ones(length(bands)))
     @assert length(reciprocals)==length(position) "SampleNode error: mismatched reciprocals and position."
