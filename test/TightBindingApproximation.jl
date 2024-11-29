@@ -1,5 +1,6 @@
 using Artifacts
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
+using Pkg
 using Plots: plot, plot!, savefig
 using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FockIndex, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
 using QuantumLattices: atol, 𝕓, 𝕗, 𝕡, 𝕦, azimuth, bonds, dimension, distance, dtype, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
@@ -293,8 +294,10 @@ end
     @test isapprox(op.minimizer, [4.0, 0.0, 3.0], atol=5*10^-10)
 end
 
+toml = Artifacts.find_artifacts_toml(@__DIR__)
+const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
+
 @time @testset "Wannier90" begin
-    dir = artifact"WannierDataSets"
     prefix = "silicon"
     wan = Algorithm(Symbol("silicon"), W90(dir, prefix))
     path = ReciprocalPath(
