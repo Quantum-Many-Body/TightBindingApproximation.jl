@@ -1,10 +1,12 @@
+using Artifacts
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Plots: plot, plot!, savefig
 using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FockIndex, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
-using QuantumLattices: atol, 𝕓, 𝕗, 𝕡, 𝕦, azimuth, bonds, dimension, dtype, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
+using QuantumLattices: atol, 𝕓, 𝕗, 𝕡, 𝕦, azimuth, bonds, dimension, distance, dtype, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
 using StaticArrays: SVector
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
+using TightBindingApproximation.Wannier90
 
 @time @testset "prerequisite" begin
     @test promote_type(Fermionic{:TBA}, Fermionic{:TBA}) == Fermionic{:TBA}
@@ -289,4 +291,18 @@ end
     ]
     op = optimize!(tba, samplesets)[2]
     @test isapprox(op.minimizer, [4.0, 0.0, 3.0], atol=5*10^-10)
+end
+
+@time @testset "Wannier90" begin
+    dir = artifact"WannierDataSets"
+    prefix = "silicon"
+    wan = Algorithm(Symbol("silicon"), W90(dir, prefix))
+    path = ReciprocalPath(
+        reciprocals(wan.frontend.lattice), (0.5, 0.5, 0.5)=>(0.0, 0.0, 0.0), (0.0, 0.0, 0.0)=>(0.5, 0.0, 0.5), (0.5, -0.5, 0.0)=>(0.375, -0.375, 0.0), (0.375, -0.375, 0.0)=>(0.0, 0.0, 0.0);
+        labels=("L"=>"Γ", "Γ"=>"X", "X'"=>"K", "K"=>"Γ"), length=100
+    )
+    plt = plot()
+    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=1.5)
+    plot!(plt, wan(:EB, EnergyBands(path)), color=:black)
+    savefig("silicon_wannier90.png")
 end

@@ -1,0 +1,6 @@
+[WannierDataSets]
+git-tree-sha1 = "e1d9119f0503d8ee5ec0bfab998c0ab4f896f65b"
+
+    [[WannierDataSets.download]]
+    sha256 = "d5f9dbe9329cf773cf8c47edbb80f98ad2cb7eb8ecdea90dab836e51bdff9ea1"
+    url = "https://gist.github.com/waltergu/7cd91980cb141342ba5d1afa098acde3/raw/e1d9119f0503d8ee5ec0bfab998c0ab4f896f65b.tar.gz"
