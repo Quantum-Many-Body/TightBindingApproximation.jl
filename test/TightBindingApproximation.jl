@@ -322,6 +322,6 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     update!(another)
     plt =  plot()
     plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, another(:EB, EnergyBands(path; guage=:rcoordinate)), color=:black)
+    plot!(plt, another(:EB, EnergyBands(path; gauge=:rcoordinate)), color=:black)
     savefig("silicon_wannier90_atom.png")
 end
