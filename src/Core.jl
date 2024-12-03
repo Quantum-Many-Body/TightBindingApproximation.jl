@@ -2,12 +2,12 @@ using LinearAlgebra: Diagonal, Eigen, cholesky, dot, inv, norm, logdet, normaliz
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
 using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, Onsite, Operator, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Term
-using QuantumLattices: ⊕, bonds, dtype, expand, icoordinate, idtype, isannihilation, iscreation, optype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
+using QuantumLattices: ⊕, bonds, checkoptions, dtype, expand, icoordinate, idtype, isannihilation, iscreation, optype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
 using RecipesBase: RecipesBase, @recipe, @series, @layout
 using TimerOutputs: TimerOutput, @timeit_debug
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian, Hermitian
-import QuantumLattices: Parameters, Table, add!, dimension, getcontent, initialize, kind, matrix, parameternames, run!, update!
+import QuantumLattices: Parameters, Table, add!, dimension, getcontent, initialize, kind, matrix, options, parameternames, run!, update!
 
 const tbatimer = TimerOutput()
 
@@ -407,7 +407,7 @@ struct SimpleTBA{
         H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}},
         commutator::Union{AbstractMatrix, Nothing}
     ) where {K<:TBAKind}
-        @assert check_commutator(commutator) "SimpleTBA error: unsupported input commutator."
+        checkcommutator(commutator)
         new{K, typeof(lattice), typeof(H), typeof(commutator)}(lattice, H, commutator)
     end
 end
@@ -417,12 +417,12 @@ end
     end
     return tba
 end
-@inline check_commutator(::Nothing) =true
-function check_commutator(commutator::AbstractMatrix)
+@inline checkcommutator(::Nothing) = nothing
+function checkcommutator(commutator::AbstractMatrix)
     values = eigvals(commutator)
     num₁ = count(isapprox(+1, atol=atol, rtol=rtol), values)
     num₂ = count(isapprox(-1, atol=atol, rtol=rtol), values)
-    return num₁==num₂==length(values)//2
+    @assert num₁==num₂==length(values)//2 "checkcommutator error: unsupported input commutator."
 end
 
 """
@@ -456,7 +456,7 @@ struct CompositeTBA{
         transformation::Quadraticization,
         commutator::Union{AbstractMatrix, Nothing}
     ) where {K<:TBAKind}
-        @assert check_commutator(commutator) "SimpleTBA error: unsupported input commutator."
+        checkcommutator(commutator)
         H = transformation(system)
         new{K, typeof(lattice), typeof(system), typeof(transformation), typeof(H), typeof(commutator)}(lattice, system, transformation, H, commutator)
     end
@@ -504,6 +504,19 @@ end
 @inline wrapper(xs::Tuple) = xs
 
 """
+    const basicoptions = Dict(
+        :gauge => "gauge used to perform the Fourier transformation",
+        :infinitesimal => "infinitesimal added to the diagonal of the matrix representation of the tight-binding Hamiltonian"
+    )
+
+Basic options of tight-binding actions.
+"""
+const basicoptions = Dict(
+    :gauge => "gauge used to perform the Fourier transformation",
+    :infinitesimal => "infinitesimal added to the diagonal of the matrix representation of the tight-binding Hamiltonian"
+)
+
+"""
     EnergyBands{P<:ReciprocalSpace, L<:Union{Colon, AbstractVector{Int}}, O} <: Action
 
 Energy bands by tight-binding-approximation for quantum lattice systems.
@@ -513,15 +526,21 @@ struct EnergyBands{P<:ReciprocalSpace, L<:Union{Colon, AbstractVector{Int}}, O} 
     bands::L
     options::O
 end
-@inline EnergyBands(reciprocalspace::ReciprocalSpace, bands::Union{Colon, AbstractVector{Int}}=Colon(); options...) = EnergyBands(reciprocalspace, bands, options)
+@inline options(::Type{<:EnergyBands}) = merge(basicoptions, Dict(
+    :tol => "maximum tolerance of the imaginary part of eigen energies"
+))
+@inline function EnergyBands(reciprocalspace::ReciprocalSpace, bands::Union{Colon, AbstractVector{Int}}=Colon(); options...)
+    checkoptions(EnergyBands; options...)
+    return EnergyBands(reciprocalspace, bands, options)
+end
 @inline initialize(eb::EnergyBands{P, Colon}, tba::TBA) where {P<:ReciprocalSpace} = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), dimension(tba)))
 @inline initialize(eb::EnergyBands{P, <:AbstractVector{Int}}, ::TBA) where {P<:ReciprocalSpace} = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), length(eb.bands)))
 @inline Base.nameof(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands}) = @sprintf "%s_%s" repr(tba; context=:select=>∉(names(eb.action.reciprocalspace))) eb.id
 function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
-    atol = get(eb.action.options, :atol, 10^-12)
+    tol = get(eb.action.options, :tol, 10^-12)
     for (i, k) in enumerate(eb.action.reciprocalspace)
         eigenvalues = eigvals(tba, k; eb.action.options...)[eb.action.bands]
-        norm(imag(eigenvalues))>atol && @warn("run! warning: imaginary eigen energies at $k with the norm of all imaginary parts being $(norm(imag(eigenvalues))).")
+        norm(imag(eigenvalues))>tol && @warn("run! warning: imaginary eigen energies at $k with the norm of all imaginary parts being $(norm(imag(eigenvalues))).")
         eb.data[2][i, :] = real(eigenvalues)
     end
 end
@@ -588,9 +607,19 @@ struct BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
     method::M
     options::O
 end
-@inline BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; gauge=:rcoordinate, options...) = BerryCurvature(reciprocalspace, method, (gauge=gauge, options...))
-@inline BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real, d::Real=0.1, kx::T=nothing, ky::T=nothing; gauge=:rcoordinate, options...) where {T<:Union{Nothing, Vector{Float64}}} = BerryCurvature(reciprocalspace, Kubo(μ, d, kx, ky), (gauge=gauge, options...))
-@inline BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:rcoordinate, options...) = BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), (gauge=gauge, options...))
+@inline options(::Type{<:BerryCurvature}) = basicoptions
+@inline function BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; gauge=:rcoordinate, options...)
+    checkoptions(BerryCurvature; options...)
+    return BerryCurvature(reciprocalspace, method, (gauge=gauge, options...))
+end
+@inline function BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real, d::Real=0.1, kx::T=nothing, ky::T=nothing; gauge=:rcoordinate, options...) where {T<:Union{Nothing, Vector{Float64}}}
+    checkoptions(BerryCurvature; options...)
+    return BerryCurvature(reciprocalspace, Kubo(μ, d, kx, ky), (gauge=gauge, options...))
+end
+@inline function BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:rcoordinate, options...)
+    checkoptions(BerryCurvature; options...)
+    return BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), (gauge=gauge, options...))
+end
 
 # For the Berry curvature and Chern number (Berry phase ÷ 2π) on the first Brillouin zone
 @inline function initialize(bc::BerryCurvature{<:BrillouinZone, <:Fukui}, ::TBA)
@@ -783,7 +812,11 @@ struct FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, Abs
     orbitals::L
     options::O
 end
+@inline options(::Type{<:FermiSurface}) = merge(basicoptions, Dict(
+    :fwhm => "full width at half maximum for the Gaussian broadening"
+))
 @inline function FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...)
+    checkoptions(FermiSurface; options...)
     return FermiSurface(reciprocalspace, convert(Float64, μ), bands, orbitals, options)
 end
 function initialize(fs::FermiSurface, ::TBA)
@@ -831,7 +864,16 @@ struct DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L
     orbitals::L
     options::O
 end
-@inline DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...) = DensityOfStates(brillouinzone, bands, orbitals, options)
+@inline options(::Type{<:DensityOfStates}) = merge(basicoptions, Dict(
+    :fwhm => "full width at half maximum for the Gaussian broadening",
+    :ne => "number of energy sample points",
+    :emin => "minimum value of the energy window",
+    :emax => "maximum value of the energy window"
+))
+@inline function DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...)
+    checkoptions(DensityOfStates; options...)
+    return DensityOfStates(brillouinzone, bands, orbitals, options)
+end
 @inline function initialize(dos::DensityOfStates, ::TBA)
     ne = get(dos.options, :ne, 100)
     x = zeros(Float64, ne)
@@ -870,7 +912,15 @@ struct InelasticNeutronScatteringSpectra{P<:ReciprocalSpace, E<:AbstractVector, 
         new{typeof(reciprocalspace), typeof(energies), typeof(options)}(reciprocalspace, energies, options)
     end
 end
-@inline InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector; options...) = InelasticNeutronScatteringSpectra(reciprocalspace, energies, options)
+@inline options(::Type{<:InelasticNeutronScatteringSpectra}) = merge(basicoptions, Dict(
+    :fwhm => "full width at half maximum for the Gaussian broadening",
+    :check => "whether the polarization consistency of phonons will be checked",
+    :rescale => "function used to rescale the intensity of the spectrum at each energy-momentum point"
+))
+@inline function InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector; options...)
+    checkoptions(InelasticNeutronScatteringSpectra; options...)
+    return InelasticNeutronScatteringSpectra(reciprocalspace, energies, options)
+end
 @inline initialize(inss::InelasticNeutronScatteringSpectra, ::TBA) = (inss.reciprocalspace, inss.energies, zeros(Float64, length(inss.energies), length(inss.reciprocalspace)))
 
 # Inelastic neutron scattering spectra for phonons.
@@ -881,7 +931,7 @@ function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss:
     sequences = Dict(site=>[tba.frontend.transformation.table[Index(site, PhononIndex{:u}(Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.system.hilbert))
     eigenvalues, eigenvectors = eigen(tba, inss.action.reciprocalspace; inss.action.options...)
     for (i, (momentum, values, vectors)) in enumerate(zip(inss.action.reciprocalspace, eigenvalues, eigenvectors))
-        check && @timeit_debug tba.timer "check" check_polarizations(@views(vectors[(dim÷2+1):dim, 1:(dim÷2)]), @views(vectors[(dim÷2+1):dim, dim:-1:(dim÷2+1)]), momentum./pi)
+        check && @timeit_debug tba.timer "check" checkpolarizations(@views(vectors[(dim÷2+1):dim, 1:(dim÷2)]), @views(vectors[(dim÷2+1):dim, dim:-1:(dim÷2+1)]), momentum./pi)
         @timeit_debug tba.timer "spectra" begin
             for j = 1:dim
                 factor = 0
@@ -896,11 +946,11 @@ function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss:
             end
         end
     end
-    inss.data[3][:, :] = get(inss.action.options, :scale, identity).(inss.data[3].+1)
+    inss.data[3][:, :] = get(inss.action.options, :rescale, identity).(inss.data[3].+1)
 end
-@inline function check_polarizations(qs₁::AbstractMatrix, qs₂::AbstractMatrix, momentum)
+@inline function checkpolarizations(qs₁::AbstractMatrix, qs₂::AbstractMatrix, momentum)
     inner = mapreduce((e₁, e₂)->norm(conj(e₁)*e₂), +, qs₁, qs₂)/norm(qs₁)/norm(qs₂)
     isapprox(inner, 1; atol=100*atol, rtol=100*rtol) || begin
-        @warn("check_polarizations: small inner product $inner at π*$momentum, indication of degeneracy, otherwise inconsistent polarization vectors.")
+        @warn("checkpolarizations: small inner product $inner at π*$momentum, indication of degeneracy, otherwise inconsistent polarization vectors.")
     end
 end

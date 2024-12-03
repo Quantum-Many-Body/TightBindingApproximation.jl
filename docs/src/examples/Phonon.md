@@ -53,7 +53,7 @@ The inelastic neutron scattering spectra of phonons can also be computed:
 # scale: the scale of the intensity
 spectra = phonon(
     :INSS,
-    InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, scale=log)
+    InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, rescale=log)
 )
 plt = plot()
 plot!(plt, spectra)

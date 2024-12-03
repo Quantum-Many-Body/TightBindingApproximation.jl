@@ -2,8 +2,8 @@ using Artifacts
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Pkg
 using Plots: plot, plot!, savefig
-using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, FockIndex, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, MatrixCoupling, Metric, Onsite, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
-using QuantumLattices: atol, 𝕓, 𝕗, 𝕡, 𝕦, azimuth, bonds, dimension, distance, dtype, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
+using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
+using QuantumLattices: atol, 𝕓, 𝕕, 𝕕⁺𝕕, 𝕗, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
 using StaticArrays: SVector
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
@@ -76,7 +76,7 @@ end
 @time @testset "Quadraticization{Fermionic{:BdG}}" begin
     t = Hopping(:t, -1.0, 1)
     μ = Onsite(:μ, 2.0)
-    Δ = Pairing(:Δ, 0.1, 1, Coupling(:, 𝕗, :, :, (1, 1)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
+    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕗, :, :, :, (1, 1)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Fock{:f}(1, 1), length(lattice))
     gen = Generator((t, μ, Δ), bonds(lattice, 1), hilbert; half=false)
@@ -95,7 +95,7 @@ end
 @time @testset "Quadraticization{Bosonic{:BdG}}" begin
     t = Hopping(:t, -1.0, 1)
     μ = Onsite(:μ, 2.0)
-    Δ = Pairing(:Δ, 0.1, 1, Coupling(:, 𝕓, :, :, (1, 1)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
+    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕓, :, :, :, (1, 1)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Fock{:b}(1, 1), length(lattice))
     gen = Generator((t, μ, Δ), bonds(lattice, 1), hilbert; half=false)
@@ -224,7 +224,7 @@ end
     hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
     t = Hopping(:t, 1.0, 1)
     μ = Onsite(:μ, 3.5)
-    Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(:, FockIndex, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
+    Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(𝕕, :, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
     @test matrix(sc) == matrix(sc.frontend)
     @test eigen(sc) == Eigen(eigvals(sc), eigvecs(sc))
@@ -248,7 +248,7 @@ end
     unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(Fock{:f}(1, 2), length(unitcell))
     t = Hopping(:t, 1.0, 1)
-    h = Onsite(:h, 0.1, MatrixCoupling(:, FockIndex, :, σ"z", :))
+    h = Onsite(:h, 0.1, 𝕕⁺𝕕(:, :, σ"z", :))
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
     brillouin = BrillouinZone(reciprocals(unitcell), 200)
@@ -274,7 +274,7 @@ end
     energybands = phonon(:EB, EnergyBands(path))
     savefig(plot(energybands), "phonon.png")
 
-    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, scale=log))
+    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, rescale=log))
     plt = plot()
     plot!(plt, inelastic)
     plot!(plt, energybands, color=:white, linestyle=:dash)

@@ -31,7 +31,7 @@ t = Hopping(:t, 1.0, 1)
 
 ## p+ip pairing term
 Δ = Pairing(
-    :Δ, Complex(0.5), 1, Coupling(:, 𝕗, :, :, (1, 1));
+    :Δ, Complex(0.5), 1, Coupling(𝕗, :, :, :, (1, 1));
     amplitude=bond->exp(im*azimuth(rcoordinate(bond)))
 )
 
@@ -135,7 +135,7 @@ hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(unitcell))
 t = Hopping(:t, symbols("t", real=true), 1)
 μ = Onsite(:μ, symbols("μ", real=true))
 Δ = Pairing(
-    :Δ, symbols("Δ", real=true), 1, Coupling(:, 𝕗, :, :, (1, 1));
+    :Δ, symbols("Δ", real=true), 1, Coupling(𝕗, :, :, :, (1, 1));
     amplitude=bond->exp(im*azimuth(rcoordinate(bond)))
 )
 
