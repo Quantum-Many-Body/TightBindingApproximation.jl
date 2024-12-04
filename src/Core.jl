@@ -946,7 +946,7 @@ function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss:
             end
         end
     end
-    inss.data[3][:, :] = get(inss.action.options, :rescale, identity).(inss.data[3].+1)
+    inss.data[3][:, :] = get(inss.action.options, :rescale, identity).(inss.data[3])
 end
 @inline function checkpolarizations(qs₁::AbstractMatrix, qs₂::AbstractMatrix, momentum)
     inner = mapreduce((e₁, e₂)->norm(conj(e₁)*e₂), +, qs₁, qs₂)/norm(qs₁)/norm(qs₂)

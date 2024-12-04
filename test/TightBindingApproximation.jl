@@ -274,7 +274,7 @@ end
     energybands = phonon(:EB, EnergyBands(path))
     savefig(plot(energybands), "phonon.png")
 
-    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, rescale=log))
+    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, rescale=x->log(1+x)))
     plt = plot()
     plot!(plt, inelastic)
     plot!(plt, energybands, color=:white, linestyle=:dash)
