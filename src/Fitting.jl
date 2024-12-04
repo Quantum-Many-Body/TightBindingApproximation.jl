@@ -2,7 +2,7 @@ module Fitting
 
 using LinearAlgebra: eigvals
 using Optim: LBFGS, Options, optimize
-using QuantumLattices: Algorithm, Parameters, matrix, update!
+using QuantumLattices: Algorithm, Parameters, update!
 using ..TightBindingApproximation: TBA
 
 export SampleNode, deviation, optimize!

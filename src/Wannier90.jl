@@ -2,11 +2,11 @@ module Wannier90
 
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
-using QuantumLattices: Hilbert, Lattice, Matrixization, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Table, add!, kind
+using QuantumLattices: Hilbert, Lattice, Matrixization, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Table, add!
 using StaticArrays: SVector
-using ..TightBindingApproximation: Fermionic, TBA, TBAKind, TBAMatrix
+using ..TightBindingApproximation: Fermionic, TBA, TBAMatrix
 
-import QuantumLattices: add!, dimension, getcontent, matrix
+import QuantumLattices: add!, dimension, matrix
 
 export W90, W90Hoppings, W90Matrixization, findblock, readbands, readcenters, readhamiltonian, readlattice
 
