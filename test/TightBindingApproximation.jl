@@ -63,10 +63,10 @@ end
     gen = Generator((t, μ), bonds(lattice, 1), hilbert; half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
-    transformation = Quadraticization{typeof(tbakind)}(table)
-    @test valtype(transformation, expand(gen)) == OperatorSum{Quadratic{Float64, SVector{1, Float64}}, Tuple{Tuple{Int, Int}, SVector{1, Float64}, SVector{1, Float64}}}
-    @test transformation(first(expand(gen))) == OperatorSum(Quadratic(-1.0, (2, 1), [-0.5], [0.0]))
-    ops = transformation(expand(gen))
+    quadraticization = Quadraticization{typeof(tbakind)}(table)
+    @test valtype(quadraticization, expand(gen)) == OperatorSum{Quadratic{Float64, SVector{1, Float64}}, Tuple{Tuple{Int, Int}, SVector{1, Float64}, SVector{1, Float64}}}
+    @test quadraticization(first(expand(gen))) == OperatorSum(Quadratic(-1.0, (2, 1), [-0.5], [0.0]))
+    ops = quadraticization(expand(gen))
     @test ops == OperatorSum(
         Quadratic(-1.0, (2, 1), [-0.5], [0.0]), Quadratic(-1.0, (1, 2), [0.5], [0.0]), Quadratic(-1.0, (2, 1), [0.5], [1.0]),
         Quadratic(-1.0, (1, 2), [-0.5], [-1.0]), Quadratic(2.0, (1, 1), [0.0], [0.0]), Quadratic(2.0, (2, 2), [0.0], [0.0])
@@ -82,8 +82,8 @@ end
     gen = Generator((t, μ, Δ), bonds(lattice, 1), hilbert; half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
-    transformation = Quadraticization{typeof(tbakind)}(table)
-    @test transformation(expand(gen)) == OperatorSum(
+    quadraticization = Quadraticization{typeof(tbakind)}(table)
+    @test quadraticization(expand(gen)) == OperatorSum(
         Quadratic(-1.0, (2, 1), [-0.5], [0.0]), Quadratic(1.0, (3, 4), [0.5], [-0.0]), Quadratic(-1.0, (1, 2), [0.5], [0.0]), Quadratic(1.0, (4, 3), [-0.5], [-0.0]),
         Quadratic(-1.0, (2, 1), [0.5], [1.0]), Quadratic(1.0, (3, 4), [-0.5], [-1.0]), Quadratic(-1.0, (1, 2), [-0.5], [-1.0]), Quadratic(1.0, (4, 3), [0.5], [1.0]),
         Quadratic(2.0, (1, 1), [0.0], [0.0]), Quadratic(-2.0, (3, 3), [-0.0], [-0.0]), Quadratic(2.0, (2, 2), [0.0], [0.0]), Quadratic(-2.0, (4, 4), [-0.0], [-0.0]),
@@ -101,8 +101,8 @@ end
     gen = Generator((t, μ, Δ), bonds(lattice, 1), hilbert; half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
-    transformation = Quadraticization{typeof(tbakind)}(table)
-    @test transformation(expand(gen)) == OperatorSum(
+    quadraticization = Quadraticization{typeof(tbakind)}(table)
+    @test quadraticization(expand(gen)) == OperatorSum(
         Quadratic(-1.0, (2, 1), [-0.5], [0.0]), Quadratic(-1.0, (3, 4), [0.5], [-0.0]), Quadratic(-1.0, (1, 2), [0.5], [0.0]), Quadratic(-1.0, (4, 3), [-0.5], [-0.0]),
         Quadratic(-1.0, (2, 1), [0.5], [1.0]), Quadratic(-1.0, (3, 4), [-0.5], [-1.0]), Quadratic(-1.0, (1, 2), [-0.5], [-1.0]), Quadratic(-1.0, (4, 3), [0.5], [1.0]),
         Quadratic(2.0, (1, 1), [0.0], [0.0]), Quadratic(2.0, (3, 3), [-0.0], [-0.0]), Quadratic(2.0, (2, 2), [0.0], [0.0]), Quadratic(2.0, (4, 4), [-0.0], [-0.0]),
@@ -119,8 +119,8 @@ end
     gen = Generator((T, V), bonds(lattice, 1), hilbert; half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
-    transformation = Quadraticization{typeof(tbakind)}(table)
-    @test transformation(expand(gen)) == OperatorSum(
+    quadraticization = Quadraticization{typeof(tbakind)}(table)
+    @test quadraticization(expand(gen)) == OperatorSum(
         Quadratic(0.5, (1, 1), [0.0], [0.0]), Quadratic(0.5, (1, 1), [-0.0], [-0.0]), Quadratic(0.5, (2, 2), [0.0], [0.0]), Quadratic(0.5, (2, 2), [-0.0], [-0.0]),
         Quadratic(4.0, (4, 4), [0.0], [0.0]), Quadratic(4.0, (4, 4), [-0.0], [-0.0]), Quadratic(-2.0, (4, 3), [-0.5], [0.0]), Quadratic(-2.0, (3, 4), [0.5], [-0.0]),
         Quadratic(-2.0, (3, 4), [0.5], [0.0]), Quadratic(-2.0, (4, 3), [-0.5], [-0.0]), Quadratic(4.0, (3, 3), [0.0], [0.0]), Quadratic(4.0, (3, 3), [-0.0], [-0.0]),
@@ -196,7 +196,7 @@ end
     @test Parameters(third) == (t=1.0, μ=0.0)
     @test dimension(third) == 1
 
-    fourth = TBA{Fermionic{:TBA}}(tba.system, tba.transformation)
+    fourth = TBA{Fermionic{:TBA}}(tba.system, tba.quadraticization)
     @test valtype(third) == valtype(typeof(third)) == OperatorSum{Quadratic{Float64, SVector{2, Float64}}, Tuple{Tuple{Int, Int}, SVector{2, Float64}, SVector{2, Float64}}}
     @test Parameters(third) == (t=1.0, μ=0.0)
     @test dimension(third) == 1
