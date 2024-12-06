@@ -447,21 +447,21 @@ struct CompositeTBA{
     } <:TBA{K, H, C}
     lattice::L
     system::S
-    transformation::Q
+    quadraticization::Q
     H::H
     commutator::C
     function CompositeTBA{K}(
         lattice::Union{AbstractLattice, Nothing},
         system::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}},
-        transformation::Quadraticization,
+        quadraticization::Quadraticization,
         commutator::Union{AbstractMatrix, Nothing}
     ) where {K<:TBAKind}
         checkcommutator(commutator)
-        H = transformation(system)
-        new{K, typeof(lattice), typeof(system), typeof(transformation), typeof(H), typeof(commutator)}(lattice, system, transformation, H, commutator)
+        H = quadraticization(system)
+        new{K, typeof(lattice), typeof(system), typeof(quadraticization), typeof(H), typeof(commutator)}(lattice, system, quadraticization, H, commutator)
     end
 end
-@inline dimension(tba::CompositeTBA) = length(tba.transformation.table)
+@inline dimension(tba::CompositeTBA) = length(tba.quadraticization.table)
 @inline function update!(tba::CompositeTBA; parameters...)
     if length(parameters)>0
         update!(tba.system; parameters...)
@@ -928,7 +928,7 @@ function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss:
     dim = dimension(tba)
     σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
     check = get(inss.action.options, :check, true)
-    sequences = Dict(site=>[tba.frontend.transformation.table[Index(site, PhononIndex{:u}(Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.system.hilbert))
+    sequences = Dict(site=>[tba.frontend.quadraticization.table[Index(site, PhononIndex{:u}(Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.system.hilbert))
     eigenvalues, eigenvectors = eigen(tba, inss.action.reciprocalspace; inss.action.options...)
     for (i, (momentum, values, vectors)) in enumerate(zip(inss.action.reciprocalspace, eigenvalues, eigenvectors))
         check && @timeit_debug tba.timer "check" checkpolarizations(@views(vectors[(dim÷2+1):dim, 1:(dim÷2)]), @views(vectors[(dim÷2+1):dim, dim:-1:(dim÷2+1)]), momentum./pi)
