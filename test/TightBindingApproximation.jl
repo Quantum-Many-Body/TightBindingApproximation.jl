@@ -2,8 +2,8 @@ using Artifacts
 using LinearAlgebra: Diagonal, Eigen, Hermitian, eigen, eigvals, eigvecs, ishermitian
 using Pkg
 using Plots: plot, plot!, savefig
-using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorUnitToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
-using QuantumLattices: atol, 𝕓, 𝕕, 𝕕⁺𝕕, 𝕗, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, update!, @rectangle_str, @σ_str
+using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorIndexToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
+using QuantumLattices: atol, 𝕕, 𝕕⁺𝕕, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, scalartype, update!, @rectangle_str, @σ_str
 using StaticArrays: SVector
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
@@ -31,13 +31,13 @@ using TightBindingApproximation.Wannier90
     @test infinitesimal(Fermionic(:TBA)) == infinitesimal(Fermionic(:BdG)) == infinitesimal(Bosonic(:TBA)) == 0
     @test infinitesimal(Bosonic(:BdG)) == infinitesimal(Phononic()) == atol/5
 
-    @test Metric(Fermionic(:TBA), Hilbert(1=>Fock{:f}(1, 1))) == OperatorUnitToTuple(:site, :orbital, :spin)
-    @test Metric(Fermionic(:BdG), Hilbert(1=>Fock{:f}(1, 1))) == OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
-    @test Metric(Bosonic(:TBA), Hilbert(1=>Fock{:b}(1, 1))) == OperatorUnitToTuple(:site, :orbital, :spin)
-    @test Metric(Bosonic(:BdG), Hilbert(1=>Fock{:b}(1, 1))) == OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
-    @test Metric(Phononic(), Hilbert(1=>Phonon(2))) == OperatorUnitToTuple(kind, :site, :direction)
+    @test Metric(Fermionic(:TBA), Hilbert(1=>Fock{:f}(1, 1))) == OperatorIndexToTuple(:site, :orbital, :spin)
+    @test Metric(Fermionic(:BdG), Hilbert(1=>Fock{:f}(1, 1))) == OperatorIndexToTuple(:nambu, :site, :orbital, :spin)
+    @test Metric(Bosonic(:TBA), Hilbert(1=>Fock{:b}(1, 1))) == OperatorIndexToTuple(:site, :orbital, :spin)
+    @test Metric(Bosonic(:BdG), Hilbert(1=>Fock{:b}(1, 1))) == OperatorIndexToTuple(:nambu, :site, :orbital, :spin)
+    @test Metric(Phononic(), Hilbert(1=>Phonon(2))) == OperatorIndexToTuple(kind, :site, :direction)
 
-    by = OperatorUnitToTuple(kind, :site, :direction)
+    by = OperatorIndexToTuple(kind, :site, :direction)
     @test Table(Hilbert(Phonon(2), 2), by) == Table([𝕦(1, 'x'), 𝕦(2, 'x'), 𝕦(1, 'y'), 𝕦(2, 'y'), 𝕡(1, 'x'), 𝕡(2, 'x'), 𝕡(1, 'y'), 𝕡(2, 'y')], by)
 
     @test isnothing(commutator(Fermionic(:TBA), Hilbert(1=>Fock{:f}(1, 2))))
@@ -60,7 +60,7 @@ end
     μ = Onsite(:μ, 2.0)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Fock{:f}(1, 1), length(lattice))
-    gen = Generator((t, μ), bonds(lattice, 1), hilbert; half=false)
+    gen = Generator(bonds(lattice, 1), hilbert, (t, μ); half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
     quadraticization = Quadraticization{typeof(tbakind)}(table)
@@ -76,10 +76,10 @@ end
 @time @testset "Quadraticization{Fermionic{:BdG}}" begin
     t = Hopping(:t, -1.0, 1)
     μ = Onsite(:μ, 2.0)
-    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕗, :, :, :, (1, 1)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
+    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕕(:, :, :, :), 𝕕(:, :, :, :)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Fock{:f}(1, 1), length(lattice))
-    gen = Generator((t, μ, Δ), bonds(lattice, 1), hilbert; half=false)
+    gen = Generator(bonds(lattice, 1), hilbert, (t, μ, Δ); half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
     quadraticization = Quadraticization{typeof(tbakind)}(table)
@@ -95,10 +95,10 @@ end
 @time @testset "Quadraticization{Bosonic{:BdG}}" begin
     t = Hopping(:t, -1.0, 1)
     μ = Onsite(:μ, 2.0)
-    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕓, :, :, :, (1, 1)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
+    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕕(:, :, :, :), 𝕕(:, :, :, :)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Fock{:b}(1, 1), length(lattice))
-    gen = Generator((t, μ, Δ), bonds(lattice, 1), hilbert; half=false)
+    gen = Generator(bonds(lattice, 1), hilbert, (t, μ, Δ); half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
     quadraticization = Quadraticization{typeof(tbakind)}(table)
@@ -116,7 +116,7 @@ end
     V = Hooke(:V, 2.0, 1)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Phonon(1), length(lattice))
-    gen = Generator((T, V), bonds(lattice, 1), hilbert; half=false)
+    gen = Generator(bonds(lattice, 1), hilbert, (T, V); half=false)
     tbakind = TBAKind(typeof(gen.terms), valtype(gen.hilbert))
     table = Table(gen.hilbert, Metric(tbakind, gen.hilbert))
     quadraticization = Quadraticization{typeof(tbakind)}(table)
@@ -181,25 +181,25 @@ end
     tba = TBA(lattice, hilbert, (t, μ))
     @test kind(tba) == kind(typeof(tba)) == Fermionic(:TBA)
     @test isnothing(getcontent(tba, :commutator))
-    @test valtype(tba) == valtype(typeof(tba)) == OperatorSum{Quadratic{Float64, SVector{2, Float64}}, Tuple{Tuple{Int, Int}, SVector{2, Float64}, SVector{2, Float64}}}
+    @test scalartype(tba) == scalartype(typeof(tba)) == Float64
     @test Parameters(tba) == (t=1.0, μ=0.0)
     @test dimension(tba) == 1
 
     A(t, μ, k=[0.0, 0.0]; kwargs...) = [2t*cos(k[1])+2t*cos(k[2])+μ;;]
     another = TBA{Fermionic{:TBA}}(Formula(A, (t=1.0, μ=0.0)))
-    @test valtype(another) == valtype(typeof(another)) == Matrix{Float64}
+    @test scalartype(another) == scalartype(typeof(another)) == Float64
     @test Parameters(another) == (t=1.0, μ=0.0)
     @test dimension(another) == 1
 
     third = TBA{Fermionic{:TBA}}(tba.H)
-    @test valtype(third) == valtype(typeof(third)) == OperatorSum{Quadratic{Float64, SVector{2, Float64}}, Tuple{Tuple{Int, Int}, SVector{2, Float64}, SVector{2, Float64}}}
+    @test scalartype(third) == scalartype(typeof(third)) == Float64
     @test Parameters(third) == (t=1.0, μ=0.0)
     @test dimension(third) == 1
 
     fourth = TBA{Fermionic{:TBA}}(tba.system, tba.quadraticization)
-    @test valtype(third) == valtype(typeof(third)) == OperatorSum{Quadratic{Float64, SVector{2, Float64}}, Tuple{Tuple{Int, Int}, SVector{2, Float64}, SVector{2, Float64}}}
-    @test Parameters(third) == (t=1.0, μ=0.0)
-    @test dimension(third) == 1
+    @test scalartype(fourth) == scalartype(typeof(fourth)) == Float64
+    @test Parameters(fourth) == (t=1.0, μ=0.0)
+    @test dimension(fourth) == 1
 
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for k in path

@@ -1,13 +1,13 @@
 using LinearAlgebra: Diagonal, Eigen, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, Onsite, Operator, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Term
-using QuantumLattices: ⊕, bonds, checkoptions, dtype, expand, icoordinate, idtype, isannihilation, iscreation, optype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
+using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Term
+using QuantumLattices: ⊕, bonds, checkoptions, expand, icoordinate, idtype, isannihilation, iscreation, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
 using RecipesBase: RecipesBase, @recipe, @series, @layout
 using TimerOutputs: TimerOutput, @timeit_debug
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian, Hermitian
-import QuantumLattices: Parameters, Table, add!, dimension, getcontent, initialize, kind, matrix, options, parameternames, run!, update!
+import QuantumLattices: Parameters, Table, add!, dimension, getcontent, initialize, kind, matrix, options, parameternames, run!, scalartype, update!
 
 const tbatimer = TimerOutput()
 
@@ -78,25 +78,25 @@ Infinitesimal used in the matrixization of a tight-binding approximation to be a
 @inline infinitesimal(::Fermionic{:BdG}) = 0
 
 """
-    Metric(::Fermionic, hilbert::Hilbert{<:Fock{:f}}) -> OperatorUnitToTuple
-    Metric(::Bosonic, hilbert::Hilbert{<:Fock{:b}}) -> OperatorUnitToTuple
-    Metric(::Phononic, hilbert::Hilbert{<:Phonon}) -> OperatorUnitToTuple
+    Metric(::Fermionic, hilbert::Hilbert{<:Fock{:f}}) -> OperatorIndexToTuple
+    Metric(::Bosonic, hilbert::Hilbert{<:Fock{:b}}) -> OperatorIndexToTuple
+    Metric(::Phononic, hilbert::Hilbert{<:Phonon}) -> OperatorIndexToTuple
 
 Get the index-to-tuple metric for a free fermionic/bosonic/phononic system.
 """
 @inline Metric(::TBAKind, ::Hilbert) = error("Metric error: not defined behavior.")
-@inline @generated Metric(::Fermionic{:TBA}, hilbert::Hilbert{<:Fock{:f}}) = OperatorUnitToTuple(:site, :orbital, :spin)
-@inline @generated Metric(::Bosonic{:TBA}, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:site, :orbital, :spin)
-@inline @generated Metric(::Fermionic{:BdG}, hilbert::Hilbert{<:Fock{:f}}) = OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
-@inline @generated Metric(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = OperatorUnitToTuple(:nambu, :site, :orbital, :spin)
-@inline @generated Metric(::Phononic, hilbert::Hilbert{<:Phonon}) = OperatorUnitToTuple(kind, :site, :direction)
+@inline @generated Metric(::Fermionic{:TBA}, hilbert::Hilbert{<:Fock{:f}}) = OperatorIndexToTuple(:site, :orbital, :spin)
+@inline @generated Metric(::Bosonic{:TBA}, hilbert::Hilbert{<:Fock{:b}}) = OperatorIndexToTuple(:site, :orbital, :spin)
+@inline @generated Metric(::Fermionic{:BdG}, hilbert::Hilbert{<:Fock{:f}}) = OperatorIndexToTuple(:nambu, :site, :orbital, :spin)
+@inline @generated Metric(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = OperatorIndexToTuple(:nambu, :site, :orbital, :spin)
+@inline @generated Metric(::Phononic, hilbert::Hilbert{<:Phonon}) = OperatorIndexToTuple(kind, :site, :direction)
 
 """
-    Table(hilbert::Hilbert{Phonon{:}}, by::OperatorUnitToTuple{(kind, :site, :direction)})
+    Table(hilbert::Hilbert{Phonon{:}}, by::OperatorIndexToTuple{(kind, :site, :direction)})
 
 Construct a index-sequence table for a phononic system.
 """
-@inline function Table(hilbert::Hilbert{Phonon{:}}, by::OperatorUnitToTuple{(kind, :site, :direction)})
+@inline function Table(hilbert::Hilbert{Phonon{:}}, by::OperatorIndexToTuple{(kind, :site, :direction)})
     new = Hilbert(site=>filter(PhononIndex{:u}, internal)⊕filter(PhononIndex{:p}, internal) for (site, internal) in hilbert)
     return Table(new, by)
 end
@@ -138,7 +138,7 @@ struct Quadraticization{K<:TBAKind, T<:Table} <: LinearTransformation
     Quadraticization{K}(table::Table) where {K<:TBAKind} = new{K, typeof(table)}(table)
 end
 @inline function Base.valtype(::Type{<:Quadraticization{<:TBAKind}}, O::Type{<:Union{Operator, OperatorSet}})
-    P = optype(O)
+    P = operatortype(O)
     @assert rank(P)==2 "valtype error: Quadraticization only applies to rank-2 operator."
     M = Quadratic{valtype(P), parametertype(eltype(idtype(P)), :coordination)}
     return OperatorSum{M, idtype(M)}
@@ -199,7 +199,7 @@ function add!(dest::AbstractMatrix, mr::TBAMatrixization, m::Quadratic; infinite
     coordinate = mr.gauge==:rcoordinate ? m.rcoordinate : m.icoordinate
     phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
     dest[m.position...] += m.value*phase
-    if m.position[1]==m.position[2]
+    if m.position[1] == m.position[2]
         dest[m.position...] += infinitesimal
     end
     return dest
@@ -234,7 +234,7 @@ function eigen(m::TBAMatrix{<:AbstractMatrix})
     for i = 1:(length(K.values)÷2)
         K.values[i] = -K.values[i]
     end
-    V = inv(W.U)*K.vectors*sqrt(Diagonal(K.values))
+    V = inv(W.U) * K.vectors * sqrt(Diagonal(K.values))
     return Eigen(K.values, V)
 end
 
@@ -268,7 +268,7 @@ Abstract type for free quantum lattice systems using the tight-binding approxima
 abstract type TBA{K<:TBAKind, H<:Union{Formula, OperatorSet, Generator, Frontend}, C<:Union{Nothing, AbstractMatrix}} <: Frontend end
 @inline kind(tba::TBA) = kind(typeof(tba))
 @inline kind(::Type{<:TBA{K}}) where K = K()
-@inline Base.valtype(::Type{<:TBA{<:TBAKind, H}}) where {H<:Union{Formula, OperatorSet, Generator, Frontend}} = valtype(H)
+@inline scalartype(::Type{<:TBA{<:TBAKind, H}}) where {H<:Union{Formula, OperatorSet, Generator, Frontend}} = scalartype(H)
 @inline getcontent(tba::TBA{<:TBAKind, <:Union{Formula, OperatorSet, Generator, Frontend}, Nothing}, ::Val{:commutator}) = nothing
 @inline Parameters(tba::TBA) = Parameters(getcontent(tba, :H))
 
@@ -315,7 +315,7 @@ end
     tba::TBA{<:TBAKind, <:Union{OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}}, k::Union{AbstractVector{<:Number}, Nothing}=nothing;
     gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)), kwargs...
 )
-    matrixization = TBAMatrixization{datatype(dtype(tba), k)}(k, dimension(tba), gauge)
+    matrixization = TBAMatrixization{datatype(scalartype(tba), k)}(k, dimension(tba), gauge)
     m = matrixization(expand(getcontent(tba, :H)); infinitesimal=infinitesimal, kwargs...)
     commutator = getcontent(tba, :commutator)
     return TBAMatrix(Hermitian(m), commutator)
@@ -475,7 +475,7 @@ end
     TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     TBA{K}(H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Union{Term, Tuple{Term, Vararg{Term}}}, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
+    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
 
 Construct a tight-binding quantum lattice system.
 """
@@ -491,17 +491,14 @@ end
 @inline function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return CompositeTBA{K}(lattice, H, q, commutator)
 end
-@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::Union{Term, Tuple{Term, Vararg{Term}}}, boundary::Boundary=plain; neighbors::Union{Nothing, Int, Neighbors}=nothing)
-    terms = wrapper(terms)
+@inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
+    terms = OneOrMore(terms)
     tbakind = TBAKind(typeof(terms), valtype(hilbert))
     table = Table(hilbert, Metric(tbakind, hilbert))
     commt = commutator(tbakind, hilbert)
-    isnothing(neighbors) && (neighbors = maximum(term->term.bondkind, terms))
-    H = Generator(terms, bonds(lattice, neighbors), hilbert, boundary, lazy; half=false)
+    H = Generator(bonds(lattice, neighbors), hilbert, terms, boundary, lazy; half=false)
     return TBA{typeof(tbakind)}(lattice, H, Quadraticization{typeof(tbakind)}(table), commt)
 end
-@inline wrapper(x) = (x,)
-@inline wrapper(xs::Tuple) = xs
 
 """
     const basicoptions = Dict(
@@ -679,7 +676,7 @@ function _minilength(rs::ReciprocalSpace)
         ny, nx = map(length, shape(rs))
         d = minimum(norm, [rs.reciprocals[1]/nx, rs.reciprocals[2]/ny])
     end
-    return d 
+    return d
 end
 function _kubo(tba::Algorithm{<:TBA},  bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}})
     dim = dimension(bc.action.reciprocalspace)
@@ -698,8 +695,8 @@ function _kubo(tba::Algorithm{<:TBA},  bc::Assignment{<:BerryCurvature{<:Recipro
         eigensystem = eigen(tba, momentum; bc.action.options...)
         mx₁, mx₂ = matrix(tba, momentum+dx; bc.action.options...), matrix(tba, momentum-dx; bc.action.options...)
         my₁, my₂ = matrix(tba, momentum+dy; bc.action.options...), matrix(tba, momentum-dy; bc.action.options...)
-        dHx = (mx₂ - mx₁)/norm(2*dx)
-        dHy = (my₂ - my₁)/norm(2*dy)
+        dHx = (mx₂-mx₁) / norm(2*dx)
+        dHy = (my₂-my₁) / norm(2*dy)
         res = 0.0
         for (i, valv) in enumerate(eigensystem.values)
             valv > μ && continue
@@ -707,9 +704,9 @@ function _kubo(tba::Algorithm{<:TBA},  bc::Assignment{<:BerryCurvature{<:Recipro
             for (j, valc) in enumerate(eigensystem.values)
                 valc < μ && continue
                 vs₂ = eigensystem.vectors[:, j]
-                velocity_x = vs₁'*dHx*vs₂
-                velocity_y = vs₂'*dHy*vs₁
-                res += -2*imag(velocity_x*velocity_y/(valc-valv)^2)
+                velocity_x = vs₁' * dHx * vs₂
+                velocity_y = vs₂' * dHy * vs₁
+                res += -2imag(velocity_x*velocity_y/(valc-valv)^2)
             end
         end
         push!(Ωxys, res)
@@ -722,7 +719,7 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature})
     alg = bc.action.method
     isa(bc.action.reciprocalspace, BrillouinZone) && (area = volume(bc.action.reciprocalspace.reciprocals)/length(bc.action.reciprocalspace))
     isa(bc.action.reciprocalspace, ReciprocalZone) && (area = bc.action.reciprocalspace.volume/length(bc.action.reciprocalspace))
-    if isa(alg, Fukui) 
+    if isa(alg, Fukui)
         eigenvectors = eigvecs(tba, bc)
         g = isnothing(getcontent(tba.frontend, :commutator)) ? Diagonal(ones(Int, dimension(tba))) : inv(getcontent(tba.frontend, :commutator))
         if alg.abelian
@@ -732,11 +729,11 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature})
                 vs₃ = eigenvectors[i+1, j+1]
                 vs₄ = eigenvectors[i, j+1]
                 for k = 1:length(alg.bands)
-                    p₁ = vs₁[:, k]'*g*vs₂[:, k]
-                    p₂ = vs₂[:, k]'*g*vs₃[:, k]
-                    p₃ = vs₃[:, k]'*g*vs₄[:, k]
-                    p₄ = vs₄[:, k]'*g*vs₁[:, k]
-                    bc.data[2][j, i, k] = -angle(p₁*p₂*p₃*p₄)/area
+                    p₁ = vs₁[:, k]' * g * vs₂[:, k]
+                    p₂ = vs₂[:, k]' * g * vs₃[:, k]
+                    p₃ = vs₃[:, k]' * g * vs₄[:, k]
+                    p₄ = vs₄[:, k]' * g * vs₁[:, k]
+                    bc.data[2][j, i, k] = -angle(p₁*p₂*p₃*p₄) / area
                     length(bc.data)==3 && (bc.data[3][k] += bc.data[2][j, i, k]*area/2pi)
                 end
             end
@@ -746,11 +743,11 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature})
                 vs₂ = eigenvectors[i+1, j]
                 vs₃ = eigenvectors[i+1, j+1]
                 vs₄ = eigenvectors[i, j+1]
-                p₁ = (vs₁'*g*vs₂)
-                p₂ = (vs₂'*g*vs₃)
-                p₃ = (vs₃'*g*vs₄)
-                p₄ = (vs₄'*g*vs₁)
-                bc.data[2][j, i, 1] = -imag(logdet(p₁*p₂*p₃*p₄))/area
+                p₁ = vs₁' * g * vs₂
+                p₂ = vs₂' * g * vs₃
+                p₃ = vs₃' * g * vs₄
+                p₄ = vs₄' * g * vs₁
+                bc.data[2][j, i, 1] = -imag(logdet(p₁*p₂*p₃*p₄)) / area
                 length(bc.data)==3 && (bc.data[3][1] += bc.data[2][j, i, 1]*area/2pi)
             end
             @warn "This method (non-abelian case for `Fukui` method) is not verified in bosonic system."
@@ -761,7 +758,7 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature})
             ny, nx = map(length, shape(bc.action.reciprocalspace))
             bc.data[2][:, :, 1] = reshape(Ωxys, ny, nx)
             bc.data[3][1] =  sum(Ωxys*area)/2pi
-        else 
+        else
             bc.data[2][:] = Ωxys[:]
         end
     end
@@ -796,7 +793,7 @@ function spectralfunction(tbakind::TBAKind, ω::Real, values::Vector{<:Real}, ve
     end
     for i in bands
         factor = mapreduce(abs2, +, vectors[orbitals, i])
-        result += factor*exp(-(ω-values[i])^2/2/σ^2)
+        result += factor * exp(-(ω-values[i])^2/2/σ^2)
     end
     return result/√(2pi)/σ
 end
@@ -926,7 +923,7 @@ end
 # Inelastic neutron scattering spectra for phonons.
 function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
     dim = dimension(tba)
-    σ = get(inss.action.options, :fwhm, 0.1)/2/√(2*log(2))
+    σ = get(inss.action.options, :fwhm, 0.1) / 2 / √(2*log(2))
     check = get(inss.action.options, :check, true)
     sequences = Dict(site=>[tba.frontend.quadraticization.table[Index(site, PhononIndex{:u}(Char(Int('x')+i-1)))] for i=1:phonon.ndirection] for (site, phonon) in pairs(tba.frontend.system.hilbert))
     eigenvalues, eigenvectors = eigen(tba, inss.action.reciprocalspace; inss.action.options...)
@@ -936,12 +933,12 @@ function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss:
             for j = 1:dim
                 factor = 0
                 for (site, sequence) in pairs(sequences)
-                    factor += dot(momentum, vectors[sequence, j])*exp(1im*dot(momentum, tba.frontend.lattice[site]))
+                    factor += dot(momentum, vectors[sequence, j]) * exp(1im*dot(momentum, tba.frontend.lattice[site]))
                 end
-                factor = abs2(factor)/√(2pi)/σ
+                factor = abs2(factor) / √(2pi) / σ
                 for (nₑ, e) in enumerate(inss.action.energies)
                     # instead of the Lorentz broadening of δ function, the convolution with a FWHM Gaussian is used.
-                    inss.data[3][nₑ, i] += factor*exp(-(e-values[j])^2/2/σ^2)
+                    inss.data[3][nₑ, i] += factor * exp(-(e-values[j])^2/2/σ^2)
                 end
             end
         end
@@ -949,7 +946,7 @@ function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss:
     inss.data[3][:, :] = get(inss.action.options, :rescale, identity).(inss.data[3])
 end
 @inline function checkpolarizations(qs₁::AbstractMatrix, qs₂::AbstractMatrix, momentum)
-    inner = mapreduce((e₁, e₂)->norm(conj(e₁)*e₂), +, qs₁, qs₂)/norm(qs₁)/norm(qs₂)
+    inner = mapreduce((e₁, e₂)->norm(conj(e₁)*e₂), +, qs₁, qs₂) / norm(qs₁) / norm(qs₂)
     isapprox(inner, 1; atol=100*atol, rtol=100*rtol) || begin
         @warn("checkpolarizations: small inner product $inner at π*$momentum, indication of degeneracy, otherwise inconsistent polarization vectors.")
     end

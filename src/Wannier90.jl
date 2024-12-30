@@ -2,7 +2,7 @@ module Wannier90
 
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
-using QuantumLattices: Hilbert, Lattice, Matrixization, OperatorPack, OperatorSet, OperatorSum, OperatorUnitToTuple, Table, add!
+using QuantumLattices: Hilbert, Lattice, Matrixization, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Table, add!
 using StaticArrays: SVector
 using ..TightBindingApproximation: Fermionic, TBA, TBAMatrix
 
@@ -159,7 +159,7 @@ function readhamiltonian(path::AbstractString, prefix::AbstractString="wannier90
             deg[point] = degeneracies[index]
             index += 1
         end
-        ham.contents[point].value[i, j] = value/deg[point]
+        ham.contents[point].value[i, j] = value / deg[point]
     end
     for point in keys(ham.contents)
         @assert haskey(ham, map(-, point)) "readhamiltonian error: did not find the inverse of point $(point)."
@@ -200,7 +200,7 @@ function add!(dest::AbstractMatrix, mr::W90Matrixization, m::W90Hoppings; kwargs
     if mr.gauge == :icoordinate
         phase = exp(1im*dot(mr.k, icoordinate))
         for index in eachindex(dest)
-            dest[index] += m.value[index]*phase
+            dest[index] += m.value[index] * phase
         end
     else
         for i = 1:size(mr.centers)[2]
@@ -208,7 +208,7 @@ function add!(dest::AbstractMatrix, mr::W90Matrixization, m::W90Hoppings; kwargs
             for j = 1:size(mr.centers)[2]
                 centerⱼ = SVector(mr.centers[1, j], mr.centers[2, j], mr.centers[3, j])
                 phase = exp(1im*dot(mr.k, icoordinate+centerⱼ-centerᵢ))
-                dest[i, j] += m.value[i, j]*phase
+                dest[i, j] += m.value[i, j] * phase
             end
         end
     end
@@ -234,11 +234,11 @@ end
 @inline update!(wan::W90; parameters...) = wan
 
 """
-    matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0.0, 0.0, 0.0); gauge=:icoordinate, kwargs...) -> TBAMatrix
+    matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0, 0, 0); gauge=:icoordinate, kwargs...) -> TBAMatrix
 
 Get the matrix representation of a quantum lattice system based on the information obtained from Wannier90.
 """
-@inline function matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0.0, 0.0, 0.0); gauge=:icoordinate, kwargs...)
+@inline function matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0, 0, 0); gauge=:icoordinate, kwargs...)
     m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.H; kwargs...)
     return TBAMatrix(Hermitian(m), nothing)
 end
@@ -254,7 +254,7 @@ When `centers::Matrix{<:Real}` is used, the the Wannier centers are assigned dir
 When `hilbert::Hilbert` is used, the Wannier centers will be approximated by their corresponding atom positions.
 """
 function W90(lattice::Lattice, hilbert::Hilbert, H::OperatorSum{W90Hoppings})
-    table = Table(hilbert, OperatorUnitToTuple(:site, :orbital, :spin))
+    table = Table(hilbert, OperatorIndexToTuple(:site, :orbital, :spin))
     centers = zeros(Float64, 3, length(table))
     for (key, index) in pairs(table)
         centers[:, index] = lattice[key[1]]
