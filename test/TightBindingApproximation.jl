@@ -231,17 +231,17 @@ end
 
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
     @test eigen(sc, path) == (eigvals(sc, path), eigvecs(sc, path))
-    savefig(plot(sc(:EB, EnergyBands(path, 1:2))), "eb.png")
+    savefig(plot(sc(:EB, EnergyBands(path, 1:2))), "EB.png")
 
     brillouin = BrillouinZone(reciprocals(unitcell), 100)
-    savefig(plot(sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]))), "bc.png")
-    savefig(plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "bctwobands.png")
+    savefig(plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))), "BerryCurvatureAbelian.png")
+    savefig(plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "BerryCurvatureNonabelian.png")
+    savefig(plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))), "BerryCurvatureKubo.png")
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=201, ends=(true, true))
-    savefig(plot(sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))), "bcextended.png")
-    savefig(plot(sc(:BerryCurvatureKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))), "bcextended_Kubo.png")
-
-    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "bcpath.png")
+    savefig(plot(sc(:BerryCurvatureExtendedFukui, BerryCurvature(reciprocalzone, [1, 2]))), "BerryCurvatureExtendedFukui.png")
+    savefig(plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))), "BerryCurvatureExtendedKubo.png")
+    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "BerryCurvaturePath.png")
 end
 
 @time @testset "FermiSurface and DensityOfStates" begin
@@ -252,14 +252,14 @@ end
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
     brillouin = BrillouinZone(reciprocals(unitcell), 200)
-    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "fs-all.png")
-    savefig(plot(tba(Symbol("FermiSurface-SpinDependent"), FermiSurface(brillouin, 0.0, :, [1], [2]))), "fs-spin.png")
-    savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]; emin=-5.0, emax=5.0, ne=201, fwhm=0.05))), "dos.png")
+    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "FermiSurface.png")
+    savefig(plot(tba(Symbol("FermiSurfaceSpinDependent"), FermiSurface(brillouin, 0.0, :, [1], [2]))), "FermiSurfaceSpinDependent.png")
+    savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]; emin=-5.0, emax=5.0, ne=201, fwhm=0.05))), "DensityOfStates.png")
     @test isapprox(sum(tba.assignments[:DensityOfStates].data[2][:, 1]), 2.0; atol=10^-3)
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=401, ends=(true, true))
-    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "fs-extended-all.png")
-    savefig(plot(tba(Symbol("FermiSurfaceExtended-SpinDependent"), FermiSurface(reciprocalzone, 0.0, :, [1], [2]))), "fs-extended-spin.png")
+    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "FermiSurfaceExtended.png")
+    savefig(plot(tba(Symbol("FermiSurfaceExtendedSpinDependent"), FermiSurface(reciprocalzone, 0.0, :, [1], [2]))), "FermiSurfaceExtendedSpinDependent.png")
 end
 
 @time @testset "InelasticNeutronScatteringSpectra" begin
@@ -272,13 +272,13 @@ end
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
 
     energybands = phonon(:EB, EnergyBands(path))
-    savefig(plot(energybands), "phonon.png")
+    savefig(plot(energybands), "PhononEB.png")
 
     inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, rescale=x->log(1+x)))
     plt = plot()
     plot!(plt, inelastic)
     plot!(plt, energybands, color=:white, linestyle=:dash)
-    savefig("inelastic.png")
+    savefig("InelasticNeutronScatteringSpectra.png")
 end
 
 @time @testset "Fitting" begin
