@@ -465,7 +465,7 @@ end
 @inline function update!(tba::CompositeTBA; parameters...)
     if length(parameters)>0
         update!(tba.system; parameters...)
-        update!(tba.H; parameters...)
+        update!(tba.H, tba.quadraticization, tba.system; parameters...)
     end
     return tba
 end
@@ -604,15 +604,19 @@ struct BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
     options::O
 end
 @inline options(::Type{<:BerryCurvature}) = basicoptions
-@inline function BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; gauge=:rcoordinate, options...)
+@inline function BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; options...)
     checkoptions(BerryCurvature; options...)
-    return BerryCurvature(reciprocalspace, method, (gauge=gauge, options...))
+    return BerryCurvature(reciprocalspace, method, options)
 end
 @inline function BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real, d::Real=0.1, kx::T=nothing, ky::T=nothing; gauge=:rcoordinate, options...) where {T<:Union{Nothing, Vector{Float64}}}
     checkoptions(BerryCurvature; options...)
     return BerryCurvature(reciprocalspace, Kubo(μ, d, kx, ky), (gauge=gauge, options...))
 end
-@inline function BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:rcoordinate, options...)
+@inline function BerryCurvature(reciprocalspace::BrillouinZone, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:icoordinate, options...)
+    checkoptions(BerryCurvature; options...)
+    return BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), (gauge=gauge, options...))
+end
+@inline function BerryCurvature(reciprocalspace::ReciprocalZone, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:rcoordinate, options...)
     checkoptions(BerryCurvature; options...)
     return BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), (gauge=gauge, options...))
 end
@@ -685,12 +689,11 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{Bri
             bc.data[2][j, i, 1] = -imag(logdet(p₁*p₂*p₃*p₄)) / area
             bc.data[3][1] += bc.data[2][j, i, 1] * area / 2pi
         end
-        @warn "This method (non-abelian case for `Fukui` method) is not verified in bosonic system."
     end
     isa(bc.action.reciprocalspace, BrillouinZone) && @info string("Chern numbers: ", join((string(cn, "(", band, ")") for (cn, band) in zip(bc.data[3], bc.action.method.bands)), ", "))
 end
 @inline invcommutator(tba::TBA{<:TBAKind, <:Union{Formula, OperatorSet, Generator, Frontend}, Nothing}) = Diagonal(ones(Int, dimension(tba)))
-@inline invcommutator(tba::TBA) = inv(getcontent(tba.frontend, :commutator))
+@inline invcommutator(tba::TBA) = inv(getcontent(tba, :commutator))
 
 ## Plot the Berry curvature and the Chern number or Berry phase (÷2π) obtained by Fukui method
 @recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui}}})
