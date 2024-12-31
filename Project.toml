@@ -14,7 +14,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
-DelimitedFiles = "1.9 - 1"
+DelimitedFiles = "1.8 - 1"
 LinearAlgebra = "1.10 - 1"
 Optim = "1.7 - 1"
 Printf = "1.10 - 1"
