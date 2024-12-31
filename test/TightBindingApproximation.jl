@@ -253,13 +253,13 @@ end
 
     brillouin = BrillouinZone(reciprocals(unitcell), 200)
     savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "FermiSurface.png")
-    savefig(plot(tba(Symbol("FermiSurfaceSpinDependent"), FermiSurface(brillouin, 0.0, :, [1], [2]))), "FermiSurfaceSpinDependent.png")
+    savefig(plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, 1:2, [1], [2]))), "FermiSurfaceSpinDependent.png")
     savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]; emin=-5.0, emax=5.0, ne=201, fwhm=0.05))), "DensityOfStates.png")
     @test isapprox(sum(tba.assignments[:DensityOfStates].data[2][:, 1]), 2.0; atol=10^-3)
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=401, ends=(true, true))
     savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "FermiSurfaceExtended.png")
-    savefig(plot(tba(Symbol("FermiSurfaceExtendedSpinDependent"), FermiSurface(reciprocalzone, 0.0, :, [1], [2]))), "FermiSurfaceExtendedSpinDependent.png")
+    savefig(plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2]))), "FermiSurfaceExtendedSpinDependent.png")
 end
 
 @time @testset "InelasticNeutronScatteringSpectra" begin
@@ -298,7 +298,7 @@ toml = Artifacts.find_artifacts_toml(@__DIR__)
 const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
 @time @testset "Wannier90" begin
     prefix = "silicon"
-    wan = Algorithm(Symbol("silicon"), W90(dir, prefix))
+    wan = Algorithm(:silicon, W90(dir, prefix))
     @test W90Matrixization([0.0, 0.0, 0.0], wan.frontend.lattice.vectors, wan.frontend.centers, :icoordinate)(wan.frontend.H[1]) ≈ ComplexF64[
         0.016239+4.75e-6im -0.00301675+2.5e-6im -0.0030155-6.0e-6im -0.0030155-3.25e-6im -0.01056425-1.3e-5im 0.00237225+7.5e-7im 0.002374+5.75e-6im 0.0023735+2.5e-6im;
         -0.0030155+3.25e-6im 0.01623875-2.5e-7im -0.003016-1.0e-6im -0.00301625-3.25e-6im 0.0023735+1.0e-6im 0.00477025+2.5e-7im -0.0055565-2.5e-6im -0.00555775+3.25e-6im;
@@ -318,7 +318,7 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     plot!(plt, wan(:EB, EnergyBands(path; gauge=:icoordinate)), color=:black)
     savefig("silicon_wannier90_center.png")
 
-    another = Algorithm(Symbol("silicon"), W90(wan.frontend.lattice, Hilbert(Fock{:f}(4, 1), length(wan.frontend.lattice)), wan.frontend.H))
+    another = Algorithm(:silicon, W90(wan.frontend.lattice, Hilbert(Fock{:f}(4, 1), length(wan.frontend.lattice)), wan.frontend.H))
     update!(another)
     plt =  plot()
     plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
