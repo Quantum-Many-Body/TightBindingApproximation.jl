@@ -796,7 +796,7 @@ function spectralfunction(ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Nu
 end
 @inline default_bands(::TBAKind, ::Int, bands::AbstractVector{Int}) = bands
 @inline default_bands(::TBAKind{:TBA}, dim::Int, ::Colon) = 1:dim
-@inline default_bands(::TBAKind, dim::Int, ::Colon) = dim÷2:dim
+@inline default_bands(::TBAKind{:BdG}, dim::Int, ::Colon) = dim÷2:dim
 
 """
     FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
