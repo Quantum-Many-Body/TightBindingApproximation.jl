@@ -3,7 +3,7 @@ module TightBindingApproximation
 # Core of tight binding approximation
 include("Core.jl")
 export Bosonic, Fermionic, Phononic, TBAKind
-export CompositeTBA, Quadratic, Quadraticization, SimpleTBA, TBA, TBAMatrix, TBAMatrixization, commutator, infinitesimal
+export CompositeTBA, Quadratic, Quadraticization, SimpleTBA, TBA, TBAMatrix, TBAMatrixization, commutator, eigen, eigvals, eigvecs, infinitesimal
 export BerryCurvature, DensityOfStates, EnergyBands, FermiSurface, InelasticNeutronScatteringSpectra, Kubo, Fukui, BerryCurvatureMethod
 
 # Fitting parameters
