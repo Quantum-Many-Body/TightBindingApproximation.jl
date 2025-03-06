@@ -473,9 +473,12 @@ end
 """
     TBA{K}(H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+
     TBA{K}(H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+
     TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
+    TBA{K}(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms)) where {K<:TBAKind}
 
 Construct a tight-binding quantum lattice system.
 """
@@ -492,12 +495,14 @@ end
     return CompositeTBA{K}(lattice, H, q, commutator)
 end
 @inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
-    terms = OneOrMore(terms)
-    tbakind = TBAKind(typeof(terms), valtype(hilbert))
-    table = Table(hilbert, Metric(tbakind, hilbert))
-    commt = commutator(tbakind, hilbert)
+    K = typeof(TBAKind(typeof(terms), valtype(hilbert)))
+    return TBA{K}(lattice, hilbert, terms, boundary; neighbors=neighbors)
+end
+@inline function TBA{K}(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms)) where {K<:TBAKind}
     H = Generator(bonds(lattice, neighbors), hilbert, terms, boundary, lazy; half=false)
-    return TBA{typeof(tbakind)}(lattice, H, Quadraticization{typeof(tbakind)}(table), commt)
+    quadraticization = Quadraticization{K}(Table(hilbert, Metric(K(), hilbert)))
+    commt = commutator(K(), hilbert)
+    return TBA{K}(lattice, H, quadraticization, commt)
 end
 
 """
