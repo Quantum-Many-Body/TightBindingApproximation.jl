@@ -553,13 +553,13 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands{Tuple{}}})
 end
 
 # Fat energy bands computation
-@inline function initialize(eb::EnergyBands{<:Tuple}, tba::TBA)
+@inline function initialize(eb::EnergyBands, tba::TBA)
     nk = length(eb.reciprocalspace)
     nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
     no = length(eb.orbitals)
     return (eb.reciprocalspace, zeros(Float64, nk, nb), zeros(Float64, nk, nb, no))
 end
-function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands{<:Tuple}})
+function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
     bands = isa(eb.action.bands, Colon) ? (1:dimension(tba.frontend)) : eb.action.bands
     for (i, k) in enumerate(eb.action.reciprocalspace)
         es, vs = eigen(tba, k; eb.action.options...)
@@ -573,7 +573,7 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands{<:Tuple}})
 end
 
 # Plot energy bands
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands{<:Tuple}}}; bands=nothing, orbitalmaxsize=10.0, orbitalwidth=1.0, orbitalcolors=nothing)
+@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, orbitalmaxsize=10.0, orbitalwidth=1.0, orbitalcolors=nothing)
     algorithm, assignment = pack
     title --> nameof(algorithm, assignment)
     titlefontsize --> 10
@@ -835,19 +835,6 @@ end
     assignment.data[1:2]
 end
 
-# spectral function
-function spectralfunction(ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::AbstractVector{Int}, orbitals::Union{Colon, AbstractVector{Int}}; σ::Real)
-    result = zero(ω)
-    for i in bands
-        factor = mapreduce(abs2, +, vectors[orbitals, i])
-        result += factor * exp(-(ω-values[i])^2/2/σ^2)
-    end
-    return result/√(2pi)/σ
-end
-@inline default_bands(::TBAKind, ::Int, bands::AbstractVector{Int}) = bands
-@inline default_bands(::TBAKind{:TBA}, dim::Int, ::Colon) = 1:dim
-@inline default_bands(::TBAKind{:BdG}, dim::Int, ::Colon) = dim÷2:dim
-
 """
     FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
 
@@ -902,6 +889,19 @@ end
 end
 @inline str(::Colon) = "all"
 @inline str(contents::AbstractVector{Int}) = join(contents, ", ")
+
+# spectral function
+function spectralfunction(ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::AbstractVector{Int}, orbitals::Union{Colon, AbstractVector{Int}}; σ::Real)
+    result = zero(ω)
+    for i in bands
+        factor = mapreduce(abs2, +, vectors[orbitals, i])
+        result += factor * exp(-(ω-values[i])^2/2/σ^2)
+    end
+    return result/√(2pi)/σ
+end
+@inline default_bands(::TBAKind, ::Int, bands::AbstractVector{Int}) = bands
+@inline default_bands(::TBAKind{:TBA}, dim::Int, ::Colon) = 1:dim
+@inline default_bands(::TBAKind{:BdG}, dim::Int, ::Colon) = dim÷2:dim
 
 """
     DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
