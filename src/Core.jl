@@ -1,9 +1,10 @@
+using Colors: RGBA
 using LinearAlgebra: Diagonal, Eigen, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
 using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, checkoptions, expand, icoordinate, idtype, isannihilation, iscreation, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
-using RecipesBase: RecipesBase, @recipe, @series, @layout
+using RecipesBase: RecipesBase, @recipe, @series
 using TimerOutputs: TimerOutput, @timeit_debug
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian, Hermitian
@@ -519,31 +520,75 @@ const basicoptions = Dict(
 )
 
 """
-    EnergyBands{P<:ReciprocalSpace, L<:Union{Colon, AbstractVector{Int}}, O} <: Action
+    EnergyBands{L<:Tuple{Vararg{AbstractVector{Int}}}, P<:ReciprocalSpace, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
 
 Energy bands by tight-binding-approximation for quantum lattice systems.
 """
-struct EnergyBands{P<:ReciprocalSpace, L<:Union{Colon, AbstractVector{Int}}, O} <: Action
+struct EnergyBands{L<:Tuple{Vararg{AbstractVector{Int}}}, P<:ReciprocalSpace, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
     reciprocalspace::P
-    bands::L
+    bands::A
+    orbitals::L
     options::O
 end
 @inline options(::Type{<:EnergyBands}) = merge(basicoptions, Dict(
     :tol => "maximum tolerance of the imaginary part of eigen energies"
 ))
-@inline function EnergyBands(reciprocalspace::ReciprocalSpace, bands::Union{Colon, AbstractVector{Int}}=Colon(); options...)
+@inline function EnergyBands(reciprocalspace::ReciprocalSpace, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
     checkoptions(EnergyBands; options...)
-    return EnergyBands(reciprocalspace, bands, options)
+    return EnergyBands(reciprocalspace, bands, orbitals, options)
 end
-@inline initialize(eb::EnergyBands{P, Colon}, tba::TBA) where {P<:ReciprocalSpace} = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), dimension(tba)))
-@inline initialize(eb::EnergyBands{P, <:AbstractVector{Int}}, ::TBA) where {P<:ReciprocalSpace} = (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), length(eb.bands)))
-function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
+
+# Ordinary energy bands computation
+@inline function initialize(eb::EnergyBands{Tuple{}}, tba::TBA)
+    nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
+    return (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), nb))
+end
+function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands{Tuple{}}})
     tol = get(eb.action.options, :tol, 10^-12)
     for (i, k) in enumerate(eb.action.reciprocalspace)
         eigenvalues = eigvals(tba, k; eb.action.options...)[eb.action.bands]
         norm(imag(eigenvalues))>tol && @warn("run! warning: imaginary eigen energies at $k with the norm of all imaginary parts being $(norm(imag(eigenvalues))).")
         eb.data[2][i, :] = real(eigenvalues)
     end
+end
+
+# Fat energy bands computation
+@inline function initialize(eb::EnergyBands{<:Tuple}, tba::TBA)
+    nk = length(eb.reciprocalspace)
+    nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
+    no = length(eb.orbitals)
+    return (eb.reciprocalspace, zeros(Float64, nk, nb), zeros(Float64, nk, nb, no))
+end
+function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands{<:Tuple}})
+    bands = isa(eb.action.bands, Colon) ? (1:dimension(tba.frontend)) : eb.action.bands
+    for (i, k) in enumerate(eb.action.reciprocalspace)
+        es, vs = eigen(tba, k; eb.action.options...)
+        for (j, band) in enumerate(bands)
+            eb.data[2][i, j] = es[band]
+            for (l, orbital) in enumerate(eb.action.orbitals)
+                eb.data[3][i, j, l] = sum(abs2.(vs[orbital, band]))
+            end
+        end
+    end
+end
+
+# Plot energy bands
+@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands{<:Tuple}}}; bands=nothing, orbitalmaxsize=10.0, orbitalwidth=1.0, orbitalcolors=nothing)
+    algorithm, assignment = pack
+    title --> nameof(algorithm, assignment)
+    titlefontsize --> 10
+    for i in 1:length(assignment.action.orbitals)
+        @series begin
+            seriestype := :scatter
+            markercolor := RGBA(1, 1, 1, 0)
+            markersize := assignment.data[3][:, :, i] * orbitalmaxsize
+            markerstrokewidth := orbitalwidth
+            markerstrokecolor := isnothing(orbitalcolors) ? i : orbitalcolors[i]
+            assignment.data[1], assignment.data[2]
+        end
+    end
+    isnothing(bands) && (bands = length(assignment.action.orbitals)==0)
+    bands && (assignment.data[1], assignment.data[2])
 end
 
 """
@@ -844,7 +889,7 @@ end
 @recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:FermiSurface}})
     algorithm, assignment = pack
     if size(assignment.data[2])[3]==1
-        title --> nameof(pack...)
+        title --> nameof(algorithm, assignment)
         titlefontsize --> 10
         assignment.data[1], assignment.data[2][:, :, 1]
     else
