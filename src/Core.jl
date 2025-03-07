@@ -535,6 +535,7 @@ end
 ))
 @inline function EnergyBands(reciprocalspace::ReciprocalSpace, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
     checkoptions(EnergyBands; options...)
+    @assert all(>(0), map(length, orbitals)) "EnergyBands error: empty orbitals."
     return EnergyBands(reciprocalspace, bands, orbitals, options)
 end
 
@@ -573,22 +574,27 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
 end
 
 # Plot energy bands
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, orbitalmaxsize=10.0, orbitalwidth=1.0, orbitalcolors=nothing)
+@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, orbitalmaxsize=10.0, orbitalwidth=1.0, orbitalcolors=nothing, orbitallabels=nothing)
     algorithm, assignment = pack
     title --> nameof(algorithm, assignment)
     titlefontsize --> 10
-    for i in 1:length(assignment.action.orbitals)
+    for (i, orbitals) in enumerate(assignment.action.orbitals)
+        orbitallabel = isnothing(orbitallabels) ? string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) : orbitallabels[i]
         @series begin
             seriestype := :scatter
             markercolor := RGBA(1, 1, 1, 0)
             markersize := assignment.data[3][:, :, i] * orbitalmaxsize
             markerstrokewidth := orbitalwidth
             markerstrokecolor := isnothing(orbitalcolors) ? i : orbitalcolors[i]
+            label := reshape([k==1 ? orbitallabel : "" for k=1:size(assignment.data[2], 2)], 1, :)
             assignment.data[1], assignment.data[2]
         end
     end
     isnothing(bands) && (bands = length(assignment.action.orbitals)==0)
-    bands && (assignment.data[1], assignment.data[2])
+    if bands
+        label --> ""
+        assignment.data[1], assignment.data[2]
+    end
 end
 
 """
