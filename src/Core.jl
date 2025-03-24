@@ -1,3 +1,4 @@
+using Contour: contour, coordinates, lines
 using LinearAlgebra: Diagonal, Eigen, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
@@ -557,7 +558,7 @@ end
     nk = length(eb.reciprocalspace)
     nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
     no = length(eb.orbitals)
-    return (eb.reciprocalspace, zeros(Float64, nk, nb), zeros(Float64, nk, nb, no))
+    return (eb.reciprocalspace, zeros(Float64, nk, nb), [zeros(Float64, nk, nb) for _ in 1:no])
 end
 function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
     bands = isa(eb.action.bands, Colon) ? (1:dimension(tba.frontend)) : eb.action.bands
@@ -565,8 +566,8 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
         es, vs = eigen(tba, k; eb.action.options...)
         for (j, band) in enumerate(bands)
             eb.data[2][i, j] = es[band]
-            for (l, orbital) in enumerate(eb.action.orbitals)
-                eb.data[3][i, j, l] = sum(abs2.(vs[orbital, band]))
+            for (l, orbitals) in enumerate(eb.action.orbitals)
+                eb.data[3][l][i, j] = mapreduce(abs2, +, vs[orbitals, band])
             end
         end
     end
@@ -832,11 +833,11 @@ end
 end
 
 """
-    FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
+    FermiSurface{L<:Tuple{Vararg{AbstractVector{Int}}}, B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
 
 Fermi surface of a free fermionic system.
 """
-struct FermiSurface{B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
+struct FermiSurface{L<:Tuple{Vararg{AbstractVector{Int}}}, B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
     reciprocalspace::B
     μ::Float64
     bands::A
@@ -846,7 +847,7 @@ end
 @inline options(::Type{<:FermiSurface}) = merge(basicoptions, Dict(
     :fwhm => "full width at half maximum for the Gaussian broadening"
 ))
-@inline function FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...)
+@inline function FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
     checkoptions(FermiSurface; options...)
     return FermiSurface(reciprocalspace, convert(Float64, μ), bands, orbitals, options)
 end
@@ -885,6 +886,33 @@ end
 end
 @inline str(::Colon) = "all"
 @inline str(contents::AbstractVector{Int}) = join(contents, ", ")
+# function initialize(fs::FermiSurface, ::TBA)
+#     @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only reciprocal spaces with two reiprocal vectors are supported."
+#     scatter = ReciprocalScatter{label(fs.reciprocalspace)}(fs.reciprocalspace.reciprocals, eltype(fs.reciprocalspace.reciprocals)[])
+#     weights = Float64[]
+#     return (scatter, weights)
+# end
+# function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, fs::Assignment{<:FermiSurface})
+#     bands = isa(fs.action.bands, Colon) ? (1:dimension(tba.frontend)) : fs.action.bands
+#     es = matrix(eigvals(tba, fs.action.reciprocalspace))[:, bands]
+#     xs, ys = range(fs.action.reciprocalspace, 1), range(fs.action.reciprocalspace, 2)
+#     scatter = fs.data[1]
+#     for i in axes(es, 2)
+#         for line in lines(contour(xs, ys, es[:, i], fs.action.μ))
+#             for (x, y) in zip(coordinates(line)...)
+#                 push!(scatter.coordinates, (x, y))
+#             end
+#         end
+#     end
+#     if length(fs.action.orbitals) > 0
+#         for k in scatter
+#             vs = eigvecs(tba, k)
+#             for orbitals in fs.action.orbitals
+#                 push!(fs.data[2], mapreduce(abs2, +, vs[orbitals, bands]))
+#             end
+#         end
+#     end
+# end
 
 # spectral function
 function spectralfunction(ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::AbstractVector{Int}, orbitals::Union{Colon, AbstractVector{Int}}; σ::Real)
@@ -898,7 +926,6 @@ end
 @inline default_bands(::TBAKind, ::Int, bands::AbstractVector{Int}) = bands
 @inline default_bands(::TBAKind{:TBA}, dim::Int, ::Colon) = 1:dim
 @inline default_bands(::TBAKind{:BdG}, dim::Int, ::Colon) = dim÷2:dim
-
 """
     DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
 

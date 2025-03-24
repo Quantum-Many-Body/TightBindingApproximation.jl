@@ -253,13 +253,13 @@ end
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
     brillouin = BrillouinZone(reciprocals(unitcell), 200)
-    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "FermiSurface.png")
-    savefig(plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, 1:2, [1], [2]))), "FermiSurfaceSpinDependent.png")
+    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0, :, 1:2))), "FermiSurface.png")
+    savefig(plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2]))), "FermiSurfaceSpinDependent.png")
     savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]; emin=-5.0, emax=5.0, ne=201, fwhm=0.05))), "DensityOfStates.png")
     @test isapprox(sum(tba.assignments[:DensityOfStates].data[2][:, 1]), 2.0; atol=10^-3)
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=401, ends=(true, true))
-    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "FermiSurfaceExtended.png")
+    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0, :, 1:2))), "FermiSurfaceExtended.png")
     savefig(plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2]))), "FermiSurfaceExtendedSpinDependent.png")
 end
 
