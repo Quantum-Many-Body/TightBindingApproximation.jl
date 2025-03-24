@@ -232,6 +232,7 @@ end
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
     @test eigen(sc, path) == (eigvals(sc, path), eigvecs(sc, path))
     savefig(plot(sc(:EB, EnergyBands(path, 1:2))), "EB.png")
+    savefig(plot(sc(:EB, EnergyBands(path, :, 1:1, 2:2)); weightlabels=["particle", "hole"], legend=(0.4, 0.1), legendfont=10, legendcolumn=-1), "EBWeighted.png")
 
     brillouin = BrillouinZone(reciprocals(unitcell), 100)
     savefig(plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))), "BerryCurvatureAbelian.png")

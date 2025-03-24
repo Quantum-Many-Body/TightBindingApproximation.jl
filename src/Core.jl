@@ -1,9 +1,8 @@
-using Colors: RGBA
 using LinearAlgebra: Diagonal, Eigen, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
 using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Term
-using QuantumLattices: ⊕, bonds, checkoptions, expand, icoordinate, idtype, isannihilation, iscreation, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
+using QuantumLattices: ⊕, bonds, checkoptions, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
 using RecipesBase: RecipesBase, @recipe, @series
 using TimerOutputs: TimerOutput, @timeit_debug
 
@@ -539,7 +538,7 @@ end
     return EnergyBands(reciprocalspace, bands, orbitals, options)
 end
 
-# Ordinary energy bands computation
+# Ordinary energy bands
 @inline function initialize(eb::EnergyBands{Tuple{}}, tba::TBA)
     nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
     return (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), nb))
@@ -553,7 +552,7 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands{Tuple{}}})
     end
 end
 
-# Fat energy bands computation
+# Fat energy bands
 @inline function initialize(eb::EnergyBands, tba::TBA)
     nk = length(eb.reciprocalspace)
     nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
@@ -574,25 +573,22 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
 end
 
 # Plot energy bands
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, orbitalmaxsize=10.0, orbitalwidth=1.0, orbitalcolors=nothing, orbitallabels=nothing)
+@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, weightmultiplier=5.0, weightwidth=1.0, weightcolors=nothing, weightlabels=nothing)
     algorithm, assignment = pack
     title --> nameof(algorithm, assignment)
     titlefontsize --> 10
-    for (i, orbitals) in enumerate(assignment.action.orbitals)
-        orbitallabel = isnothing(orbitallabels) ? string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) : orbitallabels[i]
-        @series begin
-            seriestype := :scatter
-            markercolor := RGBA(1, 1, 1, 0)
-            markersize := assignment.data[3][:, :, i] * orbitalmaxsize
-            markerstrokewidth := orbitalwidth
-            markerstrokecolor := isnothing(orbitalcolors) ? i : orbitalcolors[i]
-            label := reshape([k==1 ? orbitallabel : "" for k=1:size(assignment.data[2], 2)], 1, :)
-            assignment.data[1], assignment.data[2]
-        end
+    if length(assignment.action.orbitals) > 0
+        seriestype := :scatter
+        weightmultiplier := weightmultiplier
+        weightwidth := weightwidth
+        weightcolors := weightcolors
+        weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in assignment.action.orbitals] : weightlabels
+        @series assignment.data[1], assignment.data[2], assignment.data[3]
     end
     isnothing(bands) && (bands = length(assignment.action.orbitals)==0)
     if bands
         label --> ""
+        seriestype := :path
         assignment.data[1], assignment.data[2]
     end
 end
@@ -681,7 +677,7 @@ end
 ## For the Berry curvature and Chern number (Berry phase ÷ 2π) on the first Brillouin zone
 @inline function initialize(bc::BerryCurvature{<:BrillouinZone, <:Fukui}, ::TBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    ny, nx = map(length, shape(bc.reciprocalspace))
+    nx, ny = map(length, shape(bc.reciprocalspace))
     num = bc.method.abelian ? length(bc.method.bands) : 1
     z = zeros(Float64, ny, nx, num)
     n = zeros(Float64, num)
@@ -689,7 +685,7 @@ end
 end
 function eigenvectors(tba::TBA, bc::BerryCurvature{<:BrillouinZone, <:Fukui})
     vectors = eigvecs(tba, bc.reciprocalspace; bc.options...)
-    ny, nx = map(length, shape(bc.reciprocalspace))
+    nx, ny = map(length, shape(bc.reciprocalspace))
     result = Matrix{eltype(vectors)}(undef, nx+1, ny+1)
     for i=1:nx+1, j=1:ny+1
         result[i, j] = vectors[Int(keytype(bc.reciprocalspace)(i, j))][:, bc.method.bands]
@@ -700,7 +696,7 @@ end
 ## For the Berry curvature and Berry phase (÷2π) on a generic reciprocal zone
 @inline function initialize(bc::BerryCurvature{<:ReciprocalZone, <:Fukui}, ::TBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    ny, nx = map(length, shape(bc.reciprocalspace))
+    nx, ny = map(length, shape(bc.reciprocalspace))
     num = bc.method.abelian ? length(bc.method.bands) : 1
     z = zeros(Float64, ny-1, nx-1, num)
     n = zeros(Float64, num)
@@ -708,7 +704,7 @@ end
 end
 function eigenvectors(tba::TBA, bc::BerryCurvature{<:ReciprocalZone, <:Fukui})
     vectors = eigvecs(tba, bc.reciprocalspace; bc.options...)
-    ny, nx = map(length, shape(bc.reciprocalspace))
+    nx, ny = map(length, shape(bc.reciprocalspace))
     result = Matrix{eltype(vectors)}(undef, nx, ny)
     count = 1
     for i=1:nx, j=1:ny
@@ -769,20 +765,19 @@ end
 ## For the Berry curvature and Berry phase (÷2π) on the first Brillouin zone or a generic reciprocal zone
 @inline function initialize(bc::BerryCurvature{<:Union{ReciprocalZone, BrillouinZone}, <:Kubo}, ::TBA)
     @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    ny, nx = map(length, shape(bc.reciprocalspace))
+    nx, ny = map(length, shape(bc.reciprocalspace))
     z = zeros(Float64, ny, nx)
     n = zeros(Float64, 1)
     return (bc.reciprocalspace, z, n)
 end
 @inline function minilength(rs::Union{ReciprocalZone, BrillouinZone})
-    ny, nx = map(length, shape(rs))
+    nx, ny = map(length, shape(rs))
     return minimum(norm, [rs.reciprocals[1]/nx, rs.reciprocals[2]/ny])
 end
 
 ## For the Berry curvature on a generic path in the reciprocal space
 @inline function initialize(bc::BerryCurvature{<:ReciprocalPath, <:Kubo}, ::TBA)
-    np = length(bc.reciprocalspace)
-    z = zeros(Float64, np)
+    z = zeros(Float64, length(bc.reciprocalspace), 1)
     return (bc.reciprocalspace, z)
 end
 @inline minilength(rs::ReciprocalPath) = minimum(step(rs, i) for i in 1:length(rs)-1)
@@ -800,7 +795,6 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Reciproca
     end
     @assert isapprox(dot(dx, dy), 0.0; atol=atol, rtol=rtol) "run! error: kx vector and ky vector should be perpendicular to each other in the plane."
     μ = bc.action.method.μ
-    Ωxys = zeros(length(bc.action.reciprocalspace))
     for (k, momentum) in enumerate(bc.action.reciprocalspace)
         eigensystem = eigen(tba, momentum; bc.action.options...)
         mx₁, mx₂ = matrix(tba, momentum+dx; bc.action.options...), matrix(tba, momentum-dx; bc.action.options...)
@@ -815,18 +809,14 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Reciproca
                 v₂ = eigensystem.vectors[:, j]
                 vx = v₁' * dHx * v₂
                 vy = v₂' * dHy * v₁
-                Ωxys[k] += -2imag(vx*vy/(valc-valv)^2)
+                bc.data[2][k] += -2imag(vx*vy/(valc-valv)^2)
             end
         end
     end
     if isa(bc.action.reciprocalspace, Union{ReciprocalZone, BrillouinZone})
         area = volume(bc.action.reciprocalspace) / length(bc.action.reciprocalspace)
-        ny, nx = map(length, shape(bc.action.reciprocalspace))
-        bc.data[2][:, :] = reshape(Ωxys, ny, nx)
-        bc.data[3][1] = sum(Ωxys*area) / 2pi
+        bc.data[3][1] = sum(bc.data[2]*area) / 2pi
         isa(bc.action.reciprocalspace, BrillouinZone) && @info (@sprintf "Total Chern number at %s: %s" μ bc.data[3][1])
-    else
-        bc.data[2][:] = Ωxys[:]
     end
 end
 
@@ -862,7 +852,7 @@ end
 end
 function initialize(fs::FermiSurface, ::TBA)
     @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only two dimensional reciprocal spaces are supported."
-    ny, nx = map(length, shape(fs.reciprocalspace))
+    nx, ny = map(length, shape(fs.reciprocalspace))
     z = zeros(Float64, ny, nx, length(fs.orbitals))
     return (fs.reciprocalspace, z)
 end
@@ -871,7 +861,7 @@ function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, fs::Assignment{<:FermiSu
     σ = get(fs.action.options, :fwhm, 0.1)/2/√(2*log(2))
     bands = default_bands(kind(tba.frontend), dimension(tba), fs.action.bands)
     eigenvalues, eigenvectors = eigen(tba, fs.action.reciprocalspace)
-    ny, nx = map(length, shape(fs.action.reciprocalspace))
+    nx, ny = map(length, shape(fs.action.reciprocalspace))
     for i=1:nx, j=1:ny
         for (k, orbitals) in enumerate(fs.action.orbitals)
             fs.data[2][j, i, k] += spectralfunction(fs.action.μ, eigenvalues[count], eigenvectors[count], bands, orbitals; σ=σ)
@@ -965,7 +955,7 @@ struct InelasticNeutronScatteringSpectra{P<:ReciprocalSpace, E<:AbstractVector, 
     energies::E
     options::O
     function InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector, options)
-        @assert names(reciprocalspace)==(:k,) "InelasticNeutronScatteringSpectra error: the name of the momenta in the reciprocalspace must be :k."
+        @assert label(reciprocalspace)==:k "InelasticNeutronScatteringSpectra error: the name of the momenta in the reciprocalspace must be :k."
         new{typeof(reciprocalspace), typeof(energies), typeof(options)}(reciprocalspace, energies, options)
     end
 end
