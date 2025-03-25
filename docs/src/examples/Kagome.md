@@ -98,7 +98,7 @@ plot(dos; labels=["Sublattice 1" "Sublattice 2" "Sublattice 3"], legend=true)
 
 ## Fermi surface
 
-When the Fermi level of the system sets at the Van Hove singularity of the lower band, the FS is also in the shape of a Kagome lattice:
+When the Fermi level of the system sets at the Van Hove singularity of the middle band, the FS is also in the shape of a Kagome lattice:
 
 ```@example kagome
 # define a reciprocal zone proper to show the FS
@@ -107,23 +107,15 @@ reciprocalzone = ReciprocalZone(
     length=600, ends=(true, true)
 )
 
-# Fermi level at -2, i.e., the lower Van Hove singularity
-fs = kagome(:FermiSurface, FermiSurface(reciprocalzone, -2))
-plot(fs; size=(450, 400), clims=(0, 10))
+# Fermi level at 0, i.e., the upper Van Hove singularity
+fs = kagome(:FermiSurface, FermiSurface(reciprocalzone, 0))
+plot(fs)
 ```
 
-As is similar to DOS, specific orbital components of a specific set of bands on the Fermi level can also be computed.
+As is similar to DOS, specific orbital components of a specific set of bands on the Fermi level can also be computed, as shown by the following codes:
 
-When the Fermi level sets at -2, actually, only the lower band contributes to the Fermi surface. Therefore, the contributions of the upper two bands are zero, as will be shown by the following computation:
 ```@example kagome
-# Fermi level at -2, the contributions of the upper two bands to the FS
-fs = kagome(:FermiSurfaceWithoutLowerBand, FermiSurface(reciprocalzone, -2, 2:3))
-plot(fs; size=(450, 400), clims=(0, 5))
-```
-
-The components of the three sublattices at the FS can be computed as follows:
-```@example kagome
-# Fermi level at -2, the three sublattice components at the FS, respectively
-fs = kagome(:SublatticeFermiSurface, FermiSurface(reciprocalzone, -2, :, [1], [2], [3]))
-plot(fs; nrow=1, ncol=3, size=(780, 330), clims=(0, 5), xlabelfontsize=8, ylabelfontsize=8)
+# Fermi level at 0, the three sublattice components at the FS, respectively
+fs = kagome(:SublatticeFermiSurface, FermiSurface(reciprocalzone, 0, 1:2, [1], [2], [3]))
+plot(fs; xlabelfontsize=8, ylabelfontsize=8)
 ```
