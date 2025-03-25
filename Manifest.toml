@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "c10824c0c0d6586b66a7e3e8318592ce636ff007"
+project_hash = "4eb0924a4ec61546bf89fe0a1a1b4adb5e8885a1"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -61,6 +61,24 @@ version = "1.11.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
 
+[[deps.ColorTypes]]
+deps = ["FixedPointNumbers", "Random"]
+git-tree-sha1 = "c7acce7a7e1078a20a285211dd73cd3941a871d6"
+uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
+version = "0.12.0"
+
+    [deps.ColorTypes.extensions]
+    StyledStringsExt = "StyledStrings"
+
+    [deps.ColorTypes.weakdeps]
+    StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
+
+[[deps.Colors]]
+deps = ["ColorTypes", "FixedPointNumbers", "Reexport"]
+git-tree-sha1 = "64e15186f0aa277e174aa81798f7eb8598e0157e"
+uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
+version = "0.13.0"
+
 [[deps.CommonSubexpressions]]
 deps = ["MacroTools"]
 git-tree-sha1 = "cda2cfaebb4be89c9084adaca7dd7333369715c5"
@@ -96,6 +114,11 @@ version = "1.5.8"
     IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
     LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[[deps.Contour]]
+git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
+uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
+version = "0.6.3"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
@@ -194,6 +217,12 @@ version = "2.27.0"
     BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[[deps.FixedPointNumbers]]
+deps = ["Statistics"]
+git-tree-sha1 = "05882d6995ae5c12bb5f36dd2ed3f61c98cbb172"
+uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
+version = "0.8.5"
 
 [[deps.Format]]
 git-tree-sha1 = "9c68794ef81b08086aeb32eeaf33531668d5f5fc"
@@ -358,7 +387,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.1+4"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -418,7 +447,7 @@ uuid = "43287f4e-b6f4-7ad1-bb20-aadabca52c3d"
 version = "1.3.0"
 
 [[deps.QuantumLattices]]
-deps = ["DataStructures", "DelimitedFiles", "Format", "HalfIntegers", "InteractiveUtils", "LaTeXStrings", "Latexify", "LinearAlgebra", "NearestNeighbors", "Printf", "Random", "RecipesBase", "Serialization", "SparseArrays", "StaticArrays", "TimerOutputs"]
+deps = ["Colors", "DataStructures", "DelimitedFiles", "Format", "HalfIntegers", "InteractiveUtils", "LaTeXStrings", "Latexify", "LinearAlgebra", "NearestNeighbors", "Printf", "Random", "RecipesBase", "Serialization", "SparseArrays", "StaticArrays", "TimerOutputs"]
 path = "D:\\GitHub\\Julia\\QuantumLattices\\"
 uuid = "78ae1a1f-1d5d-5174-b61c-66e31b2346dc"
 version = "0.11.1"
@@ -433,6 +462,11 @@ deps = ["PrecompileTools"]
 git-tree-sha1 = "5c3d09cc4f31f5fc6af001c250bf1278733100ff"
 uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 version = "1.3.4"
+
+[[deps.Reexport]]
+git-tree-sha1 = "45e428421666073eab6f2da5c9d310d99bb12f9b"
+uuid = "189a3867-3050-52da-a836-e630ba90ab69"
+version = "1.2.2"
 
 [[deps.Requires]]
 deps = ["UUIDs"]

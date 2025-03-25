@@ -2,7 +2,7 @@ using Contour: contour, coordinates, lines
 using LinearAlgebra: Diagonal, Eigen, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalSpace, ReciprocalZone, Term
+using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, checkoptions, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
 using RecipesBase: RecipesBase, @recipe, @series
 using TimerOutputs: TimerOutput, @timeit_debug
@@ -574,17 +574,18 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
 end
 
 # Plot energy bands
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, weightmultiplier=5.0, weightwidth=1.0, weightcolors=nothing, weightlabels=nothing)
+@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing)
     algorithm, assignment = pack
     title --> nameof(algorithm, assignment)
     titlefontsize --> 10
     if length(assignment.action.orbitals) > 0
-        seriestype := :scatter
-        weightmultiplier := weightmultiplier
-        weightwidth := weightwidth
-        weightcolors := weightcolors
-        weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in assignment.action.orbitals] : weightlabels
-        @series assignment.data[1], assignment.data[2], assignment.data[3]
+        @series begin
+            seriestype := :scatter
+            weightmultiplier := weightmultiplier
+            weightcolors := weightcolors
+            weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in assignment.action.orbitals] : weightlabels
+            assignment.data
+        end
     end
     isnothing(bands) && (bands = length(assignment.action.orbitals)==0)
     if bands
@@ -844,75 +845,55 @@ struct FermiSurface{L<:Tuple{Vararg{AbstractVector{Int}}}, B<:Union{BrillouinZon
     orbitals::L
     options::O
 end
-@inline options(::Type{<:FermiSurface}) = merge(basicoptions, Dict(
-    :fwhm => "full width at half maximum for the Gaussian broadening"
-))
 @inline function FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
     checkoptions(FermiSurface; options...)
     return FermiSurface(reciprocalspace, convert(Float64, μ), bands, orbitals, options)
 end
 function initialize(fs::FermiSurface, ::TBA)
-    @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only two dimensional reciprocal spaces are supported."
-    nx, ny = map(length, shape(fs.reciprocalspace))
-    z = zeros(Float64, ny, nx, length(fs.orbitals))
-    return (fs.reciprocalspace, z)
+    @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only reciprocal spaces with two reciprocal vectors are supported."
+    scatter = ReciprocalScatter{label(fs.reciprocalspace)}(fs.reciprocalspace.reciprocals, eltype(fs.reciprocalspace.reciprocals)[])
+    weights = Vector{Float64}[Float64[] for _ in 1:length(fs.orbitals)]
+    return (scatter, weights)
 end
-function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, fs::Assignment{<:FermiSurface})
-    count = 1
-    σ = get(fs.action.options, :fwhm, 0.1)/2/√(2*log(2))
-    bands = default_bands(kind(tba.frontend), dimension(tba), fs.action.bands)
-    eigenvalues, eigenvectors = eigen(tba, fs.action.reciprocalspace)
-    nx, ny = map(length, shape(fs.action.reciprocalspace))
-    for i=1:nx, j=1:ny
-        for (k, orbitals) in enumerate(fs.action.orbitals)
-            fs.data[2][j, i, k] += spectralfunction(fs.action.μ, eigenvalues[count], eigenvectors[count], bands, orbitals; σ=σ)
+function run!(tba::Algorithm{<:TBA}, fs::Assignment{<:FermiSurface})
+    bands = isa(fs.action.bands, Colon) ? (1:dimension(tba.frontend)) : fs.action.bands
+    es = matrix(eigvals(tba, fs.action.reciprocalspace))[:, bands]
+    xs, ys = range(fs.action.reciprocalspace, 1), range(fs.action.reciprocalspace, 2)
+    record = Int[]
+    for i in axes(es, 2)
+        for line in lines(contour(xs, ys, transpose(reshape(es[:, i], length(ys), length(xs))), fs.action.μ))
+            for (x, y) in zip(coordinates(line)...)
+                push!(fs.data[1].coordinates, (x, y))
+                push!(record, bands[i])
+            end
         end
-        count += 1
+    end
+    if length(fs.action.orbitals) > 0
+        for (band, k) in zip(record, fs.data[1])
+            vs = eigvecs(tba, k)
+            for (i, orbitals) in enumerate(fs.action.orbitals)
+                push!(fs.data[2][i], mapreduce(abs2, +, vs[orbitals, band]))
+            end
+        end
     end
 end
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:FermiSurface}})
+@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:FermiSurface}}; fractional=true, weightmultiplier=1.0, weightcolors=nothing, weightlabels=nothing)
     algorithm, assignment = pack
-    if size(assignment.data[2])[3]==1
-        title --> nameof(algorithm, assignment)
-        titlefontsize --> 10
-        assignment.data[1], assignment.data[2][:, :, 1]
-    else
-        subtitles --> [@sprintf("orbitals: %s\n bands: %s", str(orbitals), str(assignment.action.bands)) for orbitals in assignment.action.orbitals]
-        subtitlefontsize --> 8
-        plot_title --> nameof(algorithm, assignment)
-        plot_titlefontsize --> 10
+    title --> nameof(algorithm, assignment)
+    titlefontsize --> 10
+    seriestype := :scatter
+    fractional := fractional
+    if length(assignment.action.orbitals) > 0
+        weightmultiplier := weightmultiplier
+        weightcolors := weightcolors
+        weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in assignment.action.orbitals] : weightlabels
         assignment.data
+    else
+        autolims := false
+        markersize --> 1
+        assignment.data[1]
     end
 end
-@inline str(::Colon) = "all"
-@inline str(contents::AbstractVector{Int}) = join(contents, ", ")
-# function initialize(fs::FermiSurface, ::TBA)
-#     @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only reciprocal spaces with two reiprocal vectors are supported."
-#     scatter = ReciprocalScatter{label(fs.reciprocalspace)}(fs.reciprocalspace.reciprocals, eltype(fs.reciprocalspace.reciprocals)[])
-#     weights = Float64[]
-#     return (scatter, weights)
-# end
-# function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, fs::Assignment{<:FermiSurface})
-#     bands = isa(fs.action.bands, Colon) ? (1:dimension(tba.frontend)) : fs.action.bands
-#     es = matrix(eigvals(tba, fs.action.reciprocalspace))[:, bands]
-#     xs, ys = range(fs.action.reciprocalspace, 1), range(fs.action.reciprocalspace, 2)
-#     scatter = fs.data[1]
-#     for i in axes(es, 2)
-#         for line in lines(contour(xs, ys, es[:, i], fs.action.μ))
-#             for (x, y) in zip(coordinates(line)...)
-#                 push!(scatter.coordinates, (x, y))
-#             end
-#         end
-#     end
-#     if length(fs.action.orbitals) > 0
-#         for k in scatter
-#             vs = eigvecs(tba, k)
-#             for orbitals in fs.action.orbitals
-#                 push!(fs.data[2], mapreduce(abs2, +, vs[orbitals, bands]))
-#             end
-#         end
-#     end
-# end
 
 # spectral function
 function spectralfunction(ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::AbstractVector{Int}, orbitals::Union{Colon, AbstractVector{Int}}; σ::Real)

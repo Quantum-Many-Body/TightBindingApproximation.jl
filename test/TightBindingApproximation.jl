@@ -239,7 +239,7 @@ end
     savefig(plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "BerryCurvatureNonabelian.png")
     savefig(plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))), "BerryCurvatureKubo.png")
 
-    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=201, ends=(true, true))
+    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-1.0=>1.0, -1.0=>1.0]; length=201, ends=(true, true))
     savefig(plot(sc(:BerryCurvatureExtendedFukui, BerryCurvature(reciprocalzone, [1, 2]))), "BerryCurvatureExtendedFukui.png")
     savefig(plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))), "BerryCurvatureExtendedKubo.png")
     savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "BerryCurvaturePath.png")
@@ -252,15 +252,15 @@ end
     h = Onsite(:h, 0.1, 𝕕⁺𝕕(:, :, σ"z", :))
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
-    brillouin = BrillouinZone(reciprocals(unitcell), 200)
-    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0, :, 1:2))), "FermiSurface.png")
-    savefig(plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2]))), "FermiSurfaceSpinDependent.png")
+    brillouin = BrillouinZone(reciprocals(unitcell), 400)
+    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "FermiSurface.png")
+    savefig(plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "FermiSurfaceSpinDependent.png")
     savefig(plot(tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]; emin=-5.0, emax=5.0, ne=201, fwhm=0.05))), "DensityOfStates.png")
     @test isapprox(sum(tba.assignments[:DensityOfStates].data[2][:, 1]), 2.0; atol=10^-3)
 
-    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-2.0=>2.0, -2.0=>2.0]; length=401, ends=(true, true))
-    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0, :, 1:2))), "FermiSurfaceExtended.png")
-    savefig(plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2]))), "FermiSurfaceExtendedSpinDependent.png")
+    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-1.0=>1.0, -1.0=>1.0]; length=401, ends=(true, true))
+    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "FermiSurfaceExtended.png")
+    savefig(plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "FermiSurfaceExtendedSpinDependent.png")
 end
 
 @time @testset "InelasticNeutronScatteringSpectra" begin
