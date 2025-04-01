@@ -240,7 +240,8 @@ end
     savefig(plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))), "BerryCurvatureKubo.png")
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-1.0=>1.0, -1.0=>1.0]; length=201, ends=(true, true))
-    savefig(plot(sc(:BerryCurvatureExtendedFukui, BerryCurvature(reciprocalzone, [1, 2]))), "BerryCurvatureExtendedFukui.png")
+    savefig(plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))), "BerryCurvatureExtendedAbelian.png")
+    savefig(plot(sc(:BerryCurvatureExtendedNonabelian, BerryCurvature(reciprocalzone, [1, 2], false))), "BerryCurvatureExtendedNonabelian.png")
     savefig(plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))), "BerryCurvatureExtendedKubo.png")
     savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "BerryCurvaturePath.png")
 end
