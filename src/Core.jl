@@ -8,7 +8,7 @@ using RecipesBase: RecipesBase, @recipe, @series
 using TimerOutputs: TimerOutput, @timeit_debug
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian, Hermitian
-import QuantumLattices: Parameters, Table, add!, dimension, getcontent, initialize, kind, matrix, options, parameternames, run!, scalartype, update!
+import QuantumLattices: Data, Parameters, Table, add!, dimension, getcontent, kind, matrix, options, parameternames, run!, scalartype, update!
 
 const tbatimer = TimerOutput()
 
@@ -520,12 +520,12 @@ const basicoptions = Dict(
 )
 
 """
-    EnergyBands{L<:Tuple{Vararg{AbstractVector{Int}}}, P<:ReciprocalSpace, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
+    EnergyBands{L<:Tuple{Vararg{AbstractVector{Int}}}, R<:ReciprocalSpace, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
 
 Energy bands by tight-binding-approximation for quantum lattice systems.
 """
-struct EnergyBands{L<:Tuple{Vararg{AbstractVector{Int}}}, P<:ReciprocalSpace, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
-    reciprocalspace::P
+struct EnergyBands{L<:Tuple{Vararg{AbstractVector{Int}}}, R<:ReciprocalSpace, A<:Union{Colon, AbstractVector{Int}}, O} <: Action
+    reciprocalspace::R
     bands::A
     orbitals::L
     options::O
@@ -533,65 +533,85 @@ end
 @inline options(::Type{<:EnergyBands}) = merge(basicoptions, Dict(
     :tol => "maximum tolerance of the imaginary part of eigen energies"
 ))
+
+"""
+    EnergyBands(reciprocalspace::ReciprocalSpace, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
+
+Construct an `EnergyBands`.
+"""
 @inline function EnergyBands(reciprocalspace::ReciprocalSpace, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
     checkoptions(EnergyBands; options...)
     @assert all(>(0), map(length, orbitals)) "EnergyBands error: empty orbitals."
     return EnergyBands(reciprocalspace, bands, orbitals, options)
 end
 
+"""
+    EnergyBandsData{R<:ReciprocalSpace, W<:Union{Vector{Matrix{Float64}}, Nothing}} <: Data
+
+Data of energy bands, including:
+
+1) `reciprocalspace::R`: reciprocal space on which the energy bands are computed.
+2) `values::Matrix{Float64}`: eigen energies of bands with each column storing the values on the same reciprocal point.
+3) `weights::W`: if not `nothing`, weights of several certain sets of orbitals projected onto the energy bands.
+"""
+struct EnergyBandsData{R<:ReciprocalSpace, W<:Union{Vector{Matrix{Float64}}, Nothing}} <: Data
+    reciprocalspace::R
+    values::Matrix{Float64}
+    weights::W
+end
+
 # Ordinary energy bands
-@inline function initialize(eb::EnergyBands{Tuple{}}, tba::TBA)
+@inline function Data(eb::EnergyBands{Tuple{}}, tba::TBA)
     nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
-    return (eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), nb))
+    return EnergyBandsData(eb.reciprocalspace, zeros(Float64, length(eb.reciprocalspace), nb), nothing)
 end
 function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands{Tuple{}}})
     tol = get(eb.action.options, :tol, 10^-12)
     for (i, k) in enumerate(eb.action.reciprocalspace)
         eigenvalues = eigvals(tba, k; eb.action.options...)[eb.action.bands]
         norm(imag(eigenvalues))>tol && @warn("run! warning: imaginary eigen energies at $k with the norm of all imaginary parts being $(norm(imag(eigenvalues))).")
-        eb.data[2][i, :] = real(eigenvalues)
+        eb.data.values[i, :] = real(eigenvalues)
     end
 end
 
 # Fat energy bands
-@inline function initialize(eb::EnergyBands, tba::TBA)
+@inline function Data(eb::EnergyBands, tba::TBA)
     nk = length(eb.reciprocalspace)
     nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
     no = length(eb.orbitals)
-    return (eb.reciprocalspace, zeros(Float64, nk, nb), [zeros(Float64, nk, nb) for _ in 1:no])
+    return EnergyBandsData(eb.reciprocalspace, zeros(Float64, nk, nb), [zeros(Float64, nk, nb) for _ in 1:no])
 end
 function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands})
     bands = isa(eb.action.bands, Colon) ? (1:dimension(tba.frontend)) : eb.action.bands
     for (i, k) in enumerate(eb.action.reciprocalspace)
         es, vs = eigen(tba, k; eb.action.options...)
         for (j, band) in enumerate(bands)
-            eb.data[2][i, j] = es[band]
+            eb.data.values[i, j] = es[band]
             for (l, orbitals) in enumerate(eb.action.orbitals)
-                eb.data[3][l][i, j] = mapreduce(abs2, +, vs[orbitals, band])
+                eb.data.weights[l][i, j] = mapreduce(abs2, +, vs[orbitals, band])
             end
         end
     end
 end
 
 # Plot energy bands
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:EnergyBands}}; bands=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing)
-    algorithm, assignment = pack
-    title --> nameof(algorithm, assignment)
+@recipe function plot(eb::Assignment{<:EnergyBands}; bands=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing)
+    title --> string(eb)
     titlefontsize --> 10
-    if length(assignment.action.orbitals) > 0
+    if length(eb.action.orbitals) > 0
         @series begin
             seriestype := :scatter
             weightmultiplier := weightmultiplier
             weightcolors := weightcolors
-            weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in assignment.action.orbitals] : weightlabels
-            assignment.data
+            weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in eb.action.orbitals] : weightlabels
+            eb.data.reciprocalspace, eb.data.values, eb.data.weights
         end
     end
-    isnothing(bands) && (bands = length(assignment.action.orbitals)==0)
+    isnothing(bands) && (bands = length(eb.action.orbitals)==0)
     if bands
         label --> ""
         seriestype := :path
-        assignment.data[1], assignment.data[2]
+        eb.data.reciprocalspace, eb.data.values
     end
 end
 
@@ -613,11 +633,13 @@ c_n = {1\\over 2\\pi}\\int_{BZ}{dk_x dk_y Ω_{xy}},
 A_{x}=i\\langle u_n|\\partial_x|u_n\\rangle.
 ```
 """
-struct Fukui <: BerryCurvatureMethod
+struct Fukui{Abelian} <: BerryCurvatureMethod
     bands::Vector{Int}
-    abelian::Bool
+    function Fukui{Abelian}(bands::AbstractVector{<:Integer}) where Abelian
+        @assert isa(Abelian, Bool) "Fukui error: `Abelian` must be `true` or `false`."
+        new{Abelian}(collect(Int, bands))
+    end
 end
-@inline Fukui(bands::AbstractVector{Int}; abelian::Bool=true) = Fukui(collect(bands), abelian)
 
 """
     Kubo{K<:Union{Nothing, Vector{Float64}}} <: BerryCurvatureMethod
@@ -658,6 +680,15 @@ struct BerryCurvature{B<:ReciprocalSpace, M<:BerryCurvatureMethod, O} <: Action
     options::O
 end
 @inline options(::Type{<:BerryCurvature}) = basicoptions
+
+"""
+    BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; options...)
+    BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real, d::Real=0.1, kx::T=nothing, ky::T=nothing; gauge=:rcoordinate, options...) where {T<:Union{Nothing, Vector{Float64}}}
+    BerryCurvature(reciprocalspace::BrillouinZone, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:icoordinate, options...)
+    BerryCurvature(reciprocalspace::ReciprocalZone, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:rcoordinate, options...)
+
+Construct a `BerryCurvature`.
+"""
 @inline function BerryCurvature(reciprocalspace::ReciprocalSpace, method::BerryCurvatureMethod; options...)
     checkoptions(BerryCurvature; options...)
     return BerryCurvature(reciprocalspace, method, options)
@@ -668,22 +699,41 @@ end
 end
 @inline function BerryCurvature(reciprocalspace::BrillouinZone, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:icoordinate, options...)
     checkoptions(BerryCurvature; options...)
-    return BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), (gauge=gauge, options...))
+    return BerryCurvature(reciprocalspace, Fukui{abelian}(bands), (gauge=gauge, options...))
 end
 @inline function BerryCurvature(reciprocalspace::ReciprocalZone, bands::AbstractVector{Int}, abelian::Bool=true; gauge=:rcoordinate, options...)
     checkoptions(BerryCurvature; options...)
-    return BerryCurvature(reciprocalspace, Fukui(bands; abelian=abelian), (gauge=gauge, options...))
+    return BerryCurvature(reciprocalspace, Fukui{abelian}(bands), (gauge=gauge, options...))
+end
+
+"""
+    BerryCurvatureData{R<:ReciprocalSpace, C<:Array{Float64}, N<:Union{Vector{Float64}, Float64, Nothing}} <: Data
+
+Data of Berry curvature, including:
+
+1) `reciprocalspace::R`: reciprocal space on which the Berry curvature is computed.
+2) `values::C`: Berry curvature for a certain set of bands.
+3) `chernnumber::N`: if not `nothing`, Chern number of each energy band when it is a vector or total Chern number of all bands when it is a number.
+"""
+mutable struct BerryCurvatureData{R<:ReciprocalSpace, C<:Array{Float64}, N<:Union{Vector{Float64}, Float64, Nothing}} <: Data
+    const reciprocalspace::R
+    const values::C
+    chernnumber::N
 end
 
 # Fukui method
-## For the Berry curvature and Chern number (Berry phase ÷ 2π) on the first Brillouin zone
-@inline function initialize(bc::BerryCurvature{<:BrillouinZone, <:Fukui}, ::TBA)
-    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    nx, ny = map(length, shape(bc.reciprocalspace))
-    num = bc.method.abelian ? length(bc.method.bands) : 1
-    z = zeros(Float64, ny, nx, num)
-    n = zeros(Float64, num)
-    return (bc.reciprocalspace, z, n)
+## For the Berry curvature and Chern number on the first Brillouin zone
+@inline function Data(bc::BerryCurvature{<:BrillouinZone, <:Fukui{true}}, ::TBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "Data error: Berry curvature should be defined for 2d systems."
+    values = zeros(Float64, map(length, reverse(shape(bc.reciprocalspace)))..., length(bc.method.bands))
+    chernnumber = zeros(Float64, length(bc.method.bands))
+    return BerryCurvatureData(bc.reciprocalspace, values, chernnumber)
+end
+@inline function Data(bc::BerryCurvature{<:BrillouinZone, <:Fukui{false}}, ::TBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "Data error: Berry curvature should be defined for 2d systems."
+    values = zeros(Float64, map(length, reverse(shape(bc.reciprocalspace)))...)
+    chernnumber = 0.0
+    return BerryCurvatureData(bc.reciprocalspace, values, chernnumber)
 end
 function eigenvectors(tba::TBA, bc::BerryCurvature{<:BrillouinZone, <:Fukui})
     vectors = eigvecs(tba, bc.reciprocalspace; bc.options...)
@@ -695,14 +745,18 @@ function eigenvectors(tba::TBA, bc::BerryCurvature{<:BrillouinZone, <:Fukui})
     return result
 end
 
-## For the Berry curvature and Berry phase (÷2π) on a generic reciprocal zone
-@inline function initialize(bc::BerryCurvature{<:ReciprocalZone, <:Fukui}, ::TBA)
-    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
+## For the Berry curvature on a generic reciprocal zone
+@inline function Data(bc::BerryCurvature{<:ReciprocalZone, <:Fukui{true}}, ::TBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "Data error: Berry curvature should be defined for 2d systems."
     nx, ny = map(length, shape(bc.reciprocalspace))
-    num = bc.method.abelian ? length(bc.method.bands) : 1
-    z = zeros(Float64, ny-1, nx-1, num)
-    n = zeros(Float64, num)
-    return (shrink(bc.reciprocalspace, 1:nx-1, 1:ny-1), z, n)
+    values = zeros(Float64, ny-1, nx-1, length(bc.method.bands))
+    return BerryCurvatureData(shrink(bc.reciprocalspace, 1:nx-1, 1:ny-1), values, nothing)
+end
+@inline function Data(bc::BerryCurvature{<:ReciprocalZone, <:Fukui{false}}, ::TBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "Data error: Berry curvature should be defined for 2d systems."
+    nx, ny = map(length, shape(bc.reciprocalspace))
+    values = zeros(Float64, ny-1, nx-1)
+    return BerryCurvatureData(shrink(bc.reciprocalspace, 1:nx-1, 1:ny-1), values, nothing)
 end
 function eigenvectors(tba::TBA, bc::BerryCurvature{<:ReciprocalZone, <:Fukui})
     vectors = eigvecs(tba, bc.reciprocalspace; bc.options...)
@@ -716,75 +770,83 @@ function eigenvectors(tba::TBA, bc::BerryCurvature{<:ReciprocalZone, <:Fukui})
     return result
 end
 
-## By use of Fukui method, compute the Berry curvature and the Chern number or Berry phase (÷ 2π)
-function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui}})
+## By use of Fukui method, compute the Berry curvature and optionally the Chern number
+function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui{true}}})
     area = volume(bc.action.reciprocalspace) / length(bc.action.reciprocalspace)
     vectors = eigenvectors(tba.frontend, bc.action)
     g = invcommutator(tba.frontend)
-    if bc.action.method.abelian
-        @timeit_debug tba.timer "Berry curvature" for i = 1:size(vectors)[1]-1, j = 1:size(vectors)[2]-1
-            v₁, v₂, v₃, v₄ = vectors[i, j], vectors[i+1, j], vectors[i+1, j+1], vectors[i, j+1]
-            for k = 1:length(bc.action.method.bands)
-                p₁ = v₁[:, k]' * g * v₂[:, k]
-                p₂ = v₂[:, k]' * g * v₃[:, k]
-                p₃ = v₃[:, k]' * g * v₄[:, k]
-                p₄ = v₄[:, k]' * g * v₁[:, k]
-                bc.data[2][j, i, k] = -angle(p₁*p₂*p₃*p₄) / area
-                bc.data[3][k] += bc.data[2][j, i, k] * area / 2pi
-            end
-        end
-    else
-        @timeit_debug tba.timer "Berry curvature" for i = 1:size(vectors)[1]-1, j = 1:size(vectors)[2]-1
-            v₁, v₂, v₃, v₄ = vectors[i, j], vectors[i+1, j], vectors[i+1, j+1], vectors[i, j+1]
-            p₁ = v₁' * g * v₂
-            p₂ = v₂' * g * v₃
-            p₃ = v₃' * g * v₄
-            p₄ = v₄' * g * v₁
-            bc.data[2][j, i, 1] = -imag(logdet(p₁*p₂*p₃*p₄)) / area
-            bc.data[3][1] += bc.data[2][j, i, 1] * area / 2pi
+    @timeit_debug tba.timer "Berry curvature" for i = 1:size(vectors)[1]-1, j = 1:size(vectors)[2]-1
+        v₁, v₂, v₃, v₄ = vectors[i, j], vectors[i+1, j], vectors[i+1, j+1], vectors[i, j+1]
+        for k = 1:length(bc.action.method.bands)
+            p₁ = v₁[:, k]' * g * v₂[:, k]
+            p₂ = v₂[:, k]' * g * v₃[:, k]
+            p₃ = v₃[:, k]' * g * v₄[:, k]
+            p₄ = v₄[:, k]' * g * v₁[:, k]
+            bc.data.values[j, i, k] = -angle(p₁*p₂*p₃*p₄) / area
+            isnothing(bc.data.chernnumber) || (bc.data.chernnumber[k] += bc.data.values[j, i, k]*area/2pi)
         end
     end
-    isa(bc.action.reciprocalspace, BrillouinZone) && @info string("Chern numbers: ", join((string(cn, "(", band, ")") for (cn, band) in zip(bc.data[3], bc.action.method.bands)), ", "))
+    isa(bc.action.reciprocalspace, BrillouinZone) && @info string("Chern numbers: ", join((string(cn, "(", band, ")") for (cn, band) in zip(bc.data.chernnumber, bc.action.method.bands)), ", "))
+end
+function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui{false}}})
+    area = volume(bc.action.reciprocalspace) / length(bc.action.reciprocalspace)
+    vectors = eigenvectors(tba.frontend, bc.action)
+    g = invcommutator(tba.frontend)
+    @timeit_debug tba.timer "Berry curvature" for i = 1:size(vectors)[1]-1, j = 1:size(vectors)[2]-1
+        v₁, v₂, v₃, v₄ = vectors[i, j], vectors[i+1, j], vectors[i+1, j+1], vectors[i, j+1]
+        p₁ = v₁' * g * v₂
+        p₂ = v₂' * g * v₃
+        p₃ = v₃' * g * v₄
+        p₄ = v₄' * g * v₁
+        bc.data.values[j, i] = -imag(logdet(p₁*p₂*p₃*p₄)) / area
+        isnothing(bc.data.chernnumber) || (bc.data.chernnumber += bc.data.values[j, i]*area/2pi)
+    end
+    isa(bc.action.reciprocalspace, BrillouinZone) && @info string("Total Chern number: ", bc.data.chernnumber)
 end
 @inline invcommutator(tba::TBA{<:TBAKind, <:Union{Formula, OperatorSet, Generator, Frontend}, Nothing}) = Diagonal(ones(Int, dimension(tba)))
 @inline invcommutator(tba::TBA) = inv(getcontent(tba, :commutator))
 
-## Plot the Berry curvature and the Chern number or Berry phase (÷2π) obtained by Fukui method
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui}}})
-    algorithm, assignment = pack
-    subtitles --> if assignment.action.method.abelian
-        [@sprintf("band %s (ϕ/2π = %s)", band, tostr(chn)) for (band, chn) in zip(assignment.action.method.bands, assignment.data[3])]
-    else
-        [@sprintf("sum of bands %s (ϕ/2π = %s)", assignment.action.method.bands, tostr(assignment.data[3][1]))]
-    end
-    subtitlefontsize --> 8
-    plot_title --> nameof(algorithm, assignment)
+## Plot the Berry curvature and optionally the Chern number obtained by Fukui method
+@recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui{true}}})
+    plot_title --> string(bc)
     plot_titlefontsize --> 10
-    assignment.data[1:2]
+    subtitles --> [@sprintf("band %s %s", band, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", tostr(bc.data.chernnumber[i]))) for (i, band) in enumerate(bc.action.method.bands)]
+    subtitlefontsize --> 8
+    bc.data.reciprocalspace, bc.data.values
+end
+@recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui{false}}})
+    plot_title --> string(bc)
+    plot_titlefontsize --> 10
+    layout := (1, 1)
+    subplot := 1
+    title --> @sprintf("sum of bands %s %s", bc.action.method.bands, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", tostr(bc.data.chernnumber)))
+    plot_title --> string(bc, "\n", info)
+    titlefontsize --> 8
+    bc.data.reciprocalspace, bc.data.values
 end
 
 # Kubo method
-## For the Berry curvature and Berry phase (÷2π) on the first Brillouin zone or a generic reciprocal zone
-@inline function initialize(bc::BerryCurvature{<:Union{ReciprocalZone, BrillouinZone}, <:Kubo}, ::TBA)
-    @assert length(bc.reciprocalspace.reciprocals)==2 "initialize error: Berry curvature should be defined for 2d systems."
-    nx, ny = map(length, shape(bc.reciprocalspace))
-    z = zeros(Float64, ny, nx)
-    n = zeros(Float64, 1)
-    return (bc.reciprocalspace, z, n)
+## For the Berry curvature and Chern number on the first Brillouin zone
+@inline function Data(bc::BerryCurvature{<:BrillouinZone, <:Kubo}, ::TBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "Data error: Berry curvature should be defined for 2d systems."
+    values = zeros(Float64, map(length, reverse(shape(bc.reciprocalspace)))...)
+    return BerryCurvatureData(bc.reciprocalspace, values, 0.0)
 end
-@inline function minilength(rs::Union{ReciprocalZone, BrillouinZone})
-    nx, ny = map(length, shape(rs))
-    return minimum(norm, [rs.reciprocals[1]/nx, rs.reciprocals[2]/ny])
+
+## For the Berry curvature on a generic reciprocal zone
+@inline function Data(bc::BerryCurvature{<:ReciprocalZone, <:Kubo}, ::TBA)
+    @assert length(bc.reciprocalspace.reciprocals)==2 "Data error: Berry curvature should be defined for 2d systems."
+    values = zeros(Float64, map(length, reverse(shape(bc.reciprocalspace)))...)
+    return BerryCurvatureData(bc.reciprocalspace, values, nothing)
 end
 
 ## For the Berry curvature on a generic path in the reciprocal space
-@inline function initialize(bc::BerryCurvature{<:ReciprocalPath, <:Kubo}, ::TBA)
-    z = zeros(Float64, length(bc.reciprocalspace), 1)
-    return (bc.reciprocalspace, z)
+@inline function Data(bc::BerryCurvature{<:ReciprocalPath, <:Kubo}, ::TBA)
+    values = zeros(Float64, length(bc.reciprocalspace))
+    return BerryCurvatureData(bc.reciprocalspace, values, nothing)
 end
-@inline minilength(rs::ReciprocalPath) = minimum(step(rs, i) for i in 1:length(rs)-1)
 
-## By use of Kubo method, compute the Berry curvature and optionally, the Chern number or Berry phase (÷ 2π)
+## By use of Kubo method, compute the Berry curvature and optionally the Chern number
 function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}})
     dim = dimension(bc.action.reciprocalspace)
     @assert dim ∈(2, 3) "run! error: only two-dimensional and three-dimensional reciprocal spaces are supported."
@@ -811,26 +873,31 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Reciproca
                 v₂ = eigensystem.vectors[:, j]
                 vx = v₁' * dHx * v₂
                 vy = v₂' * dHy * v₁
-                bc.data[2][k] += -2imag(vx*vy/(valc-valv)^2)
+                bc.data.values[k] += -2imag(vx*vy/(valc-valv)^2)
             end
         end
     end
-    if isa(bc.action.reciprocalspace, Union{ReciprocalZone, BrillouinZone})
+    if isa(bc.action.reciprocalspace, BrillouinZone)
         area = volume(bc.action.reciprocalspace) / length(bc.action.reciprocalspace)
-        bc.data[3][1] = sum(bc.data[2]*area) / 2pi
-        isa(bc.action.reciprocalspace, BrillouinZone) && @info (@sprintf "Total Chern number at %s: %s" μ bc.data[3][1])
+        bc.data.chernnumber = sum(bc.data.values*area) / 2pi
+        @info (@sprintf "Total Chern number at %s: %s" μ bc.data.chernnumber)
     end
 end
+@inline function minilength(rs::Union{ReciprocalZone, BrillouinZone})
+    nx, ny = map(length, shape(rs))
+    return minimum(norm, [rs.reciprocals[1]/nx, rs.reciprocals[2]/ny])
+end
+@inline minilength(rs::ReciprocalPath) = minimum(step(rs, i) for i in 1:length(rs)-1)
 
-## Plot the Berry curvature and optionally the Chern number or Berry phase (÷2π) obtained by Kubo method
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}}})
-    algorithm, assignment = pack
-    info = isa(assignment.action.reciprocalspace, ReciprocalPath) ? "" : @sprintf "(ϕ/2π = %s)" tostr(assignment.data[3][1])
-    info = @sprintf "bands below %s %s" assignment.action.method.μ info
-    subtitlefontsize --> 8
-    plot_title --> string(nameof(algorithm, assignment), "\n", info)
+## Plot the Berry curvature and optionally the Chern number obtained by Kubo method
+@recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}})
+    plot_title --> string(bc)
     plot_titlefontsize --> 10
-    assignment.data[1:2]
+    layout := (1, 1)
+    subplot := 1
+    title --> @sprintf("bands below %s %s", bc.action.method.μ, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", tostr(bc.data.chernnumber)))
+    titlefontsize --> 8
+    bc.data.reciprocalspace, bc.data.values
 end
 
 """
@@ -845,68 +912,76 @@ struct FermiSurface{L<:Tuple{Vararg{AbstractVector{Int}}}, B<:Union{BrillouinZon
     orbitals::L
     options::O
 end
+
+"""
+    FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
+
+Construct a `FermiSurface`.
+"""
 @inline function FermiSurface(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, μ::Real=0.0, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::AbstractVector{Int}...; options...)
     checkoptions(FermiSurface; options...)
     return FermiSurface(reciprocalspace, convert(Float64, μ), bands, orbitals, options)
 end
-function initialize(fs::FermiSurface, ::TBA)
-    @assert length(fs.reciprocalspace.reciprocals)==2 "initialize error: only reciprocal spaces with two reciprocal vectors are supported."
-    scatter = ReciprocalScatter{label(fs.reciprocalspace)}(fs.reciprocalspace.reciprocals, eltype(fs.reciprocalspace.reciprocals)[])
+
+"""
+    FermiSurfaceData{S<:ReciprocalScatter} <: Data
+
+Data of Fermi surface, including:
+
+1) `values::S`: points of the Fermi surface.
+2) `weights::Vector{Vector{Float64}}`: weights of several certain sets of orbitals projected onto the Fermi surface.
+"""
+struct FermiSurfaceData{S<:ReciprocalScatter} <: Data
+    values::S
+    weights::Vector{Vector{Float64}}
+end
+function Data(fs::FermiSurface, ::TBA)
+    @assert length(fs.reciprocalspace.reciprocals)==2 "Data error: only reciprocal spaces with two reciprocal vectors are supported."
+    values = ReciprocalScatter{label(fs.reciprocalspace)}(fs.reciprocalspace.reciprocals, eltype(fs.reciprocalspace.reciprocals)[])
     weights = Vector{Float64}[Float64[] for _ in 1:length(fs.orbitals)]
-    return (scatter, weights)
+    return FermiSurfaceData(values, weights)
 end
 function run!(tba::Algorithm{<:TBA}, fs::Assignment{<:FermiSurface})
     bands = isa(fs.action.bands, Colon) ? (1:dimension(tba.frontend)) : fs.action.bands
     es = matrix(eigvals(tba, fs.action.reciprocalspace))[:, bands]
     xs, ys = range(fs.action.reciprocalspace, 1), range(fs.action.reciprocalspace, 2)
     record = Int[]
+    empty!(fs.data.values.coordinates)
     for i in axes(es, 2)
         for line in lines(contour(xs, ys, transpose(reshape(es[:, i], length(ys), length(xs))), fs.action.μ))
             for (x, y) in zip(coordinates(line)...)
-                push!(fs.data[1].coordinates, (x, y))
                 push!(record, bands[i])
+                push!(fs.data.values.coordinates, (x, y))
             end
         end
     end
     if length(fs.action.orbitals) > 0
-        for (band, k) in zip(record, fs.data[1])
+        map(empty!, fs.data.weights)
+        for (band, k) in zip(record, fs.data.values)
             vs = eigvecs(tba, k)
             for (i, orbitals) in enumerate(fs.action.orbitals)
-                push!(fs.data[2][i], mapreduce(abs2, +, vs[orbitals, band]))
+                push!(fs.data.weights[i], mapreduce(abs2, +, vs[orbitals, band]))
             end
         end
     end
 end
-@recipe function plot(pack::Tuple{Algorithm{<:TBA}, Assignment{<:FermiSurface}}; fractional=true, weightmultiplier=1.0, weightcolors=nothing, weightlabels=nothing)
-    algorithm, assignment = pack
-    title --> nameof(algorithm, assignment)
+@recipe function plot(fs::Assignment{<:FermiSurface}; fractional=true, weightmultiplier=1.0, weightcolors=nothing, weightlabels=nothing)
+    title --> string(fs)
     titlefontsize --> 10
     seriestype := :scatter
     fractional := fractional
-    if length(assignment.action.orbitals) > 0
+    if length(fs.action.orbitals) > 0
         weightmultiplier := weightmultiplier
         weightcolors := weightcolors
-        weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in assignment.action.orbitals] : weightlabels
-        assignment.data
+        weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in fs.action.orbitals] : weightlabels
+        fs.data.values, fs.data.weights
     else
         autolims := false
         markersize --> 1
-        assignment.data[1]
+        fs.data.values
     end
 end
 
-# spectral function
-function spectralfunction(ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::AbstractVector{Int}, orbitals::Union{Colon, AbstractVector{Int}}; σ::Real)
-    result = zero(ω)
-    for i in bands
-        factor = mapreduce(abs2, +, vectors[orbitals, i])
-        result += factor * exp(-(ω-values[i])^2/2/σ^2)
-    end
-    return result/√(2pi)/σ
-end
-@inline default_bands(::TBAKind, ::Int, bands::AbstractVector{Int}) = bands
-@inline default_bands(::TBAKind{:TBA}, dim::Int, ::Colon) = 1:dim
-@inline default_bands(::TBAKind{:BdG}, dim::Int, ::Colon) = dim÷2:dim
 """
     DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}, O} <: Action
 
@@ -924,15 +999,34 @@ end
     :emin => "minimum value of the energy window",
     :emax => "maximum value of the energy window"
 ))
+
+"""
+    DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...)
+
+Construct a `DensityOfStates`.
+"""
 @inline function DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; options...)
     checkoptions(DensityOfStates; options...)
     return DensityOfStates(brillouinzone, bands, orbitals, options)
 end
-@inline function initialize(dos::DensityOfStates, ::TBA)
+
+"""
+    DensityOfStatesData <: Data
+
+Data of density of states, including:
+
+1) `energies::Vector{Float64}`: energy sample points.
+2) `values::Matrix{Float64}`: density of states projected onto several certain sets of orbitals.
+"""
+struct DensityOfStatesData <: Data
+    energies::Vector{Float64}
+    values::Matrix{Float64}
+end
+@inline function Data(dos::DensityOfStates, ::TBA)
     ne = get(dos.options, :ne, 100)
-    x = zeros(Float64, ne)
-    z = zeros(Float64, ne, length(dos.orbitals))
-    return (x, z)
+    energies = zeros(Float64, ne)
+    values = zeros(Float64, ne, length(dos.orbitals))
+    return DensityOfStatesData(energies, values)
 end
 function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, dos::Assignment{<:DensityOfStates})
     σ = get(dos.action.options, :fwhm, 0.1)/2/√(2*log(2))
@@ -944,27 +1038,38 @@ function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, dos::Assignment{<:Densit
     dE = (emax-emin)/(ne-1)
     bands = default_bands(kind(tba.frontend), dimension(tba), dos.action.bands)
     for (i, ω) in enumerate(LinRange(emin, emax, ne))
-        dos.data[1][i] = ω
+        dos.data.energies[i] = ω
         for (j, orbitals) in enumerate(dos.action.orbitals)
             for (values, vectors) in zip(eigenvalues, eigenvectors)
-                dos.data[2][i, j] += spectralfunction(ω, values, vectors, bands, orbitals; σ=σ)/nk*dE
+                dos.data.values[i, j] += spectralfunction(ω, values, vectors, bands, orbitals; σ=σ)/nk*dE
             end
         end
     end
 end
+function spectralfunction(ω::Real, values::Vector{<:Real}, vectors::Matrix{<:Number}, bands::AbstractVector{Int}, orbitals::Union{Colon, AbstractVector{Int}}; σ::Real)
+    result = zero(ω)
+    for i in bands
+        factor = mapreduce(abs2, +, vectors[orbitals, i])
+        result += factor * exp(-(ω-values[i])^2/2/σ^2)
+    end
+    return result/√(2pi)/σ
+end
+@inline default_bands(::TBAKind, ::Int, bands::AbstractVector{Int}) = bands
+@inline default_bands(::TBAKind{:TBA}, dim::Int, ::Colon) = 1:dim
+@inline default_bands(::TBAKind{:BdG}, dim::Int, ::Colon) = dim÷2:dim
 
 """
-    InelasticNeutronScatteringSpectra{P<:ReciprocalSpace, E<:AbstractVector, O} <: Action
+    InelasticNeutronScatteringSpectra{R<:ReciprocalSpace, O} <: Action
 
 Inelastic neutron scattering spectra.
 """
-struct InelasticNeutronScatteringSpectra{P<:ReciprocalSpace, E<:AbstractVector, O} <: Action
-    reciprocalspace::P
-    energies::E
+struct InelasticNeutronScatteringSpectra{R<:ReciprocalSpace, O} <: Action
+    reciprocalspace::R
+    energies::Vector{Float64}
     options::O
-    function InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector, options)
+    function InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector{<:Number}, options)
         @assert label(reciprocalspace)==:k "InelasticNeutronScatteringSpectra error: the name of the momenta in the reciprocalspace must be :k."
-        new{typeof(reciprocalspace), typeof(energies), typeof(options)}(reciprocalspace, energies, options)
+        new{typeof(reciprocalspace), typeof(options)}(reciprocalspace, collect(Float64, energies), options)
     end
 end
 @inline options(::Type{<:InelasticNeutronScatteringSpectra}) = merge(basicoptions, Dict(
@@ -972,11 +1077,34 @@ end
     :check => "whether the polarization consistency of phonons will be checked",
     :rescale => "function used to rescale the intensity of the spectrum at each energy-momentum point"
 ))
-@inline function InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector; options...)
+
+"""
+    InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector{<:Number}; options...)
+
+Construct an `InelasticNeutronScatteringSpectra`.
+"""
+@inline function InelasticNeutronScatteringSpectra(reciprocalspace::ReciprocalSpace, energies::AbstractVector{<:Number}; options...)
     checkoptions(InelasticNeutronScatteringSpectra; options...)
     return InelasticNeutronScatteringSpectra(reciprocalspace, energies, options)
 end
-@inline initialize(inss::InelasticNeutronScatteringSpectra, ::TBA) = (inss.reciprocalspace, inss.energies, zeros(Float64, length(inss.energies), length(inss.reciprocalspace)))
+
+"""
+    InelasticNeutronScatteringSpectraData{R<:ReciprocalSpace} <: Data
+
+Data of inelastic neutron scattering spectra, including:
+
+1) `reciprocalspace::R`: reciprocal space on which the inelastic neutron scattering spectra are computed
+1) `energies::Vector{Float64}`: energy sample points.
+2) `values::Matrix{Float64}`: rescaled intensity of inelastic neutron scattering spectra.
+"""
+struct InelasticNeutronScatteringSpectraData{R<:ReciprocalSpace} <: Data
+    reciprocalspace::R
+    energies::Vector{Float64}
+    values::Matrix{Float64}
+end
+@inline function Data(inss::InelasticNeutronScatteringSpectra, ::TBA)
+    return InelasticNeutronScatteringSpectraData(inss.reciprocalspace, inss.energies, zeros(Float64, length(inss.energies), length(inss.reciprocalspace)))
+end
 
 # Inelastic neutron scattering spectra for phonons.
 function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss::Assignment{<:InelasticNeutronScatteringSpectra})
@@ -996,12 +1124,12 @@ function run!(tba::Algorithm{<:CompositeTBA{Phononic, <:AbstractLattice}}, inss:
                 factor = abs2(factor) / √(2pi) / σ
                 for (nₑ, e) in enumerate(inss.action.energies)
                     # instead of the Lorentz broadening of δ function, the convolution with a FWHM Gaussian is used.
-                    inss.data[3][nₑ, i] += factor * exp(-(e-values[j])^2/2/σ^2)
+                    inss.data.values[nₑ, i] += factor * exp(-(e-values[j])^2/2/σ^2)
                 end
             end
         end
     end
-    inss.data[3][:, :] = get(inss.action.options, :rescale, identity).(inss.data[3])
+    inss.data.values[:, :] = get(inss.action.options, :rescale, identity).(inss.data.values)
 end
 @inline function checkpolarizations(qs₁::AbstractMatrix, qs₂::AbstractMatrix, momentum)
     inner = mapreduce((e₁, e₂)->norm(conj(e₁)*e₂), +, qs₁, qs₂) / norm(qs₁) / norm(qs₂)
