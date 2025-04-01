@@ -111,7 +111,7 @@ plot(edgestates)
 Note that when μ>4 or μ<-4, the superconductor is topologically trivial such that there are no gapless edge states on the cylinder geometry:
 ```@example p+ip
 # compute the edge states with a new onsite energy such that the superconductor is trivial
-trivial = sc(:Trivial, EnergyBands(path), parameters=(μ=4.5,))
+trivial = sc(:Trivial, EnergyBands(path), (μ=4.5,))
 
 # plot the energy bands
 plot(trivial)
