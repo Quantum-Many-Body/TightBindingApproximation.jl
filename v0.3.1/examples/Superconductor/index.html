@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>p+ip Superconductor on Square Lattice · TightBindingApproximation.jl</title><meta name="title" content="p+ip Superconductor on Square Lattice · TightBindingApproximation.jl"/><meta property="og:title" content="p+ip Superconductor on Square Lattice · TightBindingApproximation.jl"/><meta property="twitter:title" content="p+ip Superconductor on Square Lattice · TightBindingApproximation.jl"/><meta name="description" content="Documentation for TightBindingApproximation.jl."/><meta property="og:description" content="Documentation for TightBindingApproximation.jl."/><meta property="twitter:description" content="Documentation for TightBindingApproximation.jl."/><meta property="og:url" content="https://Quantum-Many-Body.github.io/TightBindingApproximation.jl/examples/Superconductor/"/><meta property="twitter:url" content="https://Quantum-Many-Body.github.io/TightBindingApproximation.jl/examples/Superconductor/"/><link rel="canonical" href="https://Quantum-Many-Body.github.io/TightBindingApproximation.jl/examples/Superconductor/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="TightBindingApproximation.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">TightBindingApproximation.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../Introduction/">Introduction</a></li><li><a class="tocitem" href="../Graphene/">Graphene</a></li><li class="is-active"><a class="tocitem" href>p+ip Superconductor on Square Lattice</a><ul class="internal"><li><a class="tocitem" href="#Energy-bands"><span>Energy bands</span></a></li><li><a class="tocitem" href="#Berry-curvature-and-Chern-number"><span>Berry curvature and Chern number</span></a></li><li><a class="tocitem" href="#Edge-states"><span>Edge states</span></a></li><li><a class="tocitem" href="#Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix"><span>Auto-generation of the analytical expression of the Hamiltonian matrix</span></a></li></ul></li><li><a class="tocitem" href="../Kagome/">Free Spinless Fermions on Kagome Lattice</a></li><li><a class="tocitem" href="../Phonon/">Phonons on Square Lattice</a></li></ul></li><li><a class="tocitem" href="../../manual/">Manual</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>p+ip Superconductor on Square Lattice</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>p+ip Superconductor on Square Lattice</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Quantum-Many-Body/TightBindingApproximation.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Quantum-Many-Body/TightBindingApproximation.jl/blob/master/docs/src/examples/Superconductor.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="pip-Superconductor-on-Square-Lattice"><a class="docs-heading-anchor" href="#pip-Superconductor-on-Square-Lattice">p+ip Superconductor on Square Lattice</a><a id="pip-Superconductor-on-Square-Lattice-1"></a><a class="docs-heading-anchor-permalink" href="#pip-Superconductor-on-Square-Lattice" title="Permalink"></a></h1><p>In this section, it is illustrated how the <strong>Berry curvatures</strong> and <strong>Chern numbers</strong> of free energy bands can be computed with the p+ip superconductor on the square lattice as the example.</p><h2 id="Energy-bands"><a class="docs-heading-anchor" href="#Energy-bands">Energy bands</a><a id="Energy-bands-1"></a><a class="docs-heading-anchor-permalink" href="#Energy-bands" title="Permalink"></a></h2><p>The following codes could compute the energy bands of the Bogoliubov quasiparticles of the p+ip topological superconductor on the square lattice.</p><pre><code class="language-julia hljs">using QuantumLattices
+using TightBindingApproximation
+using Plots
+
+# define the unitcell of the square lattice
+unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
+
+# define the Hilbert space of the p+ip superconductor (single-orbital spinless complex fermion)
+hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
+
+# define the terms
+
+## nearest-neighbor hopping
+t = Hopping(:t, 1.0, 1)
+
+## onsite energy as the chemical potential
+μ = Onsite(:μ, 3.5)
+
+## p+ip pairing term
+Δ = Pairing(
+    :Δ, Complex(0.5), 1, Coupling(𝕔(:, :, :, :), 𝕔(:, :, :, :));
+    amplitude=bond-&gt;exp(im*azimuth(rcoordinate(bond)))
+)
+
+# define the Bogoliubov-de Gennes formula for the p+ip superconductor
+sc = Algorithm(Symbol(&quot;p+ip&quot;), TBA(unitcell, hilbert, (t, μ, Δ)))
+
+# define the path in the reciprocal space to compute the energy bands
+path = ReciprocalPath(reciprocals(unitcell), rectangle&quot;Γ-X-M-Γ&quot;, length=100)
+
+# compute the energy bands along the above path
+energybands = sc(:EB, EnergyBands(path))
+
+# plot the energy bands
+plot(energybands)</code></pre><img src="3507de76.svg" alt="Example block output"/><h2 id="Berry-curvature-and-Chern-number"><a class="docs-heading-anchor" href="#Berry-curvature-and-Chern-number">Berry curvature and Chern number</a><a id="Berry-curvature-and-Chern-number-1"></a><a class="docs-heading-anchor-permalink" href="#Berry-curvature-and-Chern-number" title="Permalink"></a></h2><p>The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated in the unitcell of the reciprocal space:</p><pre><code class="language-julia hljs"># define the Brillouin zone
+brillouin = BrillouinZone(reciprocals(unitcell), 100)
+
+# compute the Berry curvatures and Chern numbers of both quasiparticle bands
+berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
+
+# plot the Berry curvatures
+plot(berry)</code></pre><img src="195d0537.svg" alt="Example block output"/><p>The Berry curvatures can also be computed on a reciprocal zone beyond the reciprocal unitcell:</p><pre><code class="language-julia hljs"># define the reciprocal zone
+reciprocalzone = ReciprocalZone(
+    reciprocals(unitcell), -2.0=&gt;2.0, -2.0=&gt;2.0;
+    length=201, ends=(true, true)
+)
+
+# compute the Berry curvature
+berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
+
+# plot the Berry curvature
+plot(berry)</code></pre><img src="a43b3c05.svg" alt="Example block output"/><p>The total Berry curvatures of occupied bands can also be computed on a reciprocal path with Kubo method:</p><pre><code class="language-julia hljs"># compute the total Berry curvature
+berry = sc(:BerryCurvaturePath, BerryCurvature(path, Kubo(0.0)))
+
+# plot the Berry curvature
+plot(berry)</code></pre><img src="cd980e3d.svg" alt="Example block output"/><h2 id="Edge-states"><a class="docs-heading-anchor" href="#Edge-states">Edge states</a><a id="Edge-states-1"></a><a class="docs-heading-anchor-permalink" href="#Edge-states" title="Permalink"></a></h2><p>With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:</p><pre><code class="language-julia hljs"># define a cylinder geometry
+lattice = Lattice(unitcell, (1, 100), (&#39;P&#39;, &#39;O&#39;))
+
+# define the new Hilbert space corresponding to the cylinder
+hilbert = Hilbert(site=&gt;Fock{:f}(1, 1) for site=1:length(lattice))
+
+# define the new Bogoliubov-de Gennes formula
+sc = Algorithm(Symbol(&quot;p+ip&quot;), TBA(lattice, hilbert, (t, μ, Δ)))
+
+# define the new path in the reciprocal space to compute the edge states
+path = ReciprocalPath(reciprocals(lattice), line&quot;Γ₁-Γ₂&quot;, length=100)
+
+# compute the energy bands along the above path
+edgestates = sc(:Edge, EnergyBands(path))
+
+# plot the energy bands
+plot(edgestates)</code></pre><img src="39a693f7.svg" alt="Example block output"/><p>Note that when μ&gt;4 or μ&lt;-4, the superconductor is topologically trivial such that there are no gapless edge states on the cylinder geometry:</p><pre><code class="language-julia hljs"># compute the edge states with a new onsite energy such that the superconductor is trivial
+trivial = sc(:Trivial, EnergyBands(path), (μ=4.5,))
+
+# plot the energy bands
+plot(trivial)</code></pre><img src="1352945c.svg" alt="Example block output"/><h2 id="Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix"><a class="docs-heading-anchor" href="#Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix">Auto-generation of the analytical expression of the Hamiltonian matrix</a><a id="Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix-1"></a><a class="docs-heading-anchor-permalink" href="#Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix" title="Permalink"></a></h2><p>Combined with <a href="https://github.com/JuliaPy/SymPy.jl">SymPy</a>, it is also possible to get the analytical expression of the free Hamiltonian in the matrix form:</p><pre><code class="language-julia hljs">using SymPy: Sym, symbols
+using QuantumLattices
+using TightBindingApproximation
+
+unitcell = Lattice(
+    [zero(Sym), zero(Sym)];
+    vectors=[[one(Sym), zero(Sym)], [zero(Sym), one(Sym)]]
+)
+
+hilbert = Hilbert(site=&gt;Fock{:f}(1, 1) for site=1:length(unitcell))
+
+t = Hopping(:t, symbols(&quot;t&quot;, real=true), 1)
+μ = Onsite(:μ, symbols(&quot;μ&quot;, real=true))
+Δ = Pairing(
+    :Δ, symbols(&quot;Δ&quot;, real=true), 1, Coupling(𝕔(:, :, :, :), 𝕔(:, :, :, :));
+    amplitude=bond-&gt;exp(im*azimuth(rcoordinate(bond)))
+)
+
+sc = TBA(unitcell, hilbert, (t, μ, Δ))
+
+k₁ = symbols(&quot;k₁&quot;, real=true)
+k₂ = symbols(&quot;k₂&quot;, real=true)
+m = matrix(sc, [k₁, k₂])</code></pre><p class="math-container">\[\left[\begin{smallmatrix}2 t \cos{\left(k₁ \right)} + 2 t \cos{\left(k₂ \right)} + μ &amp; - Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} + Δ e^{- i k₁}\\Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} - Δ e^{- i k₁} &amp; - 2 t \cos{\left(k₁ \right)} - 2 t \cos{\left(k₂ \right)} - μ\end{smallmatrix}\right]\]</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Graphene/">« Graphene</a><a class="docs-footer-nextpage" href="../Kagome/">Free Spinless Fermions on Kagome Lattice »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.10.1 on <span class="colophon-date" title="Thursday 24 April 2025 06:07">Thursday 24 April 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
