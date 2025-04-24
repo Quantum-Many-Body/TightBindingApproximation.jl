@@ -752,9 +752,9 @@ function eigenvectors(tba::TBA, bc::BerryCurvature{<:ReciprocalZone, <:Fukui}; o
 end
 
 ## By use of Fukui method, compute the Berry curvature and optionally the Chern number
-function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui{true}}}; gauge=:rcoordinate, options...)
+function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui{true}}}; options...)
     area = volume(bc.action.reciprocalspace) / length(bc.action.reciprocalspace)
-    vectors = eigenvectors(tba.frontend, bc.action; gauge=gauge, options...)
+    vectors = eigenvectors(tba.frontend, bc.action; gauge=default_gauge(bc), options...)
     g = invcommutator(tba.frontend)
     @timeit_debug tba.timer "Berry curvature" for i = 1:size(vectors)[1]-1, j = 1:size(vectors)[2]-1
         v₁, v₂, v₃, v₄ = vectors[i, j], vectors[i+1, j], vectors[i+1, j+1], vectors[i, j+1]
@@ -769,9 +769,9 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{Bri
     end
     isa(bc.action.reciprocalspace, BrillouinZone) && @info string("Chern numbers: ", join((string(cn, "(", band, ")") for (cn, band) in zip(bc.data.chernnumber, bc.action.method.bands)), ", "))
 end
-function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui{false}}}; gauge=:rcoordinate, options...)
+function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui{false}}}; options...)
     area = volume(bc.action.reciprocalspace) / length(bc.action.reciprocalspace)
-    vectors = eigenvectors(tba.frontend, bc.action; gauge=gauge, options...)
+    vectors = eigenvectors(tba.frontend, bc.action; gauge=default_gauge(bc), options...)
     g = invcommutator(tba.frontend)
     @timeit_debug tba.timer "Berry curvature" for i = 1:size(vectors)[1]-1, j = 1:size(vectors)[2]-1
         v₁, v₂, v₃, v₄ = vectors[i, j], vectors[i+1, j], vectors[i+1, j+1], vectors[i, j+1]
@@ -786,6 +786,9 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Union{Bri
 end
 @inline invcommutator(tba::TBA{<:TBAKind, <:Union{Formula, OperatorSet, Generator, Frontend}, Nothing}) = Diagonal(ones(Int, dimension(tba)))
 @inline invcommutator(tba::TBA) = inv(getcontent(tba, :commutator))
+@inline default_gauge(::Assignment{<:BerryCurvature{<:BrillouinZone, <:Fukui}}) = :icoordinate
+@inline default_gauge(::Assignment{<:BerryCurvature{<:ReciprocalZone, <:Fukui}}) = :rcoordinate
+@inline default_gauge(::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}}) = :rcoordinate
 
 ## Plot the Berry curvature and optionally the Chern number obtained by Fukui method
 @recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui{true}}})
@@ -828,7 +831,7 @@ end
 end
 
 ## By use of Kubo method, compute the Berry curvature and optionally the Chern number
-function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}}; gauge=:rcoordinate, options...)
+function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}}; options...)
     dim = dimension(bc.action.reciprocalspace)
     @assert dim ∈(2, 3) "run! error: only two-dimensional and three-dimensional reciprocal spaces are supported."
     d, kx, ky = bc.action.method.d, bc.action.method.kx, bc.action.method.ky
@@ -840,7 +843,7 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Reciproca
     end
     @assert isapprox(dot(dx, dy), 0.0; atol=atol, rtol=rtol) "run! error: kx vector and ky vector should be perpendicular to each other in the plane."
     μ = bc.action.method.μ
-    kwargs = (gauge=gauge, options...)
+    kwargs = (gauge=default_gauge(bc), options...)
     for (k, momentum) in enumerate(bc.action.reciprocalspace)
         eigensystem = eigen(tba, momentum; kwargs...)
         mx₁, mx₂ = matrix(tba, momentum+dx; kwargs...), matrix(tba, momentum-dx; kwargs...)
