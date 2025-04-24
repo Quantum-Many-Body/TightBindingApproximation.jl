@@ -51,7 +51,6 @@ struct Bosonic{K} <: TBAKind{K} end
 
 Depending on the kind of a `Term` type and an `Internal` type, get the corresponding TBA kind.
 """
-@inline TBAKind(::Type{T}, ::Type{<:Internal}) where {T<:Term} = error("TBAKind error: not defined behavior for the term with termkind=$(kind(T)).")
 @inline TBAKind(::Type{T}, ::Type{<:Fock{:f}}) where {T<:Union{Hopping, Onsite}} = Fermionic(:TBA)
 @inline TBAKind(::Type{T}, ::Type{<:Fock{:f}}) where {T<:Pairing} = Fermionic(:BdG)
 @inline TBAKind(::Type{T}, ::Type{<:Fock{:b}}) where {T<:Union{Hopping, Onsite}} = Bosonic(:TBA)
@@ -83,7 +82,6 @@ Infinitesimal used in the matrixization of a tight-binding approximation to be a
 
 Get the index-to-tuple metric for a free fermionic/bosonic/phononic system.
 """
-@inline Metric(::TBAKind, ::Hilbert) = error("Metric error: not defined behavior.")
 @inline @generated Metric(::Fermionic{:TBA}, hilbert::Hilbert{<:Fock{:f}}) = OperatorIndexToTuple(:site, :orbital, :spin)
 @inline @generated Metric(::Bosonic{:TBA}, hilbert::Hilbert{<:Fock{:b}}) = OperatorIndexToTuple(:site, :orbital, :spin)
 @inline @generated Metric(::Fermionic{:BdG}, hilbert::Hilbert{<:Fock{:f}}) = OperatorIndexToTuple(:nambu, :site, :orbital, :spin)
@@ -105,7 +103,6 @@ end
 
 Get the commutation relation of the single-particle operators of a free quantum lattice system using the tight-binding approximation.
 """
-@inline commutator(::TBAKind, ::Hilbert{<:Internal}) = error("commutator error: not defined behavior.")
 @inline commutator(::Fermionic, ::Hilbert{<:Fock{:f}}) = nothing
 @inline commutator(::Bosonic{:TBA}, ::Hilbert{<:Fock{:b}}) = nothing
 @inline commutator(::Bosonic{:BdG}, hilbert::Hilbert{<:Fock{:b}}) = Diagonal(kron([1, -1], ones(Int64, sum(length, values(hilbert))÷2)))
