@@ -256,7 +256,7 @@ end
     brillouin = BrillouinZone(reciprocals(unitcell), 400)
     savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "FermiSurface.png")
     savefig(plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "FermiSurfaceSpinDependent.png")
-    dos = tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]; emin=-5.0, emax=5.0, ne=201, fwhm=0.05))
+    dos = tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]); emin=-5.0, emax=5.0, ne=201, fwhm=0.05)
     savefig(plot(dos), "DensityOfStates.png")
     @test isapprox(sum(dos.data.values[:, 1]), 2.0; atol=10^-3)
 
@@ -277,7 +277,7 @@ end
     energybands = phonon(:EB, EnergyBands(path))
     savefig(plot(energybands), "PhononEB.png")
 
-    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, rescale=x->log(1+x)))
+    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501)); fwhm=0.05, rescale=x->log(1+x))
     plt = plot()
     plot!(plt, inelastic)
     plot!(plt, energybands, color=:white, linestyle=:dash)
@@ -318,13 +318,13 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     )
     plt = plot()
     plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, wan(:EB, EnergyBands(path; gauge=:icoordinate)), color=:black)
+    plot!(plt, wan(:EB, EnergyBands(path); gauge=:icoordinate), color=:black)
     savefig("silicon_wannier90_center.png")
 
     another = Algorithm(:silicon, W90(wan.frontend.lattice, Hilbert(Fock{:f}(4, 1), length(wan.frontend.lattice)), wan.frontend.H))
     update!(another)
     plt =  plot()
     plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, another(:EB, EnergyBands(path; gauge=:rcoordinate)), color=:black)
+    plot!(plt, another(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
     savefig("silicon_wannier90_atom.png")
 end
