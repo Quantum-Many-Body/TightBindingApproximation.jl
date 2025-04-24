@@ -33,7 +33,6 @@ Fermionic quantum lattice system.
 """
 struct Fermionic{K} <: TBAKind{K} end
 @inline Fermionic(k::Symbol) = Fermionic{k}()
-@inline Base.promote_rule(::Type{Fermionic{K}}, ::Type{Fermionic{K}}) where K = Fermionic{K}
 @inline Base.promote_rule(::Type{Fermionic{:TBA}}, ::Type{Fermionic{:BdG}}) = Fermionic{:BdG}
 @inline Base.promote_rule(::Type{Fermionic{:BdG}}, ::Type{Fermionic{:TBA}}) = Fermionic{:BdG}
 
@@ -44,7 +43,6 @@ Bosonic quantum lattice system.
 """
 struct Bosonic{K} <: TBAKind{K} end
 @inline Bosonic(k::Symbol) = Bosonic{k}()
-@inline Base.promote_rule(::Type{Bosonic{K}}, ::Type{Bosonic{K}}) where K = Bosonic{K}
 @inline Base.promote_rule(::Type{Bosonic{:TBA}}, ::Type{Bosonic{:BdG}}) = Bosonic{:BdG}
 @inline Base.promote_rule(::Type{Bosonic{:BdG}}, ::Type{Bosonic{:TBA}}) = Bosonic{:BdG}
 
