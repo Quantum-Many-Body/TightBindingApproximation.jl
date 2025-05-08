@@ -540,7 +540,7 @@ Construct an `EnergyBands`.
 end
 
 """
-    EnergyBandsData{R<:ReciprocalSpace, W<:Union{Vector{Matrix{Float64}}, Nothing}} <: Data
+    EnergyBandsData{R<:ReciprocalSpace, W<:Union{Array{Float64, 3}, Nothing}} <: Data
 
 Data of energy bands, including:
 
@@ -548,7 +548,7 @@ Data of energy bands, including:
 2) `values::Matrix{Float64}`: eigen energies of bands with each column storing the values on the same reciprocal point.
 3) `weights::W`: if not `nothing`, weights of several certain sets of orbitals projected onto the energy bands.
 """
-struct EnergyBandsData{R<:ReciprocalSpace, W<:Union{Vector{Matrix{Float64}}, Nothing}} <: Data
+struct EnergyBandsData{R<:ReciprocalSpace, W<:Union{Array{Float64, 3}, Nothing}} <: Data
     reciprocalspace::R
     values::Matrix{Float64}
     weights::W
@@ -572,7 +572,7 @@ end
     nk = length(eb.reciprocalspace)
     nb = isa(eb.bands, Colon) ? dimension(tba) : length(eb.bands)
     no = length(eb.orbitals)
-    return EnergyBandsData(eb.reciprocalspace, zeros(Float64, nk, nb), [zeros(Float64, nk, nb) for _ in 1:no])
+    return EnergyBandsData(eb.reciprocalspace, zeros(Float64, nk, nb), zeros(Float64, nk, nb, no))
 end
 function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands}; options...)
     bands = isa(eb.action.bands, Colon) ? (1:dimension(tba.frontend)) : eb.action.bands
@@ -581,7 +581,7 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands}; options...)
         for (j, band) in enumerate(bands)
             eb.data.values[i, j] = es[band]
             for (l, orbitals) in enumerate(eb.action.orbitals)
-                eb.data.weights[l][i, j] = mapreduce(abs2, +, vs[orbitals, band])
+                eb.data.weights[i, j, l] = mapreduce(abs2, +, vs[orbitals, band])
             end
         end
     end
@@ -826,7 +826,7 @@ end
 
 ## For the Berry curvature on a generic path in the reciprocal space
 @inline function Data(bc::BerryCurvature{<:ReciprocalPath, <:Kubo}, ::TBA)
-    values = zeros(Float64, length(bc.reciprocalspace))
+    values = zeros(Float64, length(bc.reciprocalspace), 1)
     return BerryCurvatureData(bc.reciprocalspace, values, nothing)
 end
 
@@ -914,38 +914,39 @@ end
 Data of Fermi surface, including:
 
 1) `values::S`: points of the Fermi surface.
-2) `weights::Vector{Vector{Float64}}`: weights of several certain sets of orbitals projected onto the Fermi surface.
+2) `weights::Matrix{Float64}`: weights of several certain sets of orbitals projected onto the Fermi surface.
 """
-struct FermiSurfaceData{S<:ReciprocalScatter} <: Data
+mutable struct FermiSurfaceData{S<:ReciprocalScatter} <: Data
     values::S
-    weights::Vector{Vector{Float64}}
+    weights::Matrix{Float64}
+    FermiSurfaceData{S}() where {S<:ReciprocalScatter} = new{S}()
 end
 function Data(fs::FermiSurface, ::TBA)
     @assert length(fs.reciprocalspace.reciprocals)==2 "Data error: only reciprocal spaces with two reciprocal vectors are supported."
-    values = ReciprocalScatter{label(fs.reciprocalspace)}(fs.reciprocalspace.reciprocals, eltype(fs.reciprocalspace.reciprocals)[])
-    weights = Vector{Float64}[Float64[] for _ in 1:length(fs.orbitals)]
-    return FermiSurfaceData(values, weights)
+    S = Core.Compiler.return_type(ReciprocalScatter, Tuple{typeof(fs.reciprocalspace)})
+    return FermiSurfaceData{S}()
 end
 function run!(tba::Algorithm{<:TBA}, fs::Assignment{<:FermiSurface}; options...)
     bands = isa(fs.action.bands, Colon) ? (1:dimension(tba.frontend)) : fs.action.bands
     es = matrix(eigvals(tba, fs.action.reciprocalspace; options...))[:, bands]
     xs, ys = range(fs.action.reciprocalspace, 1), range(fs.action.reciprocalspace, 2)
     record = Int[]
-    empty!(fs.data.values.coordinates)
+    coords = eltype(fs.action.reciprocalspace.reciprocals)[]
     for i in axes(es, 2)
         for line in lines(contour(xs, ys, transpose(reshape(es[:, i], length(ys), length(xs))), fs.action.μ))
             for (x, y) in zip(coordinates(line)...)
                 push!(record, bands[i])
-                push!(fs.data.values.coordinates, (x, y))
+                push!(coords, (x, y))
             end
         end
     end
+    fs.data.values = ReciprocalScatter{label(fs.action.reciprocalspace)}(fs.action.reciprocalspace.reciprocals, coords)
+    fs.data.weights = zeros(Float64, length(fs.data.values), length(fs.action.orbitals))
     if length(fs.action.orbitals) > 0
-        map(empty!, fs.data.weights)
-        for (band, k) in zip(record, fs.data.values)
+        for (i, (band, k)) in enumerate(zip(record, fs.data.values))
             vs = eigvecs(tba, k)
-            for (i, orbitals) in enumerate(fs.action.orbitals)
-                push!(fs.data.weights[i], mapreduce(abs2, +, vs[orbitals, band]))
+            for (j, orbitals) in enumerate(fs.action.orbitals)
+                fs.data.weights[i, j] = mapreduce(abs2, +, vs[orbitals, band])
             end
         end
     end
@@ -1003,26 +1004,22 @@ Data of density of states, including:
 2) `values::Matrix{Float64}`: density of states projected onto several certain sets of orbitals.
 """
 mutable struct DensityOfStatesData <: Data
-    const energies::Vector{Float64}
+    energies::Vector{Float64}
     values::Matrix{Float64}
+    DensityOfStatesData() = new()
 end
-@inline function Data(dos::DensityOfStates, ::TBA)
-    energies = zeros(Float64, 0)
-    values = zeros(Float64, 0, length(dos.orbitals))
-    return DensityOfStatesData(energies, values)
-end
+@inline Data(::DensityOfStates, ::TBA) = DensityOfStatesData()
 function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, dos::Assignment{<:DensityOfStates}; fwhm::Real=0.1, ne::Int=100, emin::Real=NaN, emax::Real=NaN, options...)
-    fill!(resize!(dos.data.energies, ne), 0.0)
-    dos.data.values = zeros(Float64, ne, length(dos.action.orbitals))
     σ = fwhm / 2 /√ (2*log(2))
     eigenvalues, eigenvectors = eigen(tba, dos.action.brillouinzone; options...)
     isnan(emin) && (emin = mapreduce(minimum, min, eigenvalues))
     isnan(emax) && (emax = mapreduce(maximum, max, eigenvalues))
+    dos.data.energies = LinRange(emin, emax, ne)
+    dos.data.values = zeros(Float64, ne, length(dos.action.orbitals))
     nk = length(dos.action.brillouinzone)
     dE = (emax-emin) / (ne-1)
     bands = default_bands(kind(tba.frontend), dimension(tba), dos.action.bands)
-    for (i, ω) in enumerate(LinRange(emin, emax, ne))
-        dos.data.energies[i] = ω
+    for (i, ω) in enumerate(dos.data.energies)
         for (j, orbitals) in enumerate(dos.action.orbitals)
             for (values, vectors) in zip(eigenvalues, eigenvectors)
                 dos.data.values[i, j] += spectralfunction(ω, values, vectors, bands, orbitals; σ=σ)/nk*dE
