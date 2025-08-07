@@ -226,6 +226,8 @@ end
     μ = Onsite(:μ, 3.5)
     Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(𝕕, :, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
+    @test kind(sc) == kind(typeof(sc)) == kind(sc.frontend)
+    @test scalartype(sc) == scalartype(typeof(sc)) == scalartype(sc.frontend)
     @test matrix(sc) == matrix(sc.frontend)
     @test eigen(sc) == Eigen(eigvals(sc), eigvecs(sc))
 

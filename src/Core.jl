@@ -262,11 +262,28 @@ Get the eigen vectors of a free quantum lattice system.
 Abstract type for free quantum lattice systems using the tight-binding approximation.
 """
 abstract type TBA{K<:TBAKind, H<:Union{Formula, OperatorSet, Generator, Frontend}, C<:Union{Nothing, AbstractMatrix}} <: Frontend end
-@inline kind(tba::TBA) = kind(typeof(tba))
-@inline kind(::Type{<:TBA{K}}) where K = K()
-@inline scalartype(::Type{<:TBA{<:TBAKind, H}}) where {H<:Union{Formula, OperatorSet, Generator, Frontend}} = scalartype(H)
 @inline getcontent(tba::TBA{<:TBAKind, <:Union{Formula, OperatorSet, Generator, Frontend}, Nothing}, ::Val{:commutator}) = nothing
 @inline Parameters(tba::TBA) = Parameters(getcontent(tba, :H))
+
+"""
+    kind(tba::Union{TBA, Algorithm{<:TBA}}) -> TBAKind
+    kind(::Type{<:TBA{K}}) where K -> TBAKind
+    kind(::Type{<:Algorithm{F}}) where {F<:TBA} -> TBAKind
+
+Get the kind of a tight-binding system.
+"""
+@inline kind(tba::Union{TBA, Algorithm{<:TBA}}) = kind(typeof(tba))
+@inline kind(::Type{<:TBA{K}}) where K = K()
+@inline kind(::Type{<:Algorithm{F}}) where {F<:TBA} = kind(F)
+
+"""
+    scalartype(::Type{<:TBA{<:TBAKind, H}}) where {H<:Union{Formula, OperatorSet, Generator, Frontend}}
+    scalartype(::Type{<:Algorithm{F}}) where {F<:TBA}
+
+Get the scalartype of a tight-binding system.
+"""
+@inline scalartype(::Type{<:TBA{<:TBAKind, H}}) where {H<:Union{Formula, OperatorSet, Generator, Frontend}} = scalartype(H)
+@inline scalartype(::Type{<:Algorithm{F}}) where {F<:TBA} = scalartype(F)
 
 """
     dimension(tba::Union{TBA, Algorithm{<:TBA}}) -> Int
@@ -295,11 +312,11 @@ end
 @inline dimension(tba::TBA{<:TBAKind, <:Frontend}) = dimension(getcontent(tba, :H))
 
 """
-    matrix(tba::Union{TBA, Algorithm{<:TBA}}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba.frontend))) -> TBAMatrix
+    matrix(tba::Union{TBA, Algorithm{<:TBA}}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba))) -> TBAMatrix
 
 Get the matrix representation of a free quantum lattice system.
 """
-@inline function matrix(tba::Algorithm{<:TBA}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba.frontend)))
+@inline function matrix(tba::Algorithm{<:TBA}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)))
     return matrix(tba.frontend, k; gauge=gauge, infinitesimal=infinitesimal)
 end
 @inline function matrix(tba::TBA{<:TBAKind, <:Formula}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)))
@@ -1020,7 +1037,7 @@ function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, dos::Assignment{<:Densit
     result = zeros(Float64, ne, length(dos.action.orbitals))
     nk = length(dos.action.brillouinzone)
     dE = (emax-emin) / (ne-1)
-    bands = default_bands(kind(tba.frontend), dimension(tba), dos.action.bands)
+    bands = default_bands(kind(tba), dimension(tba), dos.action.bands)
     for (i, ω) in enumerate(energies)
         for (j, orbitals) in enumerate(dos.action.orbitals)
             for (values, vectors) in zip(eigenvalues, eigenvectors)
