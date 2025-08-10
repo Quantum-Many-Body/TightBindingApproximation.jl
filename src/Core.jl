@@ -3,7 +3,7 @@ using LinearAlgebra: I, Diagonal, Eigen, cholesky, dot, inv, norm, logdet, norma
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
 using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
-using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, tostr, volume
+using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, str, volume
 using RecipesBase: RecipesBase, @recipe, @series
 using TimerOutputs: TimerOutput, @timeit_debug
 
@@ -122,7 +122,7 @@ end
 @inline parameternames(::Type{<:Quadratic}) = (:value, :coordinate)
 @inline getcontent(m::Quadratic, ::Val{:id}) = (m.position, m.rcoordinate, m.icoordinate)
 @inline Quadratic(value::Number, id::Tuple) = Quadratic(value, id...)
-@inline Base.show(io::IO, m::Quadratic) = @printf io "%s(%s, %s, %s, %s)" nameof(typeof(m)) tostr(m.value) m.position m.rcoordinate m.icoordinate
+@inline Base.show(io::IO, m::Quadratic) = @printf io "%s(%s, %s, %s, %s)" nameof(typeof(m)) str(m.value) m.position m.rcoordinate m.icoordinate
 
 """
     Quadraticization{K<:TBAKind, T<:Table} <: LinearTransformation
@@ -607,7 +607,7 @@ end
 
 # Plot energy bands
 @recipe function plot(eb::Assignment{<:EnergyBands}; bands=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing)
-    title --> string(eb)
+    title --> str(eb)
     titlefontsize --> 10
     if length(eb.action.orbitals) > 0
         @series begin
@@ -781,19 +781,19 @@ end
 
 ## Plot the Berry curvature and optionally the Chern number obtained by the Fukui method
 @recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui{true}}})
-    plot_title --> string(bc)
+    plot_title --> str(bc)
     plot_titlefontsize --> 10
-    subtitles --> [@sprintf("band %s %s", band, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", tostr(bc.data.chernnumber[i]))) for (i, band) in enumerate(bc.action.method.bands)]
+    subtitles --> [@sprintf("band %s %s", band, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", str(bc.data.chernnumber[i]))) for (i, band) in enumerate(bc.action.method.bands)]
     subtitlefontsize --> 8
     bc.data.reciprocalspace, bc.data.values
 end
 @recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui{false}}})
-    plot_title --> string(bc)
+    plot_title --> str(bc)
     plot_titlefontsize --> 10
     layout := (1, 1)
     subplot := 1
-    title --> @sprintf("sum of bands %s %s", bc.action.method.bands, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", tostr(bc.data.chernnumber)))
-    plot_title --> string(bc, "\n", info)
+    title --> @sprintf("sum of bands %s %s", bc.action.method.bands, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", str(bc.data.chernnumber)))
+    plot_title --> str(bc, "\n", info)
     titlefontsize --> 8
     bc.data.reciprocalspace, bc.data.values
 end
@@ -901,11 +901,11 @@ end
 
 ## Plot the Berry curvature and optionally the Chern number obtained by the Kubo method
 @recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}})
-    plot_title --> string(bc)
+    plot_title --> str(bc)
     plot_titlefontsize --> 10
     layout := (1, 1)
     subplot := 1
-    title --> @sprintf("bands below %s %s", bc.action.method.μ, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", tostr(bc.data.chernnumber)))
+    title --> @sprintf("bands below %s %s", bc.action.method.μ, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", str(bc.data.chernnumber)))
     titlefontsize --> 8
     bc.data.reciprocalspace, bc.data.values
 end
@@ -973,7 +973,7 @@ function run!(tba::Algorithm{<:TBA}, fs::Assignment{<:FermiSurface}; options...)
     return FermiSurfaceData(values, weights)
 end
 @recipe function plot(fs::Assignment{<:FermiSurface}; fractional=true, weightmultiplier=1.0, weightcolors=nothing, weightlabels=nothing)
-    title --> string(fs)
+    title --> str(fs)
     titlefontsize --> 10
     seriestype := :scatter
     fractional := fractional
