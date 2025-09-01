@@ -1,8 +1,6 @@
-# Artifact hosted on GitHub Gist
 [WannierDataSets]
-git-tree-sha1 = "9ded800703dc07a7d1182439252be50e11d87339"
-lazy = true
+git-tree-sha1 = "d69063bceff09edd6f55fcc9f5989c406d37d1b9"
 
-[[WannierDataSets.download]]
-url = "https://gist.githubusercontent.com/waltergu/82ed6be67f6c9bac461c00150c14cd2d/raw/a5b50f67003996fd226755f9cc3005013f037600/WannierDataSets.tar.gz"
-sha256 = "c7efbd658e91f88145dcdb22d1c5c6433b894634c330b094bbcb8cc6d498b46a"
+    [[WannierDataSets.download]]
+    sha256 = "2205f49c1374b1c834b5f8dd4d3b9c2f97a5f96eb0a4b338bc7da29642787e69"
+    url = "https://gist.github.com/waltergu/1821d4285e35de366dbabb5513c23f6f/raw/d69063bceff09edd6f55fcc9f5989c406d37d1b9.tar.gz"
