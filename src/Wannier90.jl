@@ -62,9 +62,9 @@ function readlattice(path::AbstractString, prefix::AbstractString; name::Symbol=
         sites = Int[]
         for i = start(lines):length(lines)
             site = strip(split(lines[i], ":")[1])
-            if occursin(r"(?i)[f, c]=(.*)", site)
+            if occursin(r"(?i)[fc]=(.*)", site)
                 # specify an atom by its position
-                coordinate = map(str->parse(Float64, str), split(match(r"(?i)[f, c]=(.*)", site)[1], ","))
+                coordinate = map(str->parse(Float64, str), split(match(r"(?i)[fc]=(.*)", site)[1], ","))
                 coordinate = occursin(r"(?i)f=", site) ? mapreduce(*, +, vectors, coordinate) : pref*coordinate
                 result = findsite(coordinate, coordinates)
                 @assert isa(result, Int) "readlattice error: cannot find site($site)."
@@ -89,11 +89,11 @@ function findsite(coordinate, coordinates; atol=10^-6, rtol=10^-6)
 end
 
 """
-    readlattice(path::AbstractString; name::Symbol) -> Lattice{3, Float64, 3}
+    readlattice(path::AbstractString; name::Symbol=:lattice) -> Lattice{3, Float64, 3}
 
 Read the lattice from the "POSCAR" file with a given `name`.
 """
-function readlattice(path::AbstractString; name::Symbol)
+function readlattice(path::AbstractString; name::Symbol=:lattice)
     lines = readlines(joinpath(path, "POSCAR"))
     scale = parse.(Float64, split(lines[2]))
     length(scale)==1 && (scale = fill(only(scale), 3))
