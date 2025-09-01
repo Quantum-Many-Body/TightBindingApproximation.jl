@@ -302,6 +302,12 @@ end
 toml = Artifacts.find_artifacts_toml(@__DIR__)
 const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
 @time @testset "Wannier90" begin
+    first = readlattice(dir, "silicon"; name=:silicon)
+    second = readlattice(dir, "silicon-second"; name=:silicon)
+    third = readlattice(dir; name=:silicon)
+    @test first.coordinates ≈ second.coordinates ≈ third.coordinates
+    @test first.vectors ≈ second.vectors ≈ third.vectors
+
     prefix = "silicon"
     wan = Algorithm(:silicon, W90(dir, prefix))
     @test W90Matrixization([0.0, 0.0, 0.0], wan.frontend.lattice.vectors, wan.frontend.centers, :icoordinate)(wan.frontend.H[1]) ≈ ComplexF64[
@@ -320,7 +326,7 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     )
     plt = plot()
     plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, wan(:EB, EnergyBands(path); gauge=:icoordinate), color=:black)
+    plot!(plt, wan(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
     savefig("silicon_wannier90_center.png")
 
     another = Algorithm(:silicon, W90(wan.frontend.lattice, Hilbert(Fock{:f}(4, 1), length(wan.frontend.lattice)), wan.frontend.H))
