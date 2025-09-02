@@ -2,13 +2,13 @@ module Wannier90
 
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
-using QuantumLattices: Hilbert, Lattice, Matrixization, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Table, add!
+using QuantumLattices: CoordinatedIndex, FockIndex, Hilbert, Index, Lattice, LinearTransformation, Matrixization, Operator, OperatorIndexToTuple, OperatorPack, Operators, OperatorSet, OperatorSum, Table, 𝕔
 using StaticArrays: SVector
-using ..TightBindingApproximation: Fermionic, TBA, TBAMatrix
+using ..TightBindingApproximation: Fermionic, Quadraticization, TBA, TBAMatrix
 
-import QuantumLattices: add!, dimension, matrix
+import QuantumLattices: Algorithm, add!, dimension, matrix
 
-export W90, W90Hoppings, W90Matrixization, findblock, readbands, readcenters, readhamiltonian, readlattice
+export Operatorization, W90, W90Hoppings, W90Matrixization, findblock, readbands, readcenters, readhamiltonian, readlattice
 
 """
     findblock(name::String, content::String) -> Union{Nothing, Vector{SubString{String}}}
@@ -311,6 +311,99 @@ function readbands(path::AbstractString, prefix::AbstractString)
     end
     content = readdlm(joinpath(path, prefix*"_band.dat"))
     return content[1:nk, 1], reshape(content[:, 2], nk, :)
+end
+
+"""
+    Operatorization <: LinearTransformation
+
+Operatorize the hopping amplitudes among Wannier orbitals.
+"""
+struct Operatorization <: LinearTransformation
+    centers::Matrix{Float64}
+    vectors::SVector{3, SVector{3, Float64}}
+    table::Dict{Int, Tuple{Int, Int, Rational{Int}}}
+end
+@inline function Base.valtype(::Type{<:Operatorization}, ::Type{<:Union{W90Hoppings, OperatorSet{<:W90Hoppings}}})
+    I = CoordinatedIndex{Index{FockIndex{:f, Int, Rational{Int}, Int}, Int}, SVector{3, Float64}}
+    return Operators{Operator{ComplexF64, Tuple{I, I}}, Tuple{I, I}}
+end
+@inline (operatorization::Operatorization)(m::W90Hoppings; kwargs...) = add!(zero(operatorization, m), operatorization, m; kwargs...)
+
+"""
+    Operatorization(centers::AbstractMatrix{<:Number}, vectors::AbstractVector{<:AbstractVector{<:Number}}, hilbert::Hilbert)
+
+Construct a `Operatorization`.
+"""
+@inline function Operatorization(centers::AbstractMatrix{<:Number}, vectors::AbstractVector{<:AbstractVector{<:Number}}, hilbert::Hilbert)
+    table = Table(hilbert, OperatorIndexToTuple(:site, :orbital, :spin))
+    @assert extrema(values(table))==(1, size(centers, 2)) "Operatorization error: mismatched centers and hilbert space."
+    return Operatorization(centers, vectors, Dict(index=>key for (key, index) in pairs(table)))
+end
+
+"""
+    add!(dest::Operators, operatorization::Operatorization, m::W90Hoppings; tol::Real=1e-6, complement_spin::Bool=false, kwargs...) -> Operators
+
+Convert the hopping amplitudes among Wannier orbitals into a set of operators and add them to `dest`.
+
+Here, `tol` denotes the tolerance below which the coefficient will be omitted and `complement_spin` denotes whether to include both spins if the DFT calculations are spin-independent.
+"""
+function add!(dest::Operators, operatorization::Operatorization, m::W90Hoppings; tol::Real=1e-6, complement_spin::Bool=false, kwargs...)
+    icoordinate = mapreduce(*, +, operatorization.vectors, m.id)
+    for j in axes(m.value, 2)
+        for i in axes(m.value, 1)
+            v = m.value[i, j]
+            if abs(v)>tol
+                siteᵢ, orbitalᵢ, spinᵢ = operatorization.table[i]
+                siteⱼ, orbitalⱼ, spinⱼ = operatorization.table[j]
+                rcoordinateᵢ = SVector(operatorization.centers[1, i], operatorization.centers[2, i], operatorization.centers[3, i])
+                rcoordinateⱼ = SVector(operatorization.centers[1, j], operatorization.centers[2, j], operatorization.centers[3, j]) + icoordinate
+                if complement_spin && (spinᵢ==spinⱼ==0)
+                    cᵢ = 𝕔(siteᵢ, orbitalᵢ, 1//2, 2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
+                    cⱼ = 𝕔(siteⱼ, orbitalⱼ, 1//2, 1, rcoordinateⱼ, icoordinate)
+                    add!(dest, Operator(v, cᵢ, cⱼ))
+                    cᵢ = 𝕔(siteᵢ, orbitalᵢ, -1//2, 2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
+                    cⱼ = 𝕔(siteⱼ, orbitalⱼ, -1//2, 1, rcoordinateⱼ, icoordinate)
+                    add!(dest, Operator(v, cᵢ, cⱼ))
+                else
+                    cᵢ = 𝕔(siteᵢ, orbitalᵢ, spinᵢ, 2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
+                    cⱼ = 𝕔(siteⱼ, orbitalⱼ, spinⱼ, 1, rcoordinateⱼ, icoordinate)
+                    add!(dest, Operator(v, cᵢ, cⱼ))
+                end
+            end
+        end
+    end
+    return dest
+end
+
+"""
+    TBA(wan::W90, hilbert::Hilbert; complement_spin::Bool=false, tol::Real=1e-6)
+
+Convert a Wannier90 tight-binding system to the operator formed one.
+"""
+function TBA(wan::W90, hilbert::Hilbert; complement_spin::Bool=false, tol::Real=1e-6)
+    operatorization = Operatorization(wan.centers, wan.lattice.vectors, hilbert)
+    indexes = Index{FockIndex{:f, Int, Rational{Int}, Int}, Int}[]
+    for (site, orbital, spin) in values(operatorization.table)
+        if complement_spin && spin==0
+            push!(indexes, 𝕔(site, orbital, 1//2, 1))
+            push!(indexes, 𝕔(site, orbital, -1//2, 1))
+        else
+            push!(indexes, 𝕔(site, orbital, spin, 1))
+        end
+    end
+    table = Table(indexes, OperatorIndexToTuple(:site, :orbital, :spin))
+    H = operatorization(wan.H; complement_spin, tol)
+    quadraticization = Quadraticization{Fermionic{:TBA}}(table)
+    return TBA{Fermionic{:TBA}}(wan.lattice, H, quadraticization)
+end
+
+"""
+    Algorithm(wan::Algorithm{W90}, hilbert::Hilbert; complement_spin::Bool=false, tol::Real=1e-6)
+
+Convert a Wannier90 tight-binding system to the operator formed one.
+"""
+@inline function Algorithm(wan::Algorithm{W90}, hilbert::Hilbert; complement_spin::Bool=false, tol::Real=1e-6)
+    return Algorithm(wan.name, TBA(wan.frontend, hilbert; complement_spin, tol), wan.parameters, wan.map; dir=wan.dir)
 end
 
 end
