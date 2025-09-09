@@ -209,12 +209,6 @@ end
 @inline Base.valtype(::Type{<:W90Matrixization}, ::Type{<:Union{W90Hoppings, OperatorSet{<:W90Hoppings}}}) = Matrix{ComplexF64}
 @inline Base.zero(mr::W90Matrixization, m::Union{W90Hoppings, OperatorSet{<:W90Hoppings}}) = zeros(eltype(valtype(mr, m)), size(mr.centers)[2], size(mr.centers)[2])
 @inline (mr::W90Matrixization)(m::W90Hoppings; kwargs...) = add!(zero(mr, m), mr, m; kwargs...)
-
-"""
-    add!(dest::AbstractMatrix, mr::W90Matrixization, m::W90Hoppings; kwargs...) -> typeof(dest)
-
-Matrixize a group of Wannier hoppings and add it to `dest`.
-"""
 function add!(dest::AbstractMatrix, mr::W90Matrixization, m::W90Hoppings; kwargs...)
     @assert size(dest)[1]==size(dest)[2]==size(mr.centers)[2]==size(m.value)[1] "add! error: mismatch occurs."
     icoordinate = mapreduce(*, +, mr.vectors, m.id)
@@ -253,12 +247,6 @@ struct W90 <: TBA{Fermionic{:TBA}, OperatorSum{W90Hoppings, NTuple{3, Int}}, Not
 end
 @inline dimension(wan::W90) = size(wan.centers)[2]
 @inline update!(wan::W90; parameters...) = wan
-
-"""
-    matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0, 0, 0); gauge=:icoordinate, kwargs...) -> TBAMatrix
-
-Get the matrix representation of a quantum lattice system based on the information obtained from Wannier90.
-"""
 @inline function matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0, 0, 0); gauge=:icoordinate, kwargs...)
     m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.H; kwargs...)
     return TBAMatrix(Hermitian(m), nothing)
@@ -372,25 +360,6 @@ end
     return Operators{Operator{ComplexF64, Tuple{I, I}}, Tuple{I, I}}
 end
 @inline (operatorization::Operatorization)(m::W90Hoppings; kwargs...) = add!(zero(operatorization, m), operatorization, m; kwargs...)
-
-"""
-    Operatorization(centers::AbstractMatrix{<:Number}, vectors::AbstractVector{<:AbstractVector{<:Number}}, hilbert::Hilbert)
-
-Construct a `Operatorization`.
-"""
-@inline function Operatorization(centers::AbstractMatrix{<:Number}, vectors::AbstractVector{<:AbstractVector{<:Number}}, hilbert::Hilbert)
-    table = Table(hilbert, OperatorIndexToTuple(:site, :orbital, :spin))
-    @assert extrema(values(table))==(1, size(centers, 2)) "Operatorization error: mismatched centers and hilbert space."
-    return Operatorization(centers, vectors, Dict(index=>key for (key, index) in pairs(table)))
-end
-
-"""
-    add!(dest::Operators, operatorization::Operatorization, m::W90Hoppings; tol::Real=1e-6, complement_spin::Bool=false, kwargs...) -> Operators
-
-Convert the hopping amplitudes among Wannier orbitals into a set of operators and add them to `dest`.
-
-Here, `tol` denotes the tolerance below which the coefficient will be omitted and `complement_spin` denotes whether to include both spins if the DFT calculations are spin-independent.
-"""
 function add!(dest::Operators, operatorization::Operatorization, m::W90Hoppings; tol::Real=1e-6, complement_spin::Bool=false, kwargs...)
     icoordinate = mapreduce(*, +, operatorization.vectors, m.id)
     for j in axes(m.value, 2)
@@ -417,6 +386,17 @@ function add!(dest::Operators, operatorization::Operatorization, m::W90Hoppings;
         end
     end
     return dest
+end
+
+"""
+    Operatorization(centers::AbstractMatrix{<:Number}, vectors::AbstractVector{<:AbstractVector{<:Number}}, hilbert::Hilbert)
+
+Construct a `Operatorization`.
+"""
+@inline function Operatorization(centers::AbstractMatrix{<:Number}, vectors::AbstractVector{<:AbstractVector{<:Number}}, hilbert::Hilbert)
+    table = Table(hilbert, OperatorIndexToTuple(:site, :orbital, :spin))
+    @assert extrema(values(table))==(1, size(centers, 2)) "Operatorization error: mismatched centers and hilbert space."
+    return Operatorization(centers, vectors, Dict(index=>key for (key, index) in pairs(table)))
 end
 
 """

@@ -21,6 +21,7 @@ makedocs(;
             "examples/Kagome.md",
             "examples/Phonon.md",
         ],
+        "Interface with Wannier90" => "wannier90.md",
         "Manual" => "manual.md",
     ],
 )

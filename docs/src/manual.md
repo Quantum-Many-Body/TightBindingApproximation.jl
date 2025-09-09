@@ -13,9 +13,3 @@ Modules = [TightBindingApproximation]
 ```@autodocs
 Modules = [TightBindingApproximation.Fitting]
 ```
-
-## TightBindingApproximation.Wannier90
-
-```@autodocs
-Modules = [TightBindingApproximation.Wannier90]
-```
