@@ -308,8 +308,8 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     @test first.coordinates ≈ second.coordinates ≈ third.coordinates
     @test first.vectors ≈ second.vectors ≈ third.vectors
 
-    prefix = "silicon"
-    wan = Algorithm(:silicon, W90(dir, prefix))
+    seedname = "silicon"
+    wan = Algorithm(:silicon, W90(dir, seedname))
     @test W90Matrixization([0.0, 0.0, 0.0], wan.frontend.lattice.vectors, wan.frontend.centers, :icoordinate)(wan.frontend.H[1]) ≈ ComplexF64[
         0.016239+4.75e-6im -0.00301675+2.5e-6im -0.0030155-6.0e-6im -0.0030155-3.25e-6im -0.01056425-1.3e-5im 0.00237225+7.5e-7im 0.002374+5.75e-6im 0.0023735+2.5e-6im;
         -0.0030155+3.25e-6im 0.01623875-2.5e-7im -0.003016-1.0e-6im -0.00301625-3.25e-6im 0.0023735+1.0e-6im 0.00477025+2.5e-7im -0.0055565-2.5e-6im -0.00555775+3.25e-6im;
@@ -320,12 +320,10 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
         0.00226725+2.5e-6im -0.00396925+1.75e-6im -0.0063855-3.5e-6im -0.00396775-3.25e-6im -0.0030155-7.5e-6im -0.0030175-7.5e-7im 0.016239+1.0e-6im -0.00301575+5.5e-6im;
         0.0022645+5.0e-7im -0.003968-1.75e-6im -0.0039695-3.25e-6im -0.00638525+4.25e-6im -0.0030165-2.5e-6im -0.0030155-4.25e-6im -0.00301625+7.0e-6im 0.016239-2.0e-6im
     ]
-    path = ReciprocalPath(
-        reciprocals(wan.frontend.lattice), (0.5, 0.5, 0.5)=>(0.0, 0.0, 0.0), (0.0, 0.0, 0.0)=>(0.5, 0.0, 0.5), (0.5, -0.5, 0.0)=>(0.375, -0.375, 0.0), (0.375, -0.375, 0.0)=>(0.0, 0.0, 0.0);
-        labels=("L"=>"Γ", "Γ"=>"X", "X'"=>"K", "K"=>"Γ"), length=100
-    )
+    path = readpath(dir, seedname)
+    bands = readbands(dir, seedname)
     plt = plot()
-    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
     plot!(plt, wan(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
     savefig("silicon_wannier90_center.png")
 
@@ -333,7 +331,7 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     another = Algorithm(:silicon, W90(wan.frontend.lattice, hilbert, wan.frontend.H))
     update!(another)
     plt =  plot()
-    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
     plot!(plt, another(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
     savefig("silicon_wannier90_atom.png")
 
@@ -342,13 +340,13 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     @test matrix(tba, k; gauge=:icoordinate) ≈ matrix(wan, k; gauge=:icoordinate)
     @test matrix(tba, k; gauge=:rcoordinate) ≈ matrix(wan, k; gauge=:rcoordinate)
     plt = plot()
-    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
     plot!(plt, tba(:EB, EnergyBands(path)), color=:black)
     savefig("silicon_operatorization_spinless.png")
 
     tba = Algorithm(wan, hilbert; complement_spin=true)
     plt = plot()
-    plot!(plt, readbands(dir, prefix)...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
     plot!(plt, tba(:EB, EnergyBands(path)), color=:black)
     savefig("silicon_operatorization_spinful.png")
 end
