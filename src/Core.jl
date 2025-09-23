@@ -2,7 +2,7 @@ using Contour: contour, coordinates, lines
 using LinearAlgebra: I, Diagonal, Eigen, cholesky, dot, inv, norm, logdet, normalize
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, ID, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
+using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LinearTransformation, Matrixization, Metric, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, str, volume
 using RecipesBase: RecipesBase, @recipe, @series
 using TimerOutputs: TimerOutput, @timeit_debug
@@ -142,16 +142,16 @@ end
 @inline (q::Quadraticization)(m::Operator; kwargs...) = add!(zero(q, m), q, m; kwargs)
 
 """
-    add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index, 2}}; kwargs...) -> typeof(dest)
-    add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex}}, 2}}; kwargs...) -> typeof(dest)
-    add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:PhononIndex}}, 2}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index}}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index{<:FockIndex}}}}; kwargs...) -> typeof(dest)
+    add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index{<:PhononIndex}}}}; kwargs...) -> typeof(dest)
 
 Get the unified quadratic form of a rank-2 operator and add it to `dest`.
 """
-function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index}, 2}}; kwargs...)
+function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:TBA}}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index}}}; kwargs...)
     return add!(dest, Quadratic(m.value, (q.table[m[1]'], q.table[m[2]]), rcoordinate(m), icoordinate(m)))
 end
-function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:FockIndex}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index{<:FockIndex}}}}; kwargs...)
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     add!(dest, Quadratic(m.value, (q.table[m[1]'], q.table[m[2]]), rcoord, icoord))
     if iscreation(m[1]) && isannihilation(m[2])
@@ -160,7 +160,7 @@ function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operat
     end
     return dest
 end
-function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:ID{CoordinatedIndex{<:Index{<:PhononIndex}}, 2}}; kwargs...)
+function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operator{<:Number, <:NTuple{2, CoordinatedIndex{<:Index{<:PhononIndex}}}}; kwargs...)
     seq₁, seq₂ = q.table[m[1]], q.table[m[2]]
     rcoord, icoord = rcoordinate(m), icoordinate(m)
     add!(dest, Quadratic(m.value, (seq₁, seq₂), rcoord, icoord))
@@ -703,7 +703,7 @@ function berrycurvature(tba::TBA, bc::BerryCurvature{<:BrillouinZone, <:Fukui{Ab
     nx, ny = map(length, shape(bc.reciprocalspace))
     result = Matrix{eltype(vectors)}(undef, nx+1, ny+1)
     for i=1:nx+1, j=1:ny+1
-        result[i, j] = vectors[Int(keytype(bc.reciprocalspace)(i, j))][:, bc.method.bands]
+        result[i, j] = vectors[Int(CartesianIndex(i, j), bc.reciprocalspace)][:, bc.method.bands]
     end
     return berrycurvature(result, getcontent(tba, :commutator), volume(bc.reciprocalspace)/length(bc.reciprocalspace), Val(Abelian))
 end

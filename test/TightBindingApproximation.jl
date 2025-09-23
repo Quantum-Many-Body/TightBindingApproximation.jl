@@ -3,7 +3,7 @@ using LinearAlgebra: Diagonal, Eigen, Hermitian, ishermitian
 using Pkg
 using Plots: plot, plot!, savefig
 using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorIndexToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
-using QuantumLattices: atol, 𝕕, 𝕕⁺𝕕, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, scalartype, update!, @rectangle_str, @σ_str
+using QuantumLattices: atol, σᶻ, 𝕕, 𝕕𝕕, 𝕕⁺𝕕, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, scalartype, update!, @rectangle_str
 using StaticArrays: SVector
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
@@ -76,7 +76,7 @@ end
 @time @testset "Quadraticization{Fermionic{:BdG}}" begin
     t = Hopping(:t, -1.0, 1)
     μ = Onsite(:μ, 2.0)
-    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕕(:, :, :, :), 𝕕(:, :, :, :)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
+    Δ = Pairing(:Δ, 0.1, 1, 𝕕𝕕(:, :, :); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Fock{:f}(1, 1), length(lattice))
     gen = Generator(bonds(lattice, 1), hilbert, (t, μ, Δ); half=false)
@@ -95,7 +95,7 @@ end
 @time @testset "Quadraticization{Bosonic{:BdG}}" begin
     t = Hopping(:t, -1.0, 1)
     μ = Onsite(:μ, 2.0)
-    Δ = Pairing(:Δ, 0.1, 1, Coupling(𝕕(:, :, :, :), 𝕕(:, :, :, :)); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
+    Δ = Pairing(:Δ, 0.1, 1, 𝕕𝕕(:, :, :); amplitude=bond->rcoordinate(bond)[1]>0 ? 1 : -1)
     lattice = Lattice([0.0], [0.5]; vectors=[[1.0]])
     hilbert = Hilbert(Fock{:b}(1, 1), length(lattice))
     gen = Generator(bonds(lattice, 1), hilbert, (t, μ, Δ); half=false)
@@ -224,7 +224,7 @@ end
     hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
     t = Hopping(:t, 1.0, 1)
     μ = Onsite(:μ, 3.5)
-    Δ = Pairing(:Δ, Complex(0.5), 1, Coupling(𝕕, :, :, :, (1, 1)); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
+    Δ = Pairing(:Δ, Complex(0.5), 1, 𝕕𝕕(:, :, :); amplitude=bond->exp(im*azimuth(rcoordinate(bond))))
     sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
     @test kind(sc) == kind(typeof(sc)) == kind(sc.frontend)
     @test scalartype(sc) == scalartype(typeof(sc)) == scalartype(sc.frontend)
@@ -252,7 +252,7 @@ end
     unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(Fock{:f}(1, 2), length(unitcell))
     t = Hopping(:t, 1.0, 1)
-    h = Onsite(:h, 0.1, 𝕕⁺𝕕(:, :, σ"z", :))
+    h = Onsite(:h, 0.1, 𝕕⁺𝕕(:, :, σᶻ))
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
     brillouin = BrillouinZone(reciprocals(unitcell), 400)

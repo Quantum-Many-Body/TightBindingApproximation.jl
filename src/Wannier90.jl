@@ -3,7 +3,7 @@ module Wannier90
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
 using QuantumLattices: CoordinatedIndex, FockIndex, Hilbert, Index, Lattice, LinearTransformation, Matrixization, Operator, OperatorIndexToTuple, OperatorPack, Operators, OperatorSet, OperatorSum, ReciprocalPath, Table
-using QuantumLattices: 𝕔, reciprocals
+using QuantumLattices: 𝕔, 𝕔⁺, reciprocals
 using StaticArrays: SVector
 using ..TightBindingApproximation: Fermionic, Quadraticization, TBA, TBAMatrix
 
@@ -356,7 +356,7 @@ struct Operatorization <: LinearTransformation
     table::Dict{Int, Tuple{Int, Int, Rational{Int}}}
 end
 @inline function Base.valtype(::Type{<:Operatorization}, ::Type{<:Union{W90Hoppings, OperatorSet{<:W90Hoppings}}})
-    I = CoordinatedIndex{Index{FockIndex{:f, Int, Rational{Int}, Int}, Int}, SVector{3, Float64}}
+    I = CoordinatedIndex{Index{FockIndex{:f, Int, Rational{Int}}, Int}, SVector{3, Float64}}
     return Operators{Operator{ComplexF64, Tuple{I, I}}, Tuple{I, I}}
 end
 @inline (operatorization::Operatorization)(m::W90Hoppings; kwargs...) = add!(zero(operatorization, m), operatorization, m; kwargs...)
@@ -371,16 +371,16 @@ function add!(dest::Operators, operatorization::Operatorization, m::W90Hoppings;
                 rcoordinateᵢ = SVector(operatorization.centers[1, i], operatorization.centers[2, i], operatorization.centers[3, i])
                 rcoordinateⱼ = SVector(operatorization.centers[1, j], operatorization.centers[2, j], operatorization.centers[3, j]) + icoordinate
                 if complement_spin && (spinᵢ==spinⱼ==0)
-                    cᵢ = 𝕔(siteᵢ, orbitalᵢ, 1//2, 2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
-                    cⱼ = 𝕔(siteⱼ, orbitalⱼ, 1//2, 1, rcoordinateⱼ, icoordinate)
-                    add!(dest, Operator(v, cᵢ, cⱼ))
-                    cᵢ = 𝕔(siteᵢ, orbitalᵢ, -1//2, 2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
-                    cⱼ = 𝕔(siteⱼ, orbitalⱼ, -1//2, 1, rcoordinateⱼ, icoordinate)
-                    add!(dest, Operator(v, cᵢ, cⱼ))
+                    c⁺ = 𝕔⁺(siteᵢ, orbitalᵢ, 1//2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
+                    c = 𝕔(siteⱼ, orbitalⱼ, 1//2, rcoordinateⱼ, icoordinate)
+                    add!(dest, Operator(v, c⁺, c))
+                    c⁺ = 𝕔⁺(siteᵢ, orbitalᵢ, -1//2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
+                    c = 𝕔(siteⱼ, orbitalⱼ, -1//2, rcoordinateⱼ, icoordinate)
+                    add!(dest, Operator(v, c⁺, c))
                 else
-                    cᵢ = 𝕔(siteᵢ, orbitalᵢ, spinᵢ, 2, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
-                    cⱼ = 𝕔(siteⱼ, orbitalⱼ, spinⱼ, 1, rcoordinateⱼ, icoordinate)
-                    add!(dest, Operator(v, cᵢ, cⱼ))
+                    c⁺ = 𝕔⁺(siteᵢ, orbitalᵢ, spinᵢ, rcoordinateᵢ, SVector(0.0, 0.0, 0.0))
+                    c = 𝕔(siteⱼ, orbitalⱼ, spinⱼ, rcoordinateⱼ, icoordinate)
+                    add!(dest, Operator(v, c⁺, c))
                 end
             end
         end
@@ -406,13 +406,13 @@ Convert a Wannier90 tight-binding system to the operator formed one.
 """
 function TBA(wan::W90, hilbert::Hilbert; complement_spin::Bool=false, tol::Real=1e-6)
     operatorization = Operatorization(wan.centers, wan.lattice.vectors, hilbert)
-    indexes = Index{FockIndex{:f, Int, Rational{Int}, Int}, Int}[]
+    indexes = Index{FockIndex{:f, Int, Rational{Int}}, Int}[]
     for (site, orbital, spin) in values(operatorization.table)
         if complement_spin && spin==0
-            push!(indexes, 𝕔(site, orbital, 1//2, 1))
-            push!(indexes, 𝕔(site, orbital, -1//2, 1))
+            push!(indexes, 𝕔(site, orbital, 1//2))
+            push!(indexes, 𝕔(site, orbital, -1//2))
         else
-            push!(indexes, 𝕔(site, orbital, spin, 1))
+            push!(indexes, 𝕔(site, orbital, spin))
         end
     end
     table = Table(indexes, OperatorIndexToTuple(:site, :orbital, :spin))
