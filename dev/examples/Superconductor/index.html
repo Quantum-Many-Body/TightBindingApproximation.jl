@@ -19,7 +19,7 @@ t = Hopping(:t, 1.0, 1)
 
 ## p+ip pairing term
 Δ = Pairing(
-    :Δ, Complex(0.5), 1, Coupling(𝕔(:, :, :, :), 𝕔(:, :, :, :));
+    :Δ, Complex(0.5), 1, Coupling(𝕔(:, :, :), 𝕔(:, :, :));
     amplitude=bond-&gt;exp(im*azimuth(rcoordinate(bond)))
 )
 
@@ -33,14 +33,14 @@ path = ReciprocalPath(reciprocals(unitcell), rectangle&quot;Γ-X-M-Γ&quot;, len
 energybands = sc(:EB, EnergyBands(path))
 
 # plot the energy bands
-plot(energybands)</code></pre><img src="d293adac.svg" alt="Example block output"/><h2 id="Berry-curvature-and-Chern-number"><a class="docs-heading-anchor" href="#Berry-curvature-and-Chern-number">Berry curvature and Chern number</a><a id="Berry-curvature-and-Chern-number-1"></a><a class="docs-heading-anchor-permalink" href="#Berry-curvature-and-Chern-number" title="Permalink"></a></h2><p>The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated in the unitcell of the reciprocal space:</p><pre><code class="language-julia hljs"># define the Brillouin zone
+plot(energybands)</code></pre><img src="0857baea.svg" alt="Example block output"/><h2 id="Berry-curvature-and-Chern-number"><a class="docs-heading-anchor" href="#Berry-curvature-and-Chern-number">Berry curvature and Chern number</a><a id="Berry-curvature-and-Chern-number-1"></a><a class="docs-heading-anchor-permalink" href="#Berry-curvature-and-Chern-number" title="Permalink"></a></h2><p>The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated in the unitcell of the reciprocal space:</p><pre><code class="language-julia hljs"># define the Brillouin zone
 brillouin = BrillouinZone(reciprocals(unitcell), 100)
 
 # compute the Berry curvatures and Chern numbers of both quasiparticle bands
 berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
 
 # plot the Berry curvatures
-plot(berry)</code></pre><img src="307b0993.svg" alt="Example block output"/><p>The Berry curvatures can also be computed on a reciprocal zone beyond the reciprocal unitcell:</p><pre><code class="language-julia hljs"># define the reciprocal zone
+plot(berry)</code></pre><img src="7686ad6f.svg" alt="Example block output"/><p>The Berry curvatures can also be computed on a reciprocal zone beyond the reciprocal unitcell:</p><pre><code class="language-julia hljs"># define the reciprocal zone
 reciprocalzone = ReciprocalZone(
     reciprocals(unitcell), -2.0=&gt;2.0, -2.0=&gt;2.0;
     length=201, ends=(true, true)
@@ -50,11 +50,11 @@ reciprocalzone = ReciprocalZone(
 berry = sc(:BerryCurvatureExtended, BerryCurvature(reciprocalzone, [1, 2]))
 
 # plot the Berry curvature
-plot(berry)</code></pre><img src="ac66b656.svg" alt="Example block output"/><p>The total Berry curvatures of occupied bands can also be computed on a reciprocal path with Kubo method:</p><pre><code class="language-julia hljs"># compute the total Berry curvature
+plot(berry)</code></pre><img src="bccf94cf.svg" alt="Example block output"/><p>The total Berry curvatures of occupied bands can also be computed on a reciprocal path with Kubo method:</p><pre><code class="language-julia hljs"># compute the total Berry curvature
 berry = sc(:BerryCurvaturePath, BerryCurvature(path, Kubo(0.0)))
 
 # plot the Berry curvature
-plot(berry)</code></pre><img src="b790bdd2.svg" alt="Example block output"/><h2 id="Edge-states"><a class="docs-heading-anchor" href="#Edge-states">Edge states</a><a id="Edge-states-1"></a><a class="docs-heading-anchor-permalink" href="#Edge-states" title="Permalink"></a></h2><p>With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:</p><pre><code class="language-julia hljs"># define a cylinder geometry
+plot(berry)</code></pre><img src="3f9dbeca.svg" alt="Example block output"/><h2 id="Edge-states"><a class="docs-heading-anchor" href="#Edge-states">Edge states</a><a id="Edge-states-1"></a><a class="docs-heading-anchor-permalink" href="#Edge-states" title="Permalink"></a></h2><p>With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:</p><pre><code class="language-julia hljs"># define a cylinder geometry
 lattice = Lattice(unitcell, (1, 100), (&#39;P&#39;, &#39;O&#39;))
 
 # define the new Hilbert space corresponding to the cylinder
@@ -70,11 +70,11 @@ path = ReciprocalPath(reciprocals(lattice), line&quot;Γ₁-Γ₂&quot;, length=
 edgestates = sc(:Edge, EnergyBands(path))
 
 # plot the energy bands
-plot(edgestates)</code></pre><img src="a670eb96.svg" alt="Example block output"/><p>Note that when μ&gt;4 or μ&lt;-4, the superconductor is topologically trivial such that there are no gapless edge states on the cylinder geometry:</p><pre><code class="language-julia hljs"># compute the edge states with a new onsite energy such that the superconductor is trivial
+plot(edgestates)</code></pre><img src="706e1a7d.svg" alt="Example block output"/><p>Note that when μ&gt;4 or μ&lt;-4, the superconductor is topologically trivial such that there are no gapless edge states on the cylinder geometry:</p><pre><code class="language-julia hljs"># compute the edge states with a new onsite energy such that the superconductor is trivial
 trivial = sc(:Trivial, EnergyBands(path), (μ=4.5,))
 
 # plot the energy bands
-plot(trivial)</code></pre><img src="df166f77.svg" alt="Example block output"/><h2 id="Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix"><a class="docs-heading-anchor" href="#Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix">Auto-generation of the analytical expression of the Hamiltonian matrix</a><a id="Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix-1"></a><a class="docs-heading-anchor-permalink" href="#Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix" title="Permalink"></a></h2><p>Combined with <a href="https://github.com/JuliaPy/SymPy.jl">SymPy</a>, it is also possible to get the analytical expression of the free Hamiltonian in the matrix form:</p><pre><code class="language-julia hljs">using SymPy: Sym, symbols
+plot(trivial)</code></pre><img src="23fb4b7e.svg" alt="Example block output"/><h2 id="Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix"><a class="docs-heading-anchor" href="#Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix">Auto-generation of the analytical expression of the Hamiltonian matrix</a><a id="Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix-1"></a><a class="docs-heading-anchor-permalink" href="#Auto-generation-of-the-analytical-expression-of-the-Hamiltonian-matrix" title="Permalink"></a></h2><p>Combined with <a href="https://github.com/JuliaPy/SymPy.jl">SymPy</a>, it is also possible to get the analytical expression of the free Hamiltonian in the matrix form:</p><pre><code class="language-julia hljs">using SymPy: Sym, symbols
 using QuantumLattices
 using TightBindingApproximation
 
@@ -88,7 +88,7 @@ hilbert = Hilbert(site=&gt;Fock{:f}(1, 1) for site=1:length(unitcell))
 t = Hopping(:t, symbols(&quot;t&quot;, real=true), 1)
 μ = Onsite(:μ, symbols(&quot;μ&quot;, real=true))
 Δ = Pairing(
-    :Δ, symbols(&quot;Δ&quot;, real=true), 1, Coupling(𝕔(:, :, :, :), 𝕔(:, :, :, :));
+    :Δ, symbols(&quot;Δ&quot;, real=true), 1, Coupling(𝕔(:, :, :), 𝕔(:, :, :));
     amplitude=bond-&gt;exp(im*azimuth(rcoordinate(bond)))
 )
 
@@ -96,4 +96,4 @@ sc = TBA(unitcell, hilbert, (t, μ, Δ))
 
 k₁ = symbols(&quot;k₁&quot;, real=true)
 k₂ = symbols(&quot;k₂&quot;, real=true)
-m = matrix(sc, [k₁, k₂])</code></pre><p class="math-container">\[\left[\begin{smallmatrix}2 t \cos{\left(k₁ \right)} + 2 t \cos{\left(k₂ \right)} + μ &amp; - Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} + Δ e^{- i k₁}\\Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} - Δ e^{- i k₁} &amp; - 2 t \cos{\left(k₁ \right)} - 2 t \cos{\left(k₂ \right)} - μ\end{smallmatrix}\right]\]</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Graphene/">« Graphene</a><a class="docs-footer-nextpage" href="../Kagome/">Free Spinless Fermions on Kagome Lattice »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Tuesday 9 September 2025 03:25">Tuesday 9 September 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+m = matrix(sc, [k₁, k₂])</code></pre><p class="math-container">\[\left[\begin{smallmatrix}2 t \cos{\left(k₁ \right)} + 2 t \cos{\left(k₂ \right)} + μ &amp; - Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} + Δ e^{- i k₁}\\Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} - Δ e^{- i k₁} &amp; - 2 t \cos{\left(k₁ \right)} - 2 t \cos{\left(k₂ \right)} - μ\end{smallmatrix}\right]\]</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Graphene/">« Graphene</a><a class="docs-footer-nextpage" href="../Kagome/">Free Spinless Fermions on Kagome Lattice »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 24 September 2025 05:48">Wednesday 24 September 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
