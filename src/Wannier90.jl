@@ -5,9 +5,10 @@ using LinearAlgebra: Hermitian, dot
 using QuantumLattices: CoordinatedIndex, FockIndex, Hilbert, Index, Lattice, LinearTransformation, Matrixization, Operator, OperatorIndexToTuple, OperatorPack, Operators, OperatorSet, OperatorSum, ReciprocalPath, Table
 using QuantumLattices: 𝕔, 𝕔⁺, reciprocals
 using StaticArrays: SVector
-using ..TightBindingApproximation: Fermionic, Quadraticization, TBA, TBAMatrix
+using ..TightBindingApproximation: Fermionic, Quadraticization, TBAMatrix
 
 import QuantumLattices: Algorithm, add!, dimension, matrix
+import ..TightBindingApproximation: TBA
 
 export Operatorization, W90, W90Hoppings, W90Matrixization, findblock, readbands, readcenters, readhamiltonian, readlattice, readpath
 
