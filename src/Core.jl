@@ -5,6 +5,7 @@ using QuantumLattices: atol, lazy, plain, rtol
 using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, str, volume
 using RecipesBase: RecipesBase, @recipe, @series
+using StaticArrays: SVector
 using TimerOutputs: TimerOutput, @timeit_debug
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian, Hermitian
@@ -951,7 +952,7 @@ function run!(tba::Algorithm{<:TBA}, fs::Assignment{<:FermiSurface}; options...)
     es = matrix(eigvals(tba, fs.action.reciprocalspace; options...))[:, bands]
     xs, ys = range(fs.action.reciprocalspace, 1), range(fs.action.reciprocalspace, 2)
     record = Int[]
-    coords = eltype(fs.action.reciprocalspace.reciprocals)[]
+    coords = SVector{2, scalartype(fs.action.reciprocalspace)}[]
     for i in axes(es, 2)
         for line in lines(contour(xs, ys, transpose(reshape(es[:, i], length(ys), length(xs))), fs.action.μ))
             for (x, y) in zip(coordinates(line)...)
