@@ -4,7 +4,7 @@ CurrentModule = TightBindingApproximation
 
 # Graphene
 
-In this section, it is illustrated how the **energy bands** and **edge states** of tight-binding systems can be computed with the monolayer graphene as the example.
+In this section, it is illustrated how the **energy bands** and **edge states** of tight-binding systems can be computed using the monolayer graphene as an example.
 
 ## Energy bands
 

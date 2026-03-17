@@ -63,7 +63,7 @@ plot!(plt, wan(:EB, EnergyBands(path)), color=:black)
 
 The constructed `wan` can be converted to a normal tight-binding system
 ```@example wannier90
-# Define the hilbert space. Note that `hilbert.nspin` is 1
+# Define the Hilbert space. Note that `hilbert.nspin` is 1
 # This is because in silicon, the spin-orbital coupling is omitted
 # Therefore, seedname_hr.dat in fact describes a spinless system
 hilbert = Hilbert(Fock{:f}(4, 1), length(wan.frontend.lattice))

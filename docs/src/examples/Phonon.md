@@ -18,7 +18,7 @@ using Plots
 # define the unitcell of the square lattice
 unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
 
-# define the Hilbert space of phonons with 2 vibrant directions
+# define the Hilbert space of phonons with 2 vibrational directions
 hilbert = Hilbert(site=>Phonon(2) for site=1:length(unitcell))
 
 # define the terms
@@ -32,7 +32,7 @@ V₁ = Hooke(:V₁, 0.5, 1)
 ## Potential energy on the next-nearest-neighbor bonds with the spring constant k₂=0.5
 V₂ = Hooke(:V₂, 0.25, 2)
 
-# define the harmonic approximation of the phonons on square lattice
+# define the harmonic approximation of the phonons on the square lattice
 phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))
 
 # define the path in the reciprocal space to compute the energy bands
@@ -49,7 +49,7 @@ plot(energybands)
 
 The inelastic neutron scattering spectra of phonons can also be computed:
 ```@example phonon
-# fwhm: the FWHM of the Gaussian to be convoluted
+# fwhm: the FWHM of the Gaussian to be convolved
 # scale: the scale of the intensity
 spectra = phonon(
     :INSS,

@@ -4,7 +4,7 @@ CurrentModule = TightBindingApproximation
 
 # p+ip Superconductor on Square Lattice
 
-In this section, it is illustrated how the **Berry curvatures** and **Chern numbers** of free energy bands can be computed with the p+ip superconductor on the square lattice as the example.
+In this section, it is illustrated how the **Berry curvatures** and **Chern numbers** of free energy bands can be computed using the p+ip superconductor on the square lattice as an example.
 
 ## Energy bands
 
@@ -87,7 +87,7 @@ plot(berry)
 
 ## Edge states
 
-With tiny modification on the algorithm, the edge states of the p+ip topological superconductor could also be computed:
+With tiny modifications to the algorithm, the edge states of the p+ip topological superconductor could also be computed:
 ```@example p+ip
 # define a cylinder geometry
 lattice = Lattice(unitcell, (1, 100), ('P', 'O'))

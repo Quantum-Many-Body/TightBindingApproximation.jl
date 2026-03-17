@@ -4,7 +4,7 @@ CurrentModule = TightBindingApproximation
 
 # Free Spinless Fermions on Kagome Lattice
 
-In this section, it is illustrated how the **density of states** (DOS) and **Fermi surfaces** (FS) of tight-binding systems can be computed with the free spinless fermions on Kagome lattice as the example.
+In this section, it is illustrated how the **density of states** (DOS) and **Fermi surfaces** (FS) of tight-binding systems can be computed using the free spinless fermions on the Kagome lattice as an example.
 
 ## Lattice structure
 
@@ -66,9 +66,9 @@ dos = kagome(
 )
 plot(dos)
 ```
-There are three peaks in the DOS. The one at 2 reflects the flat upper energy band, and the ones at 0 and -2 implies the Van Hove singularities of the middle and lower energy bands, respectively.
+There are three peaks in the DOS. The one at 2 reflects the flat upper energy band, and the ones at 0 and -2 imply the Van Hove singularities of the middle and lower energy bands, respectively.
 
-On the other hand, the DOS of a specific generalized orbital on a given sets of bands can also be computed:
+On the other hand, the DOS of a specific generalized orbital on given sets of bands can also be computed:
 
 ```@example kagome
 # the total DOS of the lower two bands
@@ -102,10 +102,10 @@ plot(dos; labels=["Sublattice 1" "Sublattice 2" "Sublattice 3"], legend=true)
 
 ## Fermi surface
 
-When the Fermi level of the system sets at the Van Hove singularity of the middle band, the FS is also in the shape of a Kagome lattice:
+When the Fermi level of the system is set at the Van Hove singularity of the middle band, the FS is also in the shape of a Kagome lattice:
 
 ```@example kagome
-# define a reciprocal zone proper to show the FS
+# define a reciprocal zone suitable for showing the FS
 reciprocalzone = ReciprocalZone(
     [[4*pi/√3, 0.0], [0.0, 4*pi/√3]], -1.0=>1.0, -1.0=>1.0;
     length=600, ends=(true, true)
@@ -116,7 +116,7 @@ fs = kagome(:FermiSurface, FermiSurface(reciprocalzone, 0))
 plot(fs)
 ```
 
-As is similar to DOS, specific orbital components of a specific set of bands on the Fermi level can also be computed, as shown by the following codes:
+Similar to the DOS, specific orbital components of a specific set of bands on the Fermi level can also be computed, as shown by the following codes:
 
 ```@example kagome
 # Fermi level at 0, the three sublattice components at the FS, respectively

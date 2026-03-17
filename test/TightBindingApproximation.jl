@@ -2,7 +2,7 @@ using Artifacts
 using LinearAlgebra: Diagonal, Eigen, Hermitian, ishermitian
 using Pkg
 using Plots: plot, plot!, savefig
-using QuantumLattices: Algorithm, BrillouinZone, Coupling, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorIndexToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
+using QuantumLattices: Algorithm, BrillouinZone, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorIndexToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
 using QuantumLattices: atol, σᶻ, 𝕕, 𝕕𝕕, 𝕕⁺𝕕, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, scalartype, update!, @rectangle_str
 using StaticArrays: SVector
 using TightBindingApproximation

@@ -1,10 +1,9 @@
 module TightBindingApproximationPlotsExt
 
 using Printf: @sprintf
+using QuantumLattices: Assignment, label, ReciprocalSpace, str
 using RecipesBase: @recipe, @series
-using QuantumLattices: Assignment, ReciprocalSpace, ReciprocalScatter
-using TightBindingApproximation: BerryCurvature, BerryCurvatureData, EnergyBands, FermiSurface, FermiSurfaceData, Fukui, Kubo
-using QuantumLattices: label, ReciprocalZone, BrillouinZone, str
+using TightBindingApproximation: BerryCurvature, EnergyBands, FermiSurface, Fukui, Kubo
 
 # Plot energy bands
 @recipe function plot(eb::Assignment{<:EnergyBands}; bands=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing)

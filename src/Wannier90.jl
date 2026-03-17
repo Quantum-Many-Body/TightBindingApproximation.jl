@@ -132,7 +132,7 @@ function readcenters(path::AbstractString, seedname::AbstractString)
 end
 
 """
-    W90Hoppings <: OperatorPack{Matrix{Float64}, NTuple{3, Int}}
+    W90Hoppings <: OperatorPack{Matrix{ComplexF64}, NTuple{3, Int}}
 
 Hopping amplitudes among the Wannier orbitals in two unitcells with a fixed relative displacement.
 
@@ -260,7 +260,7 @@ end
 Construct a quantum lattice system based on the information obtained from Wannier90.
 
 In general, the Wannier centers could deviate from their corresponding atom positions.
-When `centers::Matrix{<:Real}` is used, the the Wannier centers are assigned directly.
+When `centers::Matrix{<:Real}` is used, the Wannier centers are assigned directly.
 When `hilbert::Hilbert` is used, the Wannier centers will be approximated by their corresponding atom positions.
 """
 function W90(lattice::Lattice, hilbert::Hilbert, H::OperatorSum{W90Hoppings})
