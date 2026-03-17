@@ -4,7 +4,6 @@ using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
 using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, str, volume
-using RecipesBase: RecipesBase, @recipe, @series
 using StaticArrays: SVector
 using TimerOutputs: TimerOutput, @timeit_debug
 
@@ -606,27 +605,6 @@ function run!(tba::Algorithm{<:TBA}, eb::Assignment{<:EnergyBands}; options...)
     return data
 end
 
-# Plot energy bands
-@recipe function plot(eb::Assignment{<:EnergyBands}; bands=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing)
-    title --> str(eb)
-    titlefontsize --> 10
-    if length(eb.action.orbitals) > 0
-        @series begin
-            seriestype := :scatter
-            weightmultiplier := weightmultiplier
-            weightcolors := weightcolors
-            weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in eb.action.orbitals] : weightlabels
-            eb.data.reciprocalspace, eb.data.values, eb.data.weights
-        end
-    end
-    isnothing(bands) && (bands = length(eb.action.orbitals)==0)
-    if bands
-        label --> ""
-        seriestype := :path
-        eb.data.reciprocalspace, eb.data.values
-    end
-end
-
 """
     abstract type BerryCurvatureMethod end
 
@@ -780,25 +758,6 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Reciproca
     return BerryCurvatureData(shrink(bc.action.reciprocalspace, 1:size(values, 2), 1:size(values, 1)), values, nothing)
 end
 
-## Plot the Berry curvature and optionally the Chern number obtained by the Fukui method
-@recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui{true}}})
-    plot_title --> str(bc)
-    plot_titlefontsize --> 10
-    subtitles --> [@sprintf("band %s %s", band, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", str(bc.data.chernnumber[i]))) for (i, band) in enumerate(bc.action.method.bands)]
-    subtitlefontsize --> 8
-    bc.data.reciprocalspace, bc.data.values
-end
-@recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Fukui{false}}})
-    plot_title --> str(bc)
-    plot_titlefontsize --> 10
-    layout := (1, 1)
-    subplot := 1
-    title --> @sprintf("sum of bands %s %s", bc.action.method.bands, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", str(bc.data.chernnumber)))
-    plot_title --> str(bc, "\n", info)
-    titlefontsize --> 8
-    bc.data.reciprocalspace, bc.data.values
-end
-
 # Kubo method
 """
     Kubo{K<:Union{Nothing, Vector{Float64}}} <: BerryCurvatureMethod
@@ -900,17 +859,6 @@ function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:Reciproca
     return BerryCurvatureData(bc.action.reciprocalspace, values, nothing)
 end
 
-## Plot the Berry curvature and optionally the Chern number obtained by the Kubo method
-@recipe function plot(bc::Assignment{<:BerryCurvature{<:ReciprocalSpace, <:Kubo}})
-    plot_title --> str(bc)
-    plot_titlefontsize --> 10
-    layout := (1, 1)
-    subplot := 1
-    title --> @sprintf("bands below %s %s", bc.action.method.μ, isnothing(bc.data.chernnumber) ? "" : @sprintf("(C = %s)", str(bc.data.chernnumber)))
-    titlefontsize --> 8
-    bc.data.reciprocalspace, bc.data.values
-end
-
 """
     FermiSurface{L<:Tuple{Vararg{AbstractVector{Int}}}, B<:Union{BrillouinZone, ReciprocalZone}, A<:Union{Colon, AbstractVector{Int}}} <: Action
 
@@ -972,22 +920,6 @@ function run!(tba::Algorithm{<:TBA}, fs::Assignment{<:FermiSurface}; options...)
         end
     end
     return FermiSurfaceData(values, weights)
-end
-@recipe function plot(fs::Assignment{<:FermiSurface}; fractional=true, weightmultiplier=1.0, weightcolors=nothing, weightlabels=nothing)
-    title --> str(fs)
-    titlefontsize --> 10
-    seriestype := :scatter
-    fractional := fractional
-    if length(fs.action.orbitals) > 0
-        weightmultiplier := weightmultiplier
-        weightcolors := weightcolors
-        weightlabels := isnothing(weightlabels) ? [string("Orbital", length(orbitals)>1 ? "s " : " ", join(orbitals, ", ")) for orbitals in fs.action.orbitals] : weightlabels
-        fs.data.values, fs.data.weights
-    else
-        autolims := false
-        markersize --> 1
-        fs.data.values
-    end
 end
 
 """
