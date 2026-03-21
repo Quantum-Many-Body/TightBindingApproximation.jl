@@ -1,13 +1,15 @@
 using Artifacts
 using LinearAlgebra: Diagonal, Eigen, Hermitian, ishermitian
 using Pkg
-using Plots: plot, plot!, savefig
 using QuantumLattices: Algorithm, BrillouinZone, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorIndexToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
 using QuantumLattices: atol, σᶻ, 𝕕, 𝕕𝕕, 𝕕⁺𝕕, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, scalartype, update!, @rectangle_str
 using StaticArrays: SVector
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
 using TightBindingApproximation.Wannier90
+import CairoMakie
+import Makie
+import Plots
 
 @time @testset "prerequisite" begin
     @test promote_type(Fermionic{:TBA}, Fermionic{:TBA}) == Fermionic{:TBA}
@@ -233,19 +235,28 @@ end
 
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
     @test eigen(sc, path) == (eigvals(sc, path), eigvecs(sc, path))
-    savefig(plot(sc(:EB, EnergyBands(path, 1:2))), "EB.png")
-    savefig(plot(sc(:EB, EnergyBands(path, :, 1:1, 2:2)); weightlabels=["particle", "hole"], legend=(0.4, 0.1), legendfont=10, legendcolumn=-1), "EBWeighted.png")
+    Plots.savefig(Plots.plot(sc(:EB, EnergyBands(path, 1:2))), "PlotsEB.png")
+    Makie.save("MakieEB.png", Makie.plot(sc(:EB, EnergyBands(path, 1:2))))
+    Plots.savefig(Plots.plot(sc(:EB, EnergyBands(path, :, 1:1, 2:2)); weightlabels=["particle", "hole"], legend=(0.4, 0.1), legendfont=10, legendcolumn=-1), "PlotsEBWeighted.png")
+    Makie.save("MakieEBWeighted.png", Makie.plot(sc(:EB, EnergyBands(path, :, 1:1, 2:2)); weightlabels=["particle", "hole"]))
 
     brillouin = BrillouinZone(reciprocals(unitcell), 100)
-    savefig(plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))), "BerryCurvatureAbelian.png")
-    savefig(plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "BerryCurvatureNonabelian.png")
-    savefig(plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))), "BerryCurvatureKubo.png")
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))), "PlotsBerryCurvatureAbelian.png")
+    Makie.save("MakieBerryCurvatureAbelian.png", Makie.plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))))
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "PlotsBerryCurvatureNonabelian.png")
+    Makie.save("MakieBerryCurvatureNonabelian.png", Makie.plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))))
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))), "PlotsBerryCurvatureKubo.png")
+    Makie.save("MakieBerryCurvatureKubo.png", Makie.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))))
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-1.0=>1.0, -1.0=>1.0]; length=201, ends=(true, true))
-    savefig(plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))), "BerryCurvatureExtendedAbelian.png")
-    savefig(plot(sc(:BerryCurvatureExtendedNonabelian, BerryCurvature(reciprocalzone, [1, 2], false))), "BerryCurvatureExtendedNonabelian.png")
-    savefig(plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))), "BerryCurvatureExtendedKubo.png")
-    savefig(plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "BerryCurvaturePath.png")
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))), "PlotsBerryCurvatureExtendedAbelian.png")
+    Makie.save("MakieBerryCurvatureExtendedAbelian.png", Makie.plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))))
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedNonabelian, BerryCurvature(reciprocalzone, [1, 2], false))), "PlotsBerryCurvatureExtendedNonabelian.png")
+    Makie.save("MakieBerryCurvatureExtendedNonabelian.png", Makie.plot(sc(:BerryCurvatureExtendedNonabelian, BerryCurvature(reciprocalzone, [1, 2], false))))
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))), "PlotsBerryCurvatureExtendedKubo.png")
+    Makie.save("MakieBerryCurvatureExtendedKubo.png", Makie.plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))))
+    Plots.savefig(Plots.plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "PlotsBerryCurvaturePath.png")
+    Makie.save("MakieBerryCurvaturePath.png", Makie.plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))))
 end
 
 @time @testset "FermiSurface and DensityOfStates" begin
@@ -256,15 +267,20 @@ end
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
     brillouin = BrillouinZone(reciprocals(unitcell), 400)
-    savefig(plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "FermiSurface.png")
-    savefig(plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "FermiSurfaceSpinDependent.png")
-    dos = tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]); emin=-5.0, emax=5.0, ne=201, fwhm=0.05)
-    savefig(plot(dos), "DensityOfStates.png")
+    Plots.savefig(Plots.plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "PlotsFermiSurface.png")
+    Makie.save("MakieFermiSurface.png", Makie.plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))))
+    Plots.savefig(Plots.plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "PlotsFermiSurfaceSpinDependent.png")
+    Makie.save("MakieFermiSurfaceSpinDependent.png", Makie.plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2])); weightlabels=("↑", "↓")))
+    dos = tba(:DensityOfStates, DensityOfStates(brillouin, :, :, [1], [2]))
+    Plots.savefig(Plots.plot(dos), "PlotsDensityOfStates.png")
+    Makie.save("MakieDensityOfStates.png", Makie.plot(dos))
     @test isapprox(sum(dos.data.values[:, 1]), 2.0; atol=10^-3)
 
     reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-1.0=>1.0, -1.0=>1.0]; length=401, ends=(true, true))
-    savefig(plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "FermiSurfaceExtended.png")
-    savefig(plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "FermiSurfaceExtendedSpinDependent.png")
+    Plots.savefig(Plots.plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "PlotsFermiSurfaceExtended.png")
+    Makie.save("MakieFermiSurfaceExtended.png", Makie.plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))))
+    Plots.savefig(Plots.plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "PlotsFermiSurfaceExtendedSpinDependent.png")
+    Makie.save("MakieFermiSurfaceExtendedSpinDependent.png", Makie.plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2])); weightlabels=("↑", "↓")))
 end
 
 @time @testset "InelasticNeutronScatteringSpectra" begin
@@ -277,13 +293,20 @@ end
     path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
 
     energybands = phonon(:EB, EnergyBands(path))
-    savefig(plot(energybands), "PhononEB.png")
+    Plots.savefig(Plots.plot(energybands), "PlotsPhononEB.png")
+    Makie.save("MakiePhononEB.png", Makie.plot(energybands))
 
     inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501)); fwhm=0.05, rescale=x->log(1+x))
-    plt = plot()
-    plot!(plt, inelastic)
-    plot!(plt, energybands, color=:white, linestyle=:dash)
-    savefig("InelasticNeutronScatteringSpectra.png")
+    plt = Plots.plot()
+    Plots.plot!(plt, inelastic)
+    Plots.plot!(plt, energybands, color=:white, linestyle=:dash)
+    Plots.savefig(plt, "PlotsInelasticNeutronScatteringSpectra.png")
+    # Makie equivalent
+    fig = Makie.Figure()
+    ax = Makie.Axis(fig[1, 1]; xlabel="Energy", ylabel="Intensity")
+    Makie.plot!(ax, inelastic)
+    Makie.plot!(ax, energybands; color=:white, linestyle=:dash)
+    Makie.save("MakieInelasticNeutronScatteringSpectra.png", fig)
 end
 
 @time @testset "Fitting" begin
@@ -322,31 +345,55 @@ const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
     ]
     path = readpath(dir, seedname)
     bands = readbands(dir, seedname)
-    plt = plot()
-    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, wan(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
-    savefig("silicon_wannier90_center.png")
+    plt = Plots.plot()
+    Plots.plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    Plots.plot!(plt, wan(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
+    Plots.savefig(plt, "Plotsilicon_wannier90_center.png")
+    # Makie equivalent
+    fig = Makie.Figure()
+    ax = Makie.Axis(fig[1, 1]; xlabel="", ylabel="Energy", title="silicon wannier90 center")
+    Makie.plot!(ax, bands[1], bands[2]; color=:green, alpha=0.6, linewidth=2.5)
+    Makie.plot!(ax, wan(:EB, EnergyBands(path); gauge=:rcoordinate); color=:black)
+    Makie.save("Makiesilicon_wannier90_center.png", fig)
 
     hilbert = Hilbert(Fock{:f}(4, 1), length(wan.frontend.lattice))
     another = Algorithm(:silicon, W90(wan.frontend.lattice, hilbert, wan.frontend.H))
     update!(another)
-    plt =  plot()
-    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, another(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
-    savefig("silicon_wannier90_atom.png")
+    plt = Plots.plot()
+    Plots.plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    Plots.plot!(plt, another(:EB, EnergyBands(path); gauge=:rcoordinate), color=:black)
+    Plots.savefig(plt, "Plotsilicon_wannier90_atom.png")
+    # Makie equivalent
+    fig = Makie.Figure()
+    ax = Makie.Axis(fig[1, 1]; xlabel="", ylabel="Energy", title="silicon wannier90 atom")
+    Makie.plot!(ax, bands[1], bands[2]; color=:green, alpha=0.6, linewidth=2.5)
+    Makie.plot!(ax, another(:EB, EnergyBands(path); gauge=:rcoordinate); color=:black)
+    Makie.save("Makiesilicon_wannier90_atom.png", fig)
 
     tba = Algorithm(wan, hilbert; complement_spin=false)
     k = rand(3)
     @test matrix(tba, k; gauge=:icoordinate) ≈ matrix(wan, k; gauge=:icoordinate)
     @test matrix(tba, k; gauge=:rcoordinate) ≈ matrix(wan, k; gauge=:rcoordinate)
-    plt = plot()
-    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, tba(:EB, EnergyBands(path)), color=:black)
-    savefig("silicon_operatorization_spinless.png")
+    plt = Plots.plot()
+    Plots.plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    Plots.plot!(plt, tba(:EB, EnergyBands(path)), color=:black)
+    Plots.savefig(plt, "Plotsilicon_operatorization_spinless.png")
+    # Makie equivalent
+    fig = Makie.Figure()
+    ax = Makie.Axis(fig[1, 1]; xlabel="", ylabel="Energy", title="silicon operatorization spinless")
+    Makie.plot!(ax, bands[1], bands[2]; color=:green, alpha=0.6, linewidth=2.5)
+    Makie.plot!(ax, tba(:EB, EnergyBands(path)); color=:black)
+    Makie.save("Makiesilicon_operatorization_spinless.png", fig)
 
     tba = Algorithm(wan, hilbert; complement_spin=true)
-    plt = plot()
-    plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
-    plot!(plt, tba(:EB, EnergyBands(path)), color=:black)
-    savefig("silicon_operatorization_spinful.png")
+    plt = Plots.plot()
+    Plots.plot!(plt, bands...; xlim=(0.0, distance(path)), label=false, color=:green, alpha=0.6, lw=2.5)
+    Plots.plot!(plt, tba(:EB, EnergyBands(path)), color=:black)
+    Plots.savefig(plt, "Plotsilicon_operatorization_spinful.png")
+    # Makie equivalent
+    fig = Makie.Figure()
+    ax = Makie.Axis(fig[1, 1]; xlabel="", ylabel="Energy", title="silicon operatorization spinful")
+    Makie.plot!(ax, bands[1], bands[2]; color=:green, alpha=0.6, linewidth=2.5)
+    Makie.plot!(ax, tba(:EB, EnergyBands(path)); color=:black)
+    Makie.save("Makiesilicon_operatorization_spinful.png", fig)
 end
