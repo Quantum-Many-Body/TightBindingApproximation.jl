@@ -7,8 +7,7 @@ using StaticArrays: SVector
 using TightBindingApproximation
 using TightBindingApproximation.Fitting
 using TightBindingApproximation.Wannier90
-import CairoMakie
-import Makie
+import CairoMakie as Makie
 import Plots
 
 @time @testset "prerequisite" begin

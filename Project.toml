@@ -1,7 +1,7 @@
 name = "TightBindingApproximation"
 uuid = "d3576f78-cb9d-4774-9dc5-b247cf392ff4"
+version = "0.3.7"
 authors = ["waltergu <waltergu1989@gmail.com>"]
-version = "0.3.6"
 
 [deps]
 Contour = "d38c429a-6771-53c6-b99e-75d170b6e991"
@@ -14,18 +14,20 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 
 [extensions]
 TightBindingApproximationPlotsExt = ["RecipesBase"]
+TightBindingApproximationMakieExt = ["Makie"]
 
 [compat]
 Contour = "0.6.3"
 DelimitedFiles = "1.8 - 1"
 LinearAlgebra = "1.10 - 1"
-Optim = "1.7 - 1"
+Optim = "1.7 - 2"
 Printf = "1.10 - 1"
-QuantumLattices = "0.14"
+QuantumLattices = "0.14.3"
 RecipesBase = "1.2 - 1"
 StaticArrays = "1.4 - 1"
 TimerOutputs = "0.5"
