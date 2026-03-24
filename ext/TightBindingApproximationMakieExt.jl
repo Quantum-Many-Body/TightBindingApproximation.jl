@@ -6,7 +6,7 @@ using QuantumLattices: Assignment, ReciprocalSpace, str
 using TightBindingApproximation: BerryCurvature, EnergyBands, FermiSurface, Fukui, Kubo
 
 # 1. EnergyBands
-function Makie.plot!(ax::Makie.AbstractAxis, eb::Assignment{<:EnergyBands}; bands::Union{Bool, Nothing}=nothing, weightmultiplier=2.0, weightcolors=nothing, weightlabels=nothing, kwargs...)
+function Makie.plot!(ax::Makie.AbstractAxis, eb::Assignment{<:EnergyBands}; bands::Union{Bool, Nothing}=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing, kwargs...)
     ax.title = get(kwargs, :title, str(eb))
     ax.titlesize = get(kwargs, :titlesize, 10)
     if length(eb.action.orbitals) > 0
@@ -27,7 +27,7 @@ function Makie.plot!(fig::Makie.Figure, bc::Assignment{<:BerryCurvature{<:Recipr
         kwargs...
     )
 end
-@inline ith_subtitle(chernnumber, i::Int) = "band $i (C = $(chernnumber[i]))"
+@inline ith_subtitle(chernnumber, i::Int) = "band $i (C = $(str(chernnumber[i])))"
 @inline ith_subtitle(::Nothing, i::Int) = "band $i"
 
 # 3. BerryCurvature{Fukui{false}}
@@ -49,7 +49,7 @@ function Makie.plot!(ax::Makie.AbstractAxis, fs::Assignment{<:FermiSurface}; kwa
         weightlabels = [string("Orbital", length(orb)>1 ? "s " : " ", join(orb, ", ")) for orb in fs.action.orbitals]
         return Makie.plot!(ax, fs.data.values, fs.data.weights; title, weightlabels, kwargs...)
     else
-        return Makie.plot!(ax, fs.data.values; title, kwargs...)
+        return Makie.plot!(ax, fs.data.values; title, markersize=3, kwargs...)
     end
 end
 
