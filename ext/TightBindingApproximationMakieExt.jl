@@ -1,9 +1,9 @@
 module TightBindingApproximationMakieExt
 
-import Makie
 using Printf: @sprintf
 using QuantumLattices: Assignment, ReciprocalSpace, str
 using TightBindingApproximation: BerryCurvature, EnergyBands, FermiSurface, Fukui, Kubo
+import Makie
 
 # 1. EnergyBands
 function Makie.plot!(ax::Makie.AbstractAxis, eb::Assignment{<:EnergyBands}; bands::Union{Bool, Nothing}=nothing, weightmultiplier=5.0, weightcolors=nothing, weightlabels=nothing, kwargs...)
