@@ -2,7 +2,7 @@ module Wannier90
 
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
-using QuantumLattices: CoordinatedIndex, FockIndex, Hilbert, Index, Lattice, LinearTransformation, Matrixization, Operator, OperatorIndexToTuple, OperatorPack, Operators, OperatorSet, OperatorSum, ReciprocalPath, Table
+using QuantumLattices: CoordinatedIndex, FockIndex, Hilbert, Index, Lattice, LinearTransformation, Matrixization, Operator, OperatorIndexToTuple, OperatorPack, Operators, OperatorSet, OperatorSum, ReciprocalPath, StaticGenerator, Table
 using QuantumLattices: 𝕔, 𝕔⁺, reciprocals
 using StaticArrays: SVector
 using ..TightBindingApproximation: Fermionic, Quadraticization, TBAMatrix
@@ -150,7 +150,7 @@ struct W90Hoppings <: OperatorPack{Matrix{ComplexF64}, NTuple{3, Int}}
 end
 
 """
-    readhamiltonian(path::AbstractString, seedname::AbstractString) -> OperatorSum{W90Hoppings, NTuple{3, Int}}
+    readhamiltonian(path::AbstractString, seedname::AbstractString) -> StaticGenerator{OperatorSum{W90Hoppings, NTuple{3, Int}}}
 
 Read the hamiltonian from the Wannier90 "_hr.dat" output data file.
 """
@@ -186,7 +186,7 @@ function readhamiltonian(path::AbstractString, seedname::AbstractString)
     for point in keys(ham.contents)
         @assert haskey(ham, map(-, point)) "readhamiltonian error: did not find the inverse of point $(point)."
     end
-    return ham
+    return StaticGenerator(ham)
 end
 
 """
@@ -232,15 +232,15 @@ function add!(dest::AbstractMatrix, mr::W90Matrixization, m::W90Hoppings; kwargs
 end
 
 """
-    W90 <: TBA{Fermionic{:TBA}, OperatorSum{W90Hoppings, NTuple{3, Int}}, Nothing}
+    W90 <: TBA{Fermionic{:TBA}, StaticGenerator{OperatorSum{W90Hoppings, NTuple{3, Int}}}, Nothing}
 
 A quantum lattice system based on the information obtained from Wannier90.
 """
-struct W90 <: TBA{Fermionic{:TBA}, OperatorSum{W90Hoppings, NTuple{3, Int}}, Nothing}
+struct W90 <: TBA{Fermionic{:TBA}, StaticGenerator{OperatorSum{W90Hoppings, NTuple{3, Int}}}, Nothing}
     lattice::Lattice{3, Float64, 3}
     centers::Matrix{Float64}
-    H::OperatorSum{W90Hoppings, NTuple{3, Int}}
-    function W90(lattice::Lattice{3, <:Real, 3}, centers::AbstractMatrix{<:Real}, H::OperatorSum{W90Hoppings})
+    H::StaticGenerator{OperatorSum{W90Hoppings, NTuple{3, Int}}}
+    function W90(lattice::Lattice{3, <:Real, 3}, centers::AbstractMatrix{<:Real}, H::StaticGenerator{OperatorSum{W90Hoppings, NTuple{3, Int}}})
         @assert size(centers)[1]==3 "W90 error: the row number of `centers` must be 3."
         @assert size(centers)[2]==size(first(H).value)[1] "W90 error: mismatched size of Wannier centers and hoppings."
         new(lattice, centers, H)
@@ -249,13 +249,13 @@ end
 @inline dimension(wan::W90) = size(wan.centers)[2]
 @inline update!(wan::W90; parameters...) = wan
 @inline function matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0, 0, 0); gauge=:icoordinate, kwargs...)
-    m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.H; kwargs...)
+    m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.H.operators; kwargs...)
     return TBAMatrix(Hermitian(m), nothing)
 end
 
 """
-    W90(lattice::Lattice, centers::Matrix{<:Real}, H::OperatorSum{W90Hoppings})
-    W90(lattice::Lattice, hilbert::Hilbert, H::OperatorSum{W90Hoppings})
+    W90(lattice::Lattice, centers::Matrix{<:Real}, H::StaticGenerator{<:OperatorSum{W90Hoppings}})
+    W90(lattice::Lattice, hilbert::Hilbert, H::StaticGenerator{<:OperatorSum{W90Hoppings}})
 
 Construct a quantum lattice system based on the information obtained from Wannier90.
 
@@ -263,7 +263,7 @@ In general, the Wannier centers could deviate from their corresponding atom posi
 When `centers::Matrix{<:Real}` is used, the Wannier centers are assigned directly.
 When `hilbert::Hilbert` is used, the Wannier centers will be approximated by their corresponding atom positions.
 """
-function W90(lattice::Lattice, hilbert::Hilbert, H::OperatorSum{W90Hoppings})
+function W90(lattice::Lattice, hilbert::Hilbert, H::StaticGenerator{<:OperatorSum{W90Hoppings}})
     table = Table(hilbert, OperatorIndexToTuple(:site, :orbital, :spin))
     centers = zeros(Float64, 3, length(table))
     for (key, index) in pairs(table)

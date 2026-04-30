@@ -2,13 +2,13 @@ using Contour: contour, coordinates, lines
 using LinearAlgebra: cholesky, Diagonal, dot, Eigen, I, inv, logdet, norm, normalize
 using Printf: @printf, @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
-using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, shape, shrink, statistics, str, volume
+using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
+using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, scalartype, shape, shrink, statistics, str, volume
 using StaticArrays: SVector
 using TimerOutputs: @timeit_debug, TimerOutput
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian, Hermitian
-import QuantumLattices: Metric, Parameters, Table, add!, dimension, getcontent, kind, matrix, options, parameternames, run!, scalartype, update!
+import QuantumLattices: Metric, Parameters, Table, add!, dimension, getcontent, kind, matrix, options, parameternames, run!, update!
 
 const tbatimer = TimerOutput()
 
@@ -257,12 +257,13 @@ Get the eigen vectors of a free quantum lattice system.
 @inline eigvecs(m::TBAMatrix) = eigen(m).vectors
 
 """
-    TBA{K<:TBAKind, H<:Union{Formula, OperatorSet, Generator, Frontend}, C<:Union{Nothing, AbstractMatrix}} <: Frontend
+    TBA{K<:TBAKind, H<:LatticeModel, C<:Union{Nothing, AbstractMatrix}} <: Frontend
 
 Abstract type for free quantum lattice systems using the tight-binding approximation.
 """
-abstract type TBA{K<:TBAKind, H<:Union{Formula, OperatorSet, Generator, Frontend}, C<:Union{Nothing, AbstractMatrix}} <: Frontend end
-@inline getcontent(tba::TBA{<:TBAKind, <:Union{Formula, OperatorSet, Generator, Frontend}, Nothing}, ::Val{:commutator}) = nothing
+abstract type TBA{K<:TBAKind, H<:LatticeModel, C<:Union{Nothing, AbstractMatrix}} <: Frontend end
+@inline Base.valtype(::Type{<:TBA{<:TBAKind, H}}) where H = valtype(H)
+@inline getcontent(tba::TBA{<:TBAKind, <:LatticeModel, Nothing}, ::Val{:commutator}) = nothing
 @inline Parameters(tba::TBA) = Parameters(getcontent(tba, :H))
 
 """
@@ -275,15 +276,6 @@ Get the kind of a tight-binding system.
 @inline kind(tba::Union{TBA, Algorithm{<:TBA}}) = kind(typeof(tba))
 @inline kind(::Type{<:TBA{K}}) where K = K()
 @inline kind(::Type{<:Algorithm{F}}) where {F<:TBA} = kind(F)
-
-"""
-    scalartype(::Type{<:TBA{<:TBAKind, H}}) where {H<:Union{Formula, OperatorSet, Generator, Frontend}}
-    scalartype(::Type{<:Algorithm{F}}) where {F<:TBA}
-
-Get the scalartype of a tight-binding system.
-"""
-@inline scalartype(::Type{<:TBA{<:TBAKind, H}}) where {H<:Union{Formula, OperatorSet, Generator, Frontend}} = scalartype(H)
-@inline scalartype(::Type{<:Algorithm{F}}) where {F<:TBA} = scalartype(F)
 
 """
     dimension(tba::Union{TBA, Algorithm{<:TBA}}) -> Int
@@ -302,7 +294,7 @@ function dimension(tba::TBA{<:TBAKind, <:Formula})
         return m
     end
 end
-function dimension(tba::TBA{<:TBAKind, <:Union{OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}})
+function dimension(tba::TBA{<:TBAKind, <:Generator{<:OperatorSet{<:Quadratic}}})
     result = 0
     for op in getcontent(tba, :H)
         result = max(result, op.position...)
@@ -325,11 +317,11 @@ end
     return TBAMatrix(Hermitian(m), commutator)
 end
 @inline function matrix(
-    tba::TBA{<:TBAKind, <:Union{OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}}, k::Union{AbstractVector{<:Number}, Nothing}=nothing;
+    tba::TBA{<:TBAKind, <:Generator{<:OperatorSet{<:Quadratic}}}, k::Union{AbstractVector{<:Number}, Nothing}=nothing;
     gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba))
 )
     matrixization = TBAMatrixization{datatype(scalartype(tba), k)}(k, dimension(tba), gauge)
-    m = matrixization(expand(getcontent(tba, :H)); infinitesimal=infinitesimal)
+    m = matrixization(expand(getcontent(tba, :H), lazy); infinitesimal=infinitesimal)
     commutator = getcontent(tba, :commutator)
     return TBAMatrix(Hermitian(m), commutator)
 end
@@ -396,29 +388,15 @@ end
 @inline eigvecs(tba::TBA, reciprocalspace::ReciprocalSpace; timer::TimerOutput=tbatimer, options...) = [eigvecs(tba, momentum; timer=timer, options...) for momentum in reciprocalspace]
 
 """
-    SimpleTBA{
-        K<:TBAKind,
-        L<:Union{AbstractLattice, Nothing},
-        H<:Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}},
-        C<:Union{AbstractMatrix, Nothing}
-    } <:TBA{K, H, C}
+    SimpleTBA{K<:TBAKind, L<:Union{AbstractLattice, Nothing}, H<:LatticeModel, C<:Union{AbstractMatrix, Nothing}} <:TBA{K, H, C}
 
 Simple tight-binding approximation for quantum lattice systems.
 """
-struct SimpleTBA{
-        K<:TBAKind,
-        L<:Union{AbstractLattice, Nothing},
-        H<:Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}},
-        C<:Union{AbstractMatrix, Nothing}
-    } <:TBA{K, H, C}
+struct SimpleTBA{K<:TBAKind, L<:Union{AbstractLattice, Nothing}, H<:LatticeModel, C<:Union{AbstractMatrix, Nothing}} <:TBA{K, H, C}
     lattice::L
     H::H
     commutator::C
-    function SimpleTBA{K}(
-        lattice::Union{AbstractLattice, Nothing},
-        H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}},
-        commutator::Union{AbstractMatrix, Nothing}
-    ) where {K<:TBAKind}
+    function SimpleTBA{K}(lattice::Union{AbstractLattice, Nothing}, H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}) where {K<:TBAKind}
         checkcommutator(commutator)
         new{K, typeof(lattice), typeof(H), typeof(commutator)}(lattice, H, commutator)
     end
@@ -441,9 +419,9 @@ end
     CompositeTBA{
         K<:TBAKind,
         L<:Union{AbstractLattice, Nothing},
-        S<:Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}},
+        S<:Generator{<:OperatorSet{<:Operator}},
         Q<:Quadraticization,
-        H<:Union{OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}},
+        H<:Generator{<:OperatorSet{<:Quadratic}},
         C<:Union{AbstractMatrix, Nothing}
     } <:TBA{K, H, C}
 
@@ -452,9 +430,9 @@ Composite tight-binding approximation for quantum lattice systems.
 struct CompositeTBA{
         K<:TBAKind,
         L<:Union{AbstractLattice, Nothing},
-        S<:Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}},
+        S<:Generator{<:OperatorSet{<:Operator}},
         Q<:Quadraticization,
-        H<:Union{OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}},
+        H<:Generator{<:OperatorSet{<:Quadratic}},
         C<:Union{AbstractMatrix, Nothing}
     } <:TBA{K, H, C}
     lattice::L
@@ -464,7 +442,7 @@ struct CompositeTBA{
     commutator::C
     function CompositeTBA{K}(
         lattice::Union{AbstractLattice, Nothing},
-        system::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}},
+        system::Generator{<:OperatorSet{<:Operator}},
         quadraticization::Quadraticization,
         commutator::Union{AbstractMatrix, Nothing}
     ) where {K<:TBAKind}
@@ -483,27 +461,27 @@ end
 end
 
 """
-    TBA{K}(H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-    TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+    TBA{K}(H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+    TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
 
-    TBA{K}(H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-    TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+    TBA{K}(H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+    TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
 
     TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
     TBA{K}(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms)) where {K<:TBAKind}
 
 Construct a tight-binding quantum lattice system.
 """
-@inline function TBA{K}(H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+@inline function TBA{K}(H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return TBA{K}(nothing, H, commutator)
 end
-@inline function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{Formula, OperatorSet{<:Quadratic}, Generator{<:OperatorSet{<:Quadratic}}}, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+@inline function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return SimpleTBA{K}(lattice, H, commutator)
 end
-@inline function TBA{K}(H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+@inline function TBA{K}(H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return TBA{K}(nothing, H, q, commutator)
 end
-@inline function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Union{OperatorSet{<:Operator}, Generator{<:OperatorSet{<:Operator}}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+@inline function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return CompositeTBA{K}(lattice, H, q, commutator)
 end
 @inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
@@ -511,7 +489,7 @@ end
     return TBA{K}(lattice, hilbert, terms, boundary; neighbors=neighbors)
 end
 @inline function TBA{K}(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms)) where {K<:TBAKind}
-    H = Generator(bonds(lattice, neighbors), hilbert, terms, boundary, lazy; half=false)
+    H = Generator(bonds(lattice, neighbors), hilbert, terms, boundary; half=false)
     quadraticization = Quadraticization{K}(Table(hilbert, Metric(K(), hilbert)))
     commt = commutator(K(), hilbert)
     return TBA{K}(lattice, H, quadraticization, commt)

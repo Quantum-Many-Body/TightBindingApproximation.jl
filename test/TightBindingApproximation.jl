@@ -324,15 +324,15 @@ end
 toml = Artifacts.find_artifacts_toml(@__DIR__)
 const dir = Pkg.Artifacts.ensure_artifact_installed("WannierDataSets", toml)
 @time @testset "Wannier90" begin
-    first = readlattice(dir, "silicon"; name=:silicon)
-    second = readlattice(dir, "silicon-second"; name=:silicon)
-    third = readlattice(dir; name=:silicon)
-    @test first.coordinates ≈ second.coordinates ≈ third.coordinates
-    @test first.vectors ≈ second.vectors ≈ third.vectors
+    silicon₁ = readlattice(dir, "silicon"; name=:silicon)
+    silicon₂ = readlattice(dir, "silicon-second"; name=:silicon)
+    silicon₃ = readlattice(dir; name=:silicon)
+    @test silicon₁.coordinates ≈ silicon₂.coordinates ≈ silicon₃.coordinates
+    @test silicon₁.vectors ≈ silicon₂.vectors ≈ silicon₃.vectors
 
     seedname = "silicon"
     wan = Algorithm(:silicon, W90(dir, seedname))
-    @test W90Matrixization([0.0, 0.0, 0.0], wan.frontend.lattice.vectors, wan.frontend.centers, :icoordinate)(wan.frontend.H[1]) ≈ ComplexF64[
+    @test W90Matrixization([0.0, 0.0, 0.0], wan.frontend.lattice.vectors, wan.frontend.centers, :icoordinate)(first(wan.frontend.H)) ≈ ComplexF64[
         0.016239+4.75e-6im -0.00301675+2.5e-6im -0.0030155-6.0e-6im -0.0030155-3.25e-6im -0.01056425-1.3e-5im 0.00237225+7.5e-7im 0.002374+5.75e-6im 0.0023735+2.5e-6im;
         -0.0030155+3.25e-6im 0.01623875-2.5e-7im -0.003016-1.0e-6im -0.00301625-3.25e-6im 0.0023735+1.0e-6im 0.00477025+2.5e-7im -0.0055565-2.5e-6im -0.00555775+3.25e-6im;
         -0.0030175-6.0e-6im -0.0030155+2.5e-7im 0.01623925+5.0e-7im -0.0030155+5.75e-6im 0.0023755+4.25e-6im -0.0055575-1.25e-6im 0.004769+1.5e-6im -0.0055575-2.75e-6im;
