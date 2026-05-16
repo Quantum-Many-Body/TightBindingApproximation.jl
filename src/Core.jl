@@ -1,6 +1,6 @@
 using Contour: contour, coordinates, lines
 using LinearAlgebra: cholesky, Diagonal, dot, Eigen, I, inv, logdet, norm, normalize
-using Printf: @printf, @sprintf
+using Printf: @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
 using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, scalartype, shape, shrink, statistics, str, volume
@@ -122,7 +122,14 @@ end
 @inline parameternames(::Type{<:Quadratic}) = (:value, :coordinate)
 @inline getcontent(m::Quadratic, ::Val{:id}) = (m.position, m.rcoordinate, m.icoordinate)
 @inline Quadratic(value::Number, id::Tuple) = Quadratic(value, id...)
-@inline Base.show(io::IO, m::Quadratic) = @printf io "%s(%s, %s, %s, %s)" nameof(typeof(m)) str(m.value) m.position m.rcoordinate m.icoordinate
+@inline function Base.show(io::IO, m::Quadratic)
+    ndecimal = get(io, :ndecimal, 10)
+    print(io, nameof(typeof(m)), "(", str(m.value; ndecimal=ndecimal))
+    print(io, ", ", m.position)
+    print(io, ", ", str(m.rcoordinate; ndecimal=ndecimal))
+    print(io, ", ", str(m.icoordinate; ndecimal=ndecimal))
+    print(io, ")")
+end
 
 """
     Quadraticization{K<:TBAKind, T<:Table} <: LinearTransformation
