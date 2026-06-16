@@ -1,7 +1,7 @@
 using Artifacts
 using LinearAlgebra: Diagonal, Eigen, Hermitian, ishermitian
 using Pkg
-using QuantumLattices: Algorithm, BrillouinZone, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorSum, OperatorIndexToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
+using QuantumLattices: Algorithm, BrillouinZone, Elastic, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Kinetic, Lattice, Metric, Onsite, OperatorGenerator, OperatorSum, OperatorIndexToTuple, Pairing, Parameters, Phonon, ReciprocalPath, ReciprocalZone, Table
 using QuantumLattices: atol, σᶻ, 𝕕, 𝕕𝕕, 𝕕⁺𝕕, 𝕡, 𝕦, azimuth, bonds, dimension, distance, expand, getcontent, kind, matrix, parameternames, reciprocals, rcoordinate, scalartype, update!, @rectangle_str
 using StaticArrays: SVector
 using TightBindingApproximation
@@ -28,6 +28,15 @@ import Plots
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}, Fock{:f}) == Fermionic(:BdG)
     @test TBAKind(Tuple{Hopping, Onsite}, Fock{:b}) == Bosonic(:TBA)
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}, Fock{:b}) == Bosonic(:BdG)
+
+    lattice = Lattice([0.0]; vectors=[[1.0]])
+    t = Hopping(:t, -1.0, 1)
+    hilbert = Hilbert(Fock{:f}(1, 2), length(lattice))
+    ops = expand(OperatorGenerator(bonds(lattice, 1), hilbert, t))
+    @test TBAKind(ops, valtype(hilbert)) == Fermionic(:TBA)
+    hilbert = Hilbert(Fock{:b}(1, 1), length(lattice))
+    ops = expand(OperatorGenerator(bonds(lattice, 1), hilbert, t))
+    @test TBAKind(ops, valtype(hilbert)) == Bosonic(:TBA)
 
     @test infinitesimal(Fermionic(:TBA)) == infinitesimal(Fermionic(:BdG)) == infinitesimal(Bosonic(:TBA)) == 0
     @test infinitesimal(Bosonic(:BdG)) == infinitesimal(Phononic()) == atol/5

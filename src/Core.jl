@@ -2,7 +2,7 @@ using Contour: contour, coordinates, lines
 using LinearAlgebra: cholesky, Diagonal, dot, Eigen, I, inv, logdet, norm, normalize
 using Printf: @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
+using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndex, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, scalartype, shape, shrink, statistics, str, volume
 using StaticArrays: SVector
 using TimerOutputs: @timeit_debug, TimerOutput
@@ -62,6 +62,23 @@ Depending on the kind of a `Term` type and an `Internal` type, get the correspon
         push!(exprs, :(typeof(TBAKind(fieldtype(TS, $i), I))))
     end
     return Expr(:call, Expr(:call, :reduce, :promote_type, Expr(:tuple, exprs...)))
+end
+
+"""
+    TBAKind(ops::OperatorSet{<:Operator{<:Number, <:NTuple{2, <:OperatorIndex}}}, ::Type{I}) where {I<:Fock}
+
+Infer the `TBAKind` from pre-computed operators. Validates that:
+1) All operators are normal (one creation + one annihilation, particle-number-conserving).
+2) The statistics of every operator index match the Hilbert space's internal statistics.
+
+BdG operators (e.g., pairing) are rejected — use the terms-based path for those systems.
+"""
+function TBAKind(ops::OperatorSet{<:Operator{<:Number, <:NTuple{2, <:OperatorIndex}}}, ::Type{I}) where {I<:Fock}
+    @assert all(==(statistics(I)), map(statistics, fieldtypes(idtype(eltype(ops))))) "TBAKind error: operator index statistics does not match Hilbert statistics."
+    for op in ops
+        iscreation(op[1]) && isannihilation(op[2]) || error("TBAKind error: operator $(op) is not a normal-ordered creation-annihilation pair. Use the terms-based path for BdG systems.")
+    end
+    return TBAKind(Hopping, I)
 end
 
 """
