@@ -211,22 +211,34 @@ end
     @test Parameters(fourth) == (t=1.0, μ=0.0)
     @test dimension(fourth) == 1
 
+    fifth = TBA(tba.system)
+    @test scalartype(fifth) == scalartype(typeof(fifth)) == Float64
+    @test Parameters(fifth) == (t=1.0, μ=0.0)
+    @test dimension(fifth) == 1
+
+    sixth = TBA{Fermionic{:TBA}}(tba.system)
+    @test scalartype(sixth) == scalartype(typeof(sixth)) == Float64
+    @test Parameters(sixth) == (t=1.0, μ=0.0)
+    @test dimension(sixth) == 1
+
     path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
     for k in path
-        @test matrix(tba, k) ≈ matrix(another, k) ≈ matrix(third, k) ≈ matrix(fourth, k)
-        @test [eigen(tba, k)...] ≈ [eigen(another, k)...] ≈ [eigen(third, k)...] ≈ [eigen(fourth, k)...]
-        @test eigvals(tba, k) ≈ eigvals(another, k) ≈ eigvals(third, k) ≈ eigvals(fourth, k)
-        @test eigvecs(tba, k) ≈ eigvecs(another, k) ≈ eigvecs(third, k) ≈ eigvecs(fourth, k)
+        @test matrix(tba, k) ≈ matrix(another, k) ≈ matrix(third, k) ≈ matrix(fourth, k) ≈ matrix(fifth, k) ≈ matrix(sixth, k)
+        @test [eigen(tba, k)...] ≈ [eigen(another, k)...] ≈ [eigen(third, k)...] ≈ [eigen(fourth, k)...] ≈ [eigen(fifth, k)...] ≈ [eigen(sixth, k)...]
+        @test eigvals(tba, k) ≈ eigvals(another, k) ≈ eigvals(third, k) ≈ eigvals(fourth, k) ≈ eigvals(fifth, k) ≈ eigvals(sixth, k)
+        @test eigvecs(tba, k) ≈ eigvecs(another, k) ≈ eigvecs(third, k) ≈ eigvecs(fourth, k) ≈ eigvecs(fifth, k) ≈ eigvecs(sixth, k)
     end
-    @test [eigen(tba, path)...] ≈ [eigen(another, path)...] ≈ [eigen(third, path)...] ≈ [eigen(fourth, path)...]
-    @test eigvals(tba, path) ≈ eigvals(another, path) ≈ eigvals(third, path) ≈ eigvals(fourth, path)
-    @test eigvecs(tba, path) ≈ eigvecs(another, path) ≈ eigvecs(third, path) ≈ eigvecs(fourth, path)
+    @test [eigen(tba, path)...] ≈ [eigen(another, path)...] ≈ [eigen(third, path)...] ≈ [eigen(fourth, path)...] ≈ [eigen(fifth, path)...] ≈ [eigen(sixth, path)...]
+    @test eigvals(tba, path) ≈ eigvals(another, path) ≈ eigvals(third, path) ≈ eigvals(fourth, path) ≈ eigvals(fifth, path) ≈ eigvals(sixth, path)
+    @test eigvecs(tba, path) ≈ eigvecs(another, path) ≈ eigvecs(third, path) ≈ eigvecs(fourth, path) ≈ eigvecs(fifth, path) ≈ eigvecs(sixth, path)
 
     update!(tba; μ=2.2)
     update!(another; μ=2.2)
     update!(third; μ=2.2)
     update!(fourth; μ=2.2)
-    @test [eigen(tba, path)...] ≈ [eigen(another, path)...] ≈ [eigen(third, path)...] ≈ [eigen(fourth, path)...]
+    update!(fifth; μ=2.2)
+    update!(sixth; μ=2.2)
+    @test [eigen(tba, path)...] ≈ [eigen(another, path)...] ≈ [eigen(third, path)...] ≈ [eigen(fourth, path)...] ≈ [eigen(fifth, path)...] ≈ [eigen(sixth, path)...]
 end
 
 @time @testset "EnergyBands and BerryCurvature" begin

@@ -2,7 +2,7 @@ using Contour: contour, coordinates, lines
 using LinearAlgebra: cholesky, Diagonal, dot, Eigen, I, inv, logdet, norm, normalize
 using Printf: @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorIndex, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
+using QuantumLattices: AbstractLattice, Action, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Frontend, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorGenerator, OperatorIndex, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, scalartype, shape, shrink, statistics, str, volume
 using StaticArrays: SVector
 using TimerOutputs: @timeit_debug, TimerOutput
@@ -488,13 +488,7 @@ end
     TBA{K}(H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
 
-    TBA{K}(H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-    TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
-
-    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
-    TBA{K}(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms)) where {K<:TBAKind}
-
-Construct a tight-binding quantum lattice system.
+Construct a simple tight-binding quantum lattice system.
 """
 @inline function TBA{K}(H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return TBA{K}(nothing, H, commutator)
@@ -502,21 +496,52 @@ end
 @inline function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::LatticeModel, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return SimpleTBA{K}(lattice, H, commutator)
 end
+
+"""
+    TBA{K}(H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+    TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
+
+Construct a composite tight-binding quantum lattice system.
+"""
 @inline function TBA{K}(H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return TBA{K}(nothing, H, q, commutator)
 end
 @inline function TBA{K}(lattice::Union{AbstractLattice, Nothing}, H::Generator{<:OperatorSet{<:Operator}}, q::Quadraticization, commutator::Union{AbstractMatrix, Nothing}=nothing) where {K<:TBAKind}
     return CompositeTBA{K}(lattice, H, q, commutator)
 end
+
+"""
+    TBA(system::OperatorGenerator)
+    TBA{K}(system::OperatorGenerator) where {K<:TBAKind}
+    TBA(lattice::Union{AbstractLattice, Nothing}, system::OperatorGenerator)
+    TBA{K}(lattice::Union{AbstractLattice, Nothing}, system::OperatorGenerator) where {K<:TBAKind}
+
+Construct a composite tight-binding quantum lattice system from a pre-built `OperatorGenerator`.
+"""
+@inline TBA(system::OperatorGenerator) = TBA(nothing, system)
+@inline TBA{K}(system::OperatorGenerator) where {K<:TBAKind} = TBA{K}(nothing, system)
+@inline function TBA(lattice::Union{AbstractLattice, Nothing}, system::OperatorGenerator)
+    K = typeof(TBAKind(typeof(system.terms), valtype(system.hilbert)))
+    return TBA{K}(lattice, system)
+end
+function TBA{K}(lattice::Union{AbstractLattice, Nothing}, system::OperatorGenerator) where {K<:TBAKind}
+    quadraticization = Quadraticization{K}(Table(system.hilbert, Metric(K(), system.hilbert)))
+    commt = commutator(K(), system.hilbert)
+    return TBA{K}(lattice, system, quadraticization, commt)
+end
+
+"""
+    TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
+    TBA{K}(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms)) where {K<:TBAKind}
+
+Construct a composite tight-binding quantum lattice system from `lattice`, `hilbert` and `terms`.
+"""
 @inline function TBA(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms))
     K = typeof(TBAKind(typeof(terms), valtype(hilbert)))
     return TBA{K}(lattice, hilbert, terms, boundary; neighbors=neighbors)
 end
 @inline function TBA{K}(lattice::AbstractLattice, hilbert::Hilbert, terms::OneOrMore{Term}, boundary::Boundary=plain; neighbors::Union{Int, Neighbors}=nneighbor(terms)) where {K<:TBAKind}
-    H = Generator(bonds(lattice, neighbors), hilbert, terms, boundary; half=false)
-    quadraticization = Quadraticization{K}(Table(hilbert, Metric(K(), hilbert)))
-    commt = commutator(K(), hilbert)
-    return TBA{K}(lattice, H, quadraticization, commt)
+    return TBA{K}(lattice, Generator(bonds(lattice, neighbors), hilbert, terms, boundary; half=false))
 end
 
 """
