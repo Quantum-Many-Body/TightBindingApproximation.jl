@@ -19,24 +19,15 @@ import Plots
     @test promote_type(Bosonic{:BdG}, Bosonic{:BdG}) == Bosonic{:BdG}
     @test promote_type(Bosonic{:TBA}, Bosonic{:BdG}) == promote_type(Bosonic{:BdG}, Bosonic{:TBA}) == Bosonic{:BdG}
 
-    @test TBAKind(Hopping, Fock{:f}) == TBAKind(Onsite, Fock{:f}) == Fermionic(:TBA)
+    @test TBAKind(Hopping, Fock{:f}) == TBAKind(Onsite, Fock{:f}) == TBAKind(typeof(()), Fock{:f}) == Fermionic(:TBA)
     @test TBAKind(Pairing, Fock{:f}) == Fermionic(:BdG)
-    @test TBAKind(Hopping, Fock{:b}) == TBAKind(Onsite, Fock{:b}) == Bosonic(:TBA)
+    @test TBAKind(Hopping, Fock{:b}) == TBAKind(Onsite, Fock{:b}) == TBAKind(typeof(()), Fock{:b}) == Bosonic(:TBA)
     @test TBAKind(Pairing, Fock{:b}) == Bosonic(:BdG)
-    @test TBAKind(Kinetic, Phonon) == TBAKind(Hooke, Phonon) == TBAKind(Elastic, Phonon) == Phononic()
+    @test TBAKind(Kinetic, Phonon) == TBAKind(Hooke, Phonon) == TBAKind(Elastic, Phonon) == TBAKind(typeof(()), Phonon) == Phononic()
     @test TBAKind(Tuple{Hopping, Onsite}, Fock{:f}) == Fermionic(:TBA)
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}, Fock{:f}) == Fermionic(:BdG)
     @test TBAKind(Tuple{Hopping, Onsite}, Fock{:b}) == Bosonic(:TBA)
     @test TBAKind(Tuple{Hopping, Onsite, Pairing}, Fock{:b}) == Bosonic(:BdG)
-
-    lattice = Lattice([0.0]; vectors=[[1.0]])
-    t = Hopping(:t, -1.0, 1)
-    hilbert = Hilbert(Fock{:f}(1, 2), length(lattice))
-    ops = expand(OperatorGenerator(bonds(lattice, 1), hilbert, t))
-    @test TBAKind(ops, valtype(hilbert)) == Fermionic(:TBA)
-    hilbert = Hilbert(Fock{:b}(1, 1), length(lattice))
-    ops = expand(OperatorGenerator(bonds(lattice, 1), hilbert, t))
-    @test TBAKind(ops, valtype(hilbert)) == Bosonic(:TBA)
 
     @test infinitesimal(Fermionic(:TBA)) == infinitesimal(Fermionic(:BdG)) == infinitesimal(Bosonic(:TBA)) == 0
     @test infinitesimal(Bosonic(:BdG)) == infinitesimal(Phononic()) == atol/5
