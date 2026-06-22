@@ -27,14 +27,14 @@ t = Hopping(:t, 1.0, 1)
 sc = Algorithm(Symbol(&quot;p+ip&quot;), TBA(unitcell, hilbert, (t, μ, Δ)))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(reciprocals(unitcell), rectangle&quot;Γ-X-M-Γ&quot;, length=100)
+path = ReciprocalPath(unitcell, rectangle&quot;Γ-X-M-Γ&quot;, length=100)
 
 # compute the energy bands along the above path
 energybands = sc(:EB, EnergyBands(path))
 
 # plot the energy bands
 plot(energybands)</code></pre><img src="0139c493.svg" alt="Example block output"/><h2 id="Berry-curvature-and-Chern-number"><a class="docs-heading-anchor" href="#Berry-curvature-and-Chern-number">Berry curvature and Chern number</a><a id="Berry-curvature-and-Chern-number-1"></a><a class="docs-heading-anchor-permalink" href="#Berry-curvature-and-Chern-number" title="Permalink"></a></h2><p>The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated in the unitcell of the reciprocal space:</p><pre><code class="language-julia hljs"># define the Brillouin zone
-brillouin = BrillouinZone(reciprocals(unitcell), 100)
+brillouin = BrillouinZone(unitcell, 100)
 
 # compute the Berry curvatures and Chern numbers of both quasiparticle bands
 berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
@@ -64,7 +64,7 @@ hilbert = Hilbert(site=&gt;Fock{:f}(1, 1) for site=1:length(lattice))
 sc = Algorithm(Symbol(&quot;p+ip&quot;), TBA(lattice, hilbert, (t, μ, Δ)))
 
 # define the new path in the reciprocal space to compute the edge states
-path = ReciprocalPath(reciprocals(lattice), line&quot;Γ₁-Γ₂&quot;, length=100)
+path = ReciprocalPath(lattice, line&quot;Γ₁-Γ₂&quot;, length=100)
 
 # compute the energy bands along the above path
 edgestates = sc(:Edge, EnergyBands(path))
@@ -96,4 +96,4 @@ sc = TBA(unitcell, hilbert, (t, μ, Δ))
 
 k₁ = symbols(&quot;k₁&quot;, real=true)
 k₂ = symbols(&quot;k₂&quot;, real=true)
-m = matrix(sc, [k₁, k₂])</code></pre><p class="math-container">\[\left[\begin{smallmatrix}2 t \cos{\left(k₁ \right)} + 2 t \cos{\left(k₂ \right)} + μ &amp; - Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} + Δ e^{- i k₁}\\Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} - Δ e^{- i k₁} &amp; - 2 t \cos{\left(k₁ \right)} - 2 t \cos{\left(k₂ \right)} - μ\end{smallmatrix}\right]\]</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Graphene/">« Graphene</a><a class="docs-footer-nextpage" href="../Kagome/">Free Spinless Fermions on Kagome Lattice »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 17 June 2026 12:09">Wednesday 17 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+m = matrix(sc, [k₁, k₂])</code></pre><p class="math-container">\[\left[\begin{smallmatrix}2 t \cos{\left(k₁ \right)} + 2 t \cos{\left(k₂ \right)} + μ &amp; - Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} + Δ e^{- i k₁}\\Δ e^{i k₁} + i Δ e^{i k₂} - i Δ e^{- i k₂} - Δ e^{- i k₁} &amp; - 2 t \cos{\left(k₁ \right)} - 2 t \cos{\left(k₂ \right)} - μ\end{smallmatrix}\right]\]</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../Graphene/">« Graphene</a><a class="docs-footer-nextpage" href="../Kagome/">Free Spinless Fermions on Kagome Lattice »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 22 June 2026 16:22">Monday 22 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
