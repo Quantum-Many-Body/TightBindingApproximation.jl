@@ -39,7 +39,7 @@ t = Hopping(:t, 1.0, 1)
 sc = Algorithm(Symbol("p+ip"), TBA(unitcell, hilbert, (t, μ, Δ)))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
+path = ReciprocalPath(unitcell, rectangle"Γ-X-M-Γ", length=100)
 
 # compute the energy bands along the above path
 energybands = sc(:EB, EnergyBands(path))
@@ -52,7 +52,7 @@ plot(energybands)
 The Berry curvatures and the Chern numbers of the quasiparticle bands can be calculated in the unitcell of the reciprocal space:
 ```@example p+ip
 # define the Brillouin zone
-brillouin = BrillouinZone(reciprocals(unitcell), 100)
+brillouin = BrillouinZone(unitcell, 100)
 
 # compute the Berry curvatures and Chern numbers of both quasiparticle bands
 berry = sc(:BerryCurvature, BerryCurvature(brillouin, [1, 2]));
@@ -99,7 +99,7 @@ hilbert = Hilbert(site=>Fock{:f}(1, 1) for site=1:length(lattice))
 sc = Algorithm(Symbol("p+ip"), TBA(lattice, hilbert, (t, μ, Δ)))
 
 # define the new path in the reciprocal space to compute the edge states
-path = ReciprocalPath(reciprocals(lattice), line"Γ₁-Γ₂", length=100)
+path = ReciprocalPath(lattice, line"Γ₁-Γ₂", length=100)
 
 # compute the energy bands along the above path
 edgestates = sc(:Edge, EnergyBands(path))

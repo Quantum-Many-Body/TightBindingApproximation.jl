@@ -41,7 +41,7 @@ t = Hopping(:t, -1.0, 1)
 kagome = Algorithm(:Kagome, TBA(unitcell, hilbert, t))
 
 # define the path in the reciprocal space to compute the energy bands
-path = ReciprocalPath(reciprocals(unitcell), hexagon"Γ-K-M-Γ", length=100)
+path = ReciprocalPath(unitcell, hexagon"Γ-K-M-Γ", length=100)
 
 # compute the energy bands along the above path
 energybands = kagome(:EB, EnergyBands(path))
@@ -56,7 +56,7 @@ The total DOS can be computed as follows:
 
 ```@example kagome
 # define the Brillouin zone
-brillouinzone = BrillouinZone(reciprocals(unitcell), 120)
+brillouinzone = BrillouinZone(unitcell, 120)
 
 # compute the total DOS and plot the results
 dos = kagome(

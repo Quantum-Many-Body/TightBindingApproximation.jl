@@ -212,7 +212,7 @@ end
     @test Parameters(sixth) == (t=1.0, μ=0.0)
     @test dimension(sixth) == 1
 
-    path = ReciprocalPath(reciprocals(lattice), rectangle"Γ-X-M-Γ", length=8)
+    path = ReciprocalPath(lattice, rectangle"Γ-X-M-Γ", length=8)
     for k in path
         @test matrix(tba, k) ≈ matrix(another, k) ≈ matrix(third, k) ≈ matrix(fourth, k) ≈ matrix(fifth, k) ≈ matrix(sixth, k)
         @test [eigen(tba, k)...] ≈ [eigen(another, k)...] ≈ [eigen(third, k)...] ≈ [eigen(fourth, k)...] ≈ [eigen(fifth, k)...] ≈ [eigen(sixth, k)...]
@@ -244,14 +244,14 @@ end
     @test matrix(sc) == matrix(sc.frontend)
     @test eigen(sc) == Eigen(eigvals(sc), eigvecs(sc))
 
-    path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
+    path = ReciprocalPath(unitcell, rectangle"Γ-X-M-Γ", length=100)
     @test eigen(sc, path) == (eigvals(sc, path), eigvecs(sc, path))
     Plots.savefig(Plots.plot(sc(:EB, EnergyBands(path, 1:2))), "PlotsEB.png")
     Makie.save("MakieEB.png", Makie.plot(sc(:EB, EnergyBands(path, 1:2))))
     Plots.savefig(Plots.plot(sc(:EB, EnergyBands(path, :, 1:1, 2:2)); weightlabels=["particle", "hole"], legend=(0.4, 0.1), legendfont=10, legendcolumn=-1), "PlotsEBWeighted.png")
     Makie.save("MakieEBWeighted.png", Makie.plot(sc(:EB, EnergyBands(path, :, 1:1, 2:2)); weightlabels=["particle", "hole"]))
 
-    brillouin = BrillouinZone(reciprocals(unitcell), 100)
+    brillouin = BrillouinZone(unitcell, 100)
     Plots.savefig(Plots.plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))), "PlotsBerryCurvatureAbelian.png")
     Makie.save("MakieBerryCurvatureAbelian.png", Makie.plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))))
     Plots.savefig(Plots.plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "PlotsBerryCurvatureNonabelian.png")
@@ -259,7 +259,7 @@ end
     Plots.savefig(Plots.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))), "PlotsBerryCurvatureKubo.png")
     Makie.save("MakieBerryCurvatureKubo.png", Makie.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))))
 
-    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-1.0=>1.0, -1.0=>1.0]; length=201, ends=(true, true))
+    reciprocalzone = ReciprocalZone(unitcell, [-1.0=>1.0, -1.0=>1.0]; length=201, ends=(true, true))
     Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))), "PlotsBerryCurvatureExtendedAbelian.png")
     Makie.save("MakieBerryCurvatureExtendedAbelian.png", Makie.plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))))
     Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedNonabelian, BerryCurvature(reciprocalzone, [1, 2], false))), "PlotsBerryCurvatureExtendedNonabelian.png")
@@ -277,7 +277,7 @@ end
     h = Onsite(:h, 0.1, 𝕕⁺𝕕(:, :, σᶻ))
     tba = Algorithm(:tba, TBA(unitcell, hilbert, (t, h)))
 
-    brillouin = BrillouinZone(reciprocals(unitcell), 400)
+    brillouin = BrillouinZone(unitcell, 400)
     Plots.savefig(Plots.plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))), "PlotsFermiSurface.png")
     Makie.save("MakieFermiSurface.png", Makie.plot(tba(:FermiSurface, FermiSurface(brillouin, 0.0))))
     Plots.savefig(Plots.plot(tba(:FermiSurfaceSpinDependent, FermiSurface(brillouin, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "PlotsFermiSurfaceSpinDependent.png")
@@ -287,7 +287,7 @@ end
     Makie.save("MakieDensityOfStates.png", Makie.plot(dos))
     @test isapprox(sum(dos.data.values[:, 1]), 2.0; atol=10^-3)
 
-    reciprocalzone = ReciprocalZone(reciprocals(unitcell), [-1.0=>1.0, -1.0=>1.0]; length=401, ends=(true, true))
+    reciprocalzone = ReciprocalZone(unitcell, [-1.0=>1.0, -1.0=>1.0]; length=401, ends=(true, true))
     Plots.savefig(Plots.plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))), "PlotsFermiSurfaceExtended.png")
     Makie.save("MakieFermiSurfaceExtended.png", Makie.plot(tba(:FermiSurfaceExtended, FermiSurface(reciprocalzone, 0.0))))
     Plots.savefig(Plots.plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2])); weightlabels=("↑", "↓")), "PlotsFermiSurfaceExtendedSpinDependent.png")
@@ -301,7 +301,7 @@ end
     V₁ = Hooke(:V₁, 0.5, 1)
     V₂ = Hooke(:V₂, 0.25, 2)
     phonon = Algorithm(:Phonon, TBA(unitcell, hilbert, (T, V₁, V₂)))
-    path = ReciprocalPath(reciprocals(unitcell), rectangle"Γ-X-M-Γ", length=100)
+    path = ReciprocalPath(unitcell, rectangle"Γ-X-M-Γ", length=100)
 
     energybands = phonon(:EB, EnergyBands(path))
     Plots.savefig(Plots.plot(energybands), "PlotsPhononEB.png")

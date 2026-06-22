@@ -3,7 +3,7 @@ module Wannier90
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
 using QuantumLattices: CoordinatedIndex, FockIndex, Hilbert, Index, Lattice, LinearTransformation, Matrixization, Operator, OperatorIndexToTuple, OperatorPack, Operators, OperatorSet, OperatorSum, ReciprocalPath, StaticGenerator, Table
-using QuantumLattices: 𝕔, 𝕔⁺, reciprocals
+using QuantumLattices: 𝕔, 𝕔⁺
 using StaticArrays: SVector
 using ..TightBindingApproximation: Fermionic, Quadraticization, TBAMatrix
 
@@ -329,7 +329,7 @@ function readpath(path::AbstractString, seedname::AbstractString; length=nothing
         token = match(r"bands_num_points\s*=\s*(\d+)"i, content)
         length = isnothing(token) ? 100 : parse(Int, token[1])
     end
-    return ReciprocalPath(reciprocals(lattice), segments...; labels=labels, length=length)
+    return ReciprocalPath(lattice, segments...; labels=labels, length=length)
 end
 function resolve_duplicate!(duplicate::Dict{String, Vector{NTuple{3, Float64}}}, token::AbstractString, value::NTuple{3, Float64})
     pool = get(duplicate, token, nothing)
