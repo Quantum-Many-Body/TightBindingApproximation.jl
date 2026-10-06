@@ -3,7 +3,7 @@ module Wannier90
 using DelimitedFiles: readdlm
 using LinearAlgebra: Hermitian, dot
 using QuantumLattices: CoordinatedIndex, FockIndex, Hilbert, Index, Lattice, LinearTransformation, Matrixization, Operator, OperatorIndexToTuple, OperatorPack, Operators, OperatorSet, OperatorSum, ReciprocalPath, StaticGenerator, Table
-using QuantumLattices: 𝕔, 𝕔⁺
+using QuantumLattices: 𝕔, 𝕔⁺, @delegate
 using StaticArrays: SVector
 using ..TightBindingApproximation: Fermionic, Quadraticization, TBAMatrix
 
@@ -246,9 +246,9 @@ struct W90 <: TBA{Fermionic{:TBA}, StaticGenerator{OperatorSum{W90Hoppings, NTup
         new(lattice, centers, H)
     end
 end
-@inline dimension(wan::W90) = size(wan.centers)[2]
+@delegate @inline dimension(wan::W90) = size(wan.centers)[2]
 @inline update!(wan::W90; parameters...) = wan
-@inline function matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0, 0, 0); gauge=:icoordinate, kwargs...)
+@delegate @inline function matrix(wan::W90, k::AbstractVector{<:Number}=SVector(0, 0, 0); gauge=:icoordinate, kwargs...)
     m = W90Matrixization(k, wan.lattice.vectors, wan.centers, gauge)(wan.H.operators; kwargs...)
     return TBAMatrix(Hermitian(m), nothing)
 end

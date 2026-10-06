@@ -232,6 +232,23 @@ end
     @test [eigen(tba, path)...] ≈ [eigen(another, path)...] ≈ [eigen(third, path)...] ≈ [eigen(fourth, path)...] ≈ [eigen(fifth, path)...] ≈ [eigen(sixth, path)...]
 end
 
+@time @testset "nested TBA" begin
+    t = Hopping(:t, 1.0, 1)
+    μ = Onsite(:μ, 0.5)
+    lattice = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
+    hilbert = Hilbert(Fock{:f}(1, 1), length(lattice))
+    inner = TBA(lattice, hilbert, (t, μ))
+    outer = TBA{Fermionic{:TBA}}(inner)
+    @test kind(outer) == kind(inner) == Fermionic(:TBA)
+
+    k = [0.3, 0.7]
+    @test !isapprox(matrix(inner, k), matrix(inner))
+    @test matrix(outer, k) ≈ matrix(inner, k)
+    @test [eigen(outer, k)...] ≈ [eigen(inner, k)...]
+    @test eigvals(outer, k) ≈ eigvals(inner, k)
+    @test eigvecs(outer, k) ≈ eigvecs(inner, k)
+end
+
 @time @testset "EnergyBands and BerryCurvature" begin
     unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
@@ -294,6 +311,27 @@ end
     Makie.save("MakieFermiSurfaceExtendedSpinDependent.png", Makie.plot(tba(:FermiSurfaceExtendedSpinDependent, FermiSurface(reciprocalzone, 0.0, :, [1], [2])); weightlabels=("↑", "↓")))
 end
 
+@time @testset "FermiSurface weights with explicit gauge" begin
+    unitcell = Lattice([0.0, 0.0], [0.5, 0.5]; vectors=[[1.0, 0.0], [0.0, 1.0]])
+    hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
+    t = Hopping(:t, 1.0, 1)
+    m = Onsite(:m, 1.0; amplitude=site->isapprox(rcoordinate(site), [0.0, 0.0]) ? 1.0 : -1.0)
+    tba = Algorithm(:twosublattice, TBA(unitcell, hilbert, (t, m)))
+
+    brillouin = BrillouinZone(unitcell, 101)
+    for gauge in (:icoordinate, :rcoordinate)
+        fs = tba(Symbol(:FermiSurface, gauge), FermiSurface(brillouin, 2.0, :, [1], [2]); gauge=gauge)
+        @test size(fs.data.weights, 1) > 0
+        for (i, k) in enumerate(fs.data.values)
+            es = eigvals(tba, k)
+            vs = eigvecs(tba, k; gauge=gauge)
+            band = argmin(abs.(es .- 2.0))
+            @test fs.data.weights[i, 1] ≈ mapreduce(abs2, +, vs[[1], band])
+            @test fs.data.weights[i, 2] ≈ mapreduce(abs2, +, vs[[2], band])
+        end
+    end
+end
+
 @time @testset "InelasticNeutronScatteringSpectra" begin
     unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(Phonon(2), length(unitcell))
@@ -307,7 +345,7 @@ end
     Plots.savefig(Plots.plot(energybands), "PlotsPhononEB.png")
     Makie.save("MakiePhononEB.png", Makie.plot(energybands))
 
-    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501)); fwhm=0.05, rescale=x->log(1+x))
+    inelastic = phonon(:INSS, InelasticNeutronScatteringSpectra(path, range(0.0, 2.5, length=501); fwhm=0.05, rescale=x->log(1+x)))
     plt = Plots.plot()
     Plots.plot!(plt, inelastic)
     Plots.plot!(plt, energybands, color=:white, linestyle=:dash)
