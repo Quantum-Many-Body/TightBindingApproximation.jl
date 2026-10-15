@@ -23,3 +23,4 @@ test/Manifest.toml
 .claude/
 
 desktop.ini
+JuliaLint.toml
