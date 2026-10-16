@@ -61,8 +61,7 @@ brillouinzone = BrillouinZone(unitcell, 120)
 # compute the total DOS and plot the results
 dos = kagome(
     :TotalDensityOfStates,
-    DensityOfStates(brillouinzone);
-    emin=-5.0, emax=5.0, ne=201, fwhm=0.1
+    DensityOfStates(brillouinzone; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
 plot(dos)
 ```
@@ -74,8 +73,7 @@ On the other hand, the DOS of a specific generalized orbital on given sets of ba
 # the total DOS of the lower two bands
 dos = kagome(
     :DensityOfStatesWithoutUpperBand,
-    DensityOfStates(brillouinzone, 1:2);
-    emin=-5.0, emax=5.0, ne=201, fwhm=0.1
+    DensityOfStates(brillouinzone, 1:2; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
 plot(dos)
 ```
@@ -84,8 +82,7 @@ plot(dos)
 # the total DOS of the three sublattices, respectively (degenerate)
 dos = kagome(
     :SublatticeDensityOfStates,
-    DensityOfStates(brillouinzone, :, [1], [2], [3]);
-    emin=-5.0, emax=5.0, ne=201, fwhm=0.1
+    DensityOfStates(brillouinzone, :, [1], [2], [3]; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
 plot(dos; labels=["Sublattice 1" "Sublattice 2" "Sublattice 3"], legend=true)
 ```
@@ -94,8 +91,7 @@ plot(dos; labels=["Sublattice 1" "Sublattice 2" "Sublattice 3"], legend=true)
 # the DOS of the three sublattices on the lower two bands, respectively (degenerate)
 dos = kagome(
     :SublatticeDensityOfStatesWithoutUpperBand,
-    DensityOfStates(brillouinzone, 1:2, [1], [2], [3]);
-    emin=-5.0, emax=5.0, ne=201, fwhm=0.1
+    DensityOfStates(brillouinzone, 1:2, [1], [2], [3]; emin=-5.0, emax=5.0, ne=201, fwhm=0.1)
 )
 plot(dos; labels=["Sublattice 1" "Sublattice 2" "Sublattice 3"], legend=true)
 ```
