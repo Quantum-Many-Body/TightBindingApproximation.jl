@@ -6,6 +6,8 @@
 *.dlm
 *.qld
 *.qlc
+*.qld.bak
+*.qlc.bak
 Manifest.toml
 
 deps/deps.jl
