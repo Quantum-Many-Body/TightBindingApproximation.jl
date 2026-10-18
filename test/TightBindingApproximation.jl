@@ -249,6 +249,76 @@ end
     @test eigvecs(outer, k) ≈ eigvecs(inner, k)
 end
 
+@time @testset "velocity" begin
+    # 1D chain: analytic h(q) = -2cos(q), v(q) = 2sin(q) (per spin block)
+    unitcell = Lattice([0.0]; vectors=[[1.0]])
+    hilbert = Hilbert(Fock{:f}(1, 2), length(unitcell))
+    tba = TBA(unitcell, hilbert, Hopping(:t, -1.0, 1))
+    H(t, q=[0.0]; kwargs...) = [2t*cos(q[1]) 0.0; 0.0 2t*cos(q[1])]
+    formula = TBA{Fermionic{:TBA}}(Formula(H, (t=-1.0,)))
+    for q in (0.13π, 0.47π, 0.83π, π)
+        vref = [2sin(q) 0.0; 0.0 2sin(q)]
+        @test isapprox(velocity(tba, [q], 1), vref; atol=1e-12)
+        @test isapprox(velocity(formula, [q], 1), vref; atol=1e-8)
+        @test isapprox(velocity(tba, [q])[1], vref; atol=1e-12)
+        @test isapprox(velocity(formula, [q])[1], vref; atol=1e-8)
+    end
+
+    # Haldane model (2-site unitcell, complex next-nearest-neighbor hopping):
+    # geometry A=[0,0], B=[0,√3/3], a₁=[1,0], a₂=[1/2,√3/2]), per-spin block [A,B], layout [A↓,A↑,B↓,B↑]:
+    #   h_AA = -2t′[2sin(kx/2)cos(√3 ky/2) - sin(kx)],  h_BB = -h_AA
+    #   h_AB = t[exp(i√3 ky/3) + 2cos(kx/2) exp(-i√3 ky/6)]
+    function haldane(t, t′, k=[0.0, 0.0]; kwargs...)
+        kx, ky = k
+        h_AA = -2t′*(2sin(kx/2)*cos(√3*ky/2) - sin(kx))
+        h_AB = t*(exp(1im*ky*√3/3) + 2cos(kx/2)*exp(-1im*ky*√3/6))
+        h = zeros(ComplexF64, 4, 4)
+        for s in (1, 2)
+            h[s, s] = h_AA
+            h[2+s, 2+s] = -h_AA
+            h[s, 2+s] = h_AB
+            h[2+s, s] = conj(h_AB)
+        end
+        return h
+    end
+    function haldane_v(t, t′, k, α)
+        kx, ky = k
+        if α == 1
+            v_AA = -2t′*(cos(kx/2)*cos(√3*ky/2) - cos(kx))
+            v_AB = -t*sin(kx/2)*exp(-1im*ky*√3/6)
+        else
+            v_AA = 2√3*t′*sin(kx/2)*sin(√3*ky/2)
+            v_AB = t*1im*√3/3*(exp(1im*ky*√3/3) - cos(kx/2)*exp(-1im*ky*√3/6))
+        end
+        v = zeros(ComplexF64, 4, 4)
+        for s in (1, 2)
+            v[s, s] = v_AA
+            v[2+s, 2+s] = -v_AA
+            v[s, 2+s] = v_AB
+            v[2+s, s] = conj(v_AB)
+        end
+        return v
+    end
+
+    unitcell = Lattice([0.0, 0.0], [0.0, √3/3]; vectors=[[1.0, 0.0], [0.5, √3/2]])
+    hilbert = Hilbert(Fock{:f}(1, 2), length(unitcell))
+    terms = (
+        Hopping(:t, Complex(-1.0), 1),
+        Hopping(:t′, Complex(-0.2), 2; amplitude=bond->1im*cos(3*azimuth(rcoordinate(bond)))*(-1)^(bond[1].site%2))
+    )
+    tba = TBA(unitcell, hilbert, terms)
+    formula = TBA{Fermionic{:TBA}}(Formula{Matrix{ComplexF64}}(haldane, (t=-1.0, t′=-0.2)))
+    for k in ([0.1, 0.2], [0.5, -0.3], [2π/3, 0.0])
+        for α in (1, 2)
+            @test isapprox(velocity(tba, k, α; gauge=:rcoordinate), haldane_v(-1.0, -0.2, k, α); atol=1e-12)
+            @test isapprox(velocity(formula, k, α; gauge=:rcoordinate), haldane_v(-1.0, -0.2, k, α); atol=1e-8)
+            @test isapprox(velocity(tba, k; gauge=:rcoordinate)[α], haldane_v(-1.0, -0.2, k, α); atol=1e-12)
+            @test isapprox(velocity(formula, k; gauge=:rcoordinate)[α], haldane_v(-1.0, -0.2, k, α); atol=1e-8)
+        end
+    end
+    @test_throws MethodError velocity(formula, nothing, 1)
+end
+
 @time @testset "EnergyBands and BerryCurvature" begin
     unitcell = Lattice([0.0, 0.0]; vectors=[[1.0, 0.0], [0.0, 1.0]])
     hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
@@ -273,16 +343,16 @@ end
     Makie.save("MakieBerryCurvatureAbelian.png", Makie.plot(sc(:BerryCurvatureAbelian, BerryCurvature(brillouin, [1, 2]))))
     Plots.savefig(Plots.plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))), "PlotsBerryCurvatureNonabelian.png")
     Makie.save("MakieBerryCurvatureNonabelian.png", Makie.plot(sc(:BerryCurvatureNonabelian, BerryCurvature(brillouin, [1, 2], false))))
-    Plots.savefig(Plots.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))), "PlotsBerryCurvatureKubo.png")
-    Makie.save("MakieBerryCurvatureKubo.png", Makie.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; d=0.1, kx=[1.0, 0.0], ky=[0.0, 1.0])))))
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; kx=[1.0, 0.0], ky=[0.0, 1.0])))), "PlotsBerryCurvatureKubo.png")
+    Makie.save("MakieBerryCurvatureKubo.png", Makie.plot(sc(:BerryCurvatureKubo, BerryCurvature(brillouin, Kubo(0; kx=[1.0, 0.0], ky=[0.0, 1.0])))))
 
     reciprocalzone = ReciprocalZone(unitcell, [-1.0=>1.0, -1.0=>1.0]; length=201, ends=(true, true))
     Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))), "PlotsBerryCurvatureExtendedAbelian.png")
     Makie.save("MakieBerryCurvatureExtendedAbelian.png", Makie.plot(sc(:BerryCurvatureExtendedAbelian, BerryCurvature(reciprocalzone, [1, 2]))))
     Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedNonabelian, BerryCurvature(reciprocalzone, [1, 2], false))), "PlotsBerryCurvatureExtendedNonabelian.png")
     Makie.save("MakieBerryCurvatureExtendedNonabelian.png", Makie.plot(sc(:BerryCurvatureExtendedNonabelian, BerryCurvature(reciprocalzone, [1, 2], false))))
-    Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))), "PlotsBerryCurvatureExtendedKubo.png")
-    Makie.save("MakieBerryCurvatureExtendedKubo.png", Makie.plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; d=0.1, kx=[1., 0], ky=[0, 1.])))))
+    Plots.savefig(Plots.plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; kx=[1., 0], ky=[0, 1.])))), "PlotsBerryCurvatureExtendedKubo.png")
+    Makie.save("MakieBerryCurvatureExtendedKubo.png", Makie.plot(sc(:BerryCurvatureExtendedKubo, BerryCurvature(reciprocalzone, Kubo(0; kx=[1., 0], ky=[0, 1.])))))
     Plots.savefig(Plots.plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))), "PlotsBerryCurvaturePath.png")
     Makie.save("MakieBerryCurvaturePath.png", Makie.plot(sc(:BerryCurvaturePath, BerryCurvature(path, 0.0))))
 end
@@ -316,7 +386,7 @@ end
     hilbert = Hilbert(Fock{:f}(1, 1), length(unitcell))
     t = Hopping(:t, 1.0, 1)
     m = Onsite(:m, 1.0; amplitude=site->isapprox(rcoordinate(site), [0.0, 0.0]) ? 1.0 : -1.0)
-    tba = Algorithm(:twosublattice, TBA(unitcell, hilbert, (t, m)))
+    tba = Algorithm(:TwoSublattice, TBA(unitcell, hilbert, (t, m)))
 
     brillouin = BrillouinZone(unitcell, 101)
     for gauge in (:icoordinate, :rcoordinate)

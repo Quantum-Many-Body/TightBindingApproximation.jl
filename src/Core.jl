@@ -283,20 +283,14 @@ abstract type TBA{K<:TBAKind, H<:LatticeModel, C<:Union{Nothing, AbstractMatrix}
 
 Get the kind of a tight-binding system.
 """
-kind
-
 @delegate @inline kind(tba::TBA) = kind(typeof(tba))
-@delegate @inline function kind(::Type{<:TBA{K}}) where K
-    return K()
-end
+@delegate @inline kind(::Type{<:TBA{K}}) where K =K()
 
 """
     dimension(tba::Union{TBA, Algorithm{<:TBA}}) -> Int
 
 Get the dimension of the matrix representation of a free quantum lattice system.
 """
-dimension
-
 @delegate function dimension(tba::TBA{<:TBAKind, <:Formula})
     try
         return dimension(getcontent(tba, :H).expression)
@@ -322,8 +316,6 @@ end
 
 Get the matrix representation of a free quantum lattice system.
 """
-matrix
-
 @delegate @inline function matrix(tba::TBA{<:TBAKind, <:Formula}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)))
     m = getcontent(tba, :H)(k; gauge=gauge, infinitesimal=infinitesimal)
     commutator = getcontent(tba, :commutator)
@@ -345,13 +337,55 @@ end
 @inline matrixeltype(::Type{D}, ::AbstractVector{<:Number}) where D = promote_type(D, Complex{Int})
 
 """
+    velocity(tba::Union{TBA, Algorithm{<:TBA}}, k::Union{AbstractVector{<:Number}, Nothing}, α::Int; gauge::Symbol=:icoordinate, δ::Real=1e-6) -> Matrix
+    velocity(tba::Union{TBA, Algorithm{<:TBA}}, k::Union{AbstractVector{<:Number}, Nothing}; gauge::Symbol=:icoordinate, δ::Real=1e-6) -> Vector{Matrix}
+
+Get the velocity vertex `v_α(k) = ∂h(k)/∂k_α` of a free quantum lattice system (single direction `α`, or all directions at once in a single pass over the quadratic terms).
+
+For a `Generator{<:OperatorSet{<:Quadratic}}` backend, the derivative is **exact**: each quadratic term `t·exp(ik·r)` contributes `1im*r_α*t*exp(ik·r)` to `v_α` (no `infinitesimal` enters, since it is a momentum-independent constant).
+For a `Formula` backend (an arbitrary momentum-dependent expression), a central finite difference with step `δ` is used, with an error of order `O(δ²·‖h‴‖)`, and an explicit momentum `k` is required.
+"""
+@delegate @inline function velocity(tba::TBA{<:TBAKind, <:Generator{<:OperatorSet{<:Quadratic}}}, k::Union{AbstractVector{<:Number}, Nothing}, α::Int; gauge::Symbol=:icoordinate, kwargs...)
+    @assert gauge∈(:rcoordinate, :icoordinate) "velocity error: gauge must be `:rcoordinate` or `:icoordinate`."
+    T = complex(scalartype(tba))
+    dest = zeros(T, dimension(tba), dimension(tba))
+    for m in expand(getcontent(tba, :H), lazy)
+        coordinate = gauge==:rcoordinate ? m.rcoordinate : m.icoordinate
+        weight = isnothing(k) ? one(T)*m.value : convert(T, exp(1im*dot(k, coordinate)))*m.value
+        dest[m.position...] += weight*1im*coordinate[α]
+    end
+    return dest
+end
+@delegate @inline function velocity(tba::TBA{<:TBAKind, <:Generator{<:OperatorSet{<:Quadratic}}}, k::Union{AbstractVector{<:Number}, Nothing}; gauge::Symbol=:icoordinate, kwargs...)
+    @assert gauge∈(:rcoordinate, :icoordinate) "velocity error: gauge must be `:rcoordinate` or `:icoordinate`."
+    quadratics = expand(getcontent(tba, :H), lazy)
+    T = complex(scalartype(tba))
+    dest = [zeros(T, dimension(tba), dimension(tba)) for α in 1:length(first(quadratics).rcoordinate)]
+    for m in quadratics
+        coordinate = gauge==:rcoordinate ? m.rcoordinate : m.icoordinate
+        weight = isnothing(k) ? one(T)*m.value : convert(T, exp(1im*dot(k, coordinate)))*m.value
+        for α in eachindex(dest)
+            dest[α][m.position...] += weight*1im*coordinate[α]
+        end
+    end
+    return dest
+end
+@delegate @inline function velocity(tba::TBA{<:TBAKind, <:Formula}, k::AbstractVector{<:Number}, α::Int; gauge::Symbol=:icoordinate, δ::Real=1e-6)
+    @assert gauge∈(:rcoordinate, :icoordinate) "velocity error: gauge must be `:rcoordinate` or `:icoordinate`."
+    H = getcontent(tba, :H)
+    δv = [i==α ? δ : zero(δ) for i in eachindex(k)]
+    return (H(k+δv; gauge=gauge) - H(k-δv; gauge=gauge))/(2δ)
+end
+@delegate @inline velocity(tba::TBA{<:TBAKind, <:Formula}, k::AbstractVector{<:Number}; gauge::Symbol=:icoordinate, δ::Real=1e-6) = [velocity(tba, k, α; gauge=gauge, δ=δ) for α in eachindex(k)]
+@delegate @inline velocity(tba::TBA{<:TBAKind, <:TBA}, k::Union{AbstractVector{<:Number}, Nothing}, α::Int; kwargs...) = velocity(getcontent(tba, :H), k, α; kwargs...)
+@delegate @inline velocity(tba::TBA{<:TBAKind, <:TBA}, k::Union{AbstractVector{<:Number}, Nothing}; kwargs...) = velocity(getcontent(tba, :H), k; kwargs...)
+
+"""
     eigen(tba::Union{TBA, Algorithm{<:TBA}}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; options...) -> Eigen
     eigen(tba::Union{TBA, Algorithm{<:TBA}}, reciprocalspace::ReciprocalSpace; options...) -> Tuple{Vector{<:Vector{<:Number}}, Vector{<:Matrix{<:Number}}}
 
 Get the eigen values and eigen vectors of a free quantum lattice system.
 """
-eigen
-
 @delegate inject=(:timer,) @inline function eigen(tba::TBA, k::Union{AbstractVector{<:Number}, Nothing}=nothing; timer::TimerOutput=tbatimer, options...)
     @timeit_debug timer "eigen" begin
         @timeit_debug timer "matrix" (m = matrix(tba, k; options...))
@@ -375,8 +409,6 @@ end
 
 Get the eigen values of a free quantum lattice system.
 """
-eigvals
-
 @delegate inject=(:timer,) @inline function eigvals(tba::TBA, k::Union{AbstractVector{<:Number}, Nothing}=nothing; timer::TimerOutput=tbatimer, options...)
     @timeit_debug timer "eigvals" begin
         @timeit_debug timer "matrix" (m = matrix(tba, k; options...))
@@ -392,8 +424,6 @@ end
 
 Get the eigen vectors of a free quantum lattice system.
 """
-eigvecs
-
 @delegate inject=(:timer,) @inline function eigvecs(tba::TBA, k::Union{AbstractVector{<:Number}, Nothing}=nothing; timer::TimerOutput=tbatimer, options...)
     @timeit_debug timer "eigvecs" begin
         @timeit_debug timer "matrix" (m = matrix(tba, k; options...))
@@ -794,22 +824,23 @@ Hall conductivity in 2D space is given by
 ```math
 \\sigma_{xy}=-{e^2\\over h}\\int_{BZ}{dk_x dk_y\\over 2\\pi}{\\Omega_{xy}}
 ```
+
+The velocity vertices `∂H/∂k_j` are computed by [`velocity`](@ref) — exact for `Generator` backends and by a central finite difference for `Formula` backends.
 """
 struct Kubo{K<:Union{Nothing, Vector{Float64}}} <: BerryCurvatureMethod 
     μ::Float64
-    d::Float64
     kx::K
     ky::K
 end
-@inline Kubo(μ::Real; d::Float64=0.1, kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}} = Kubo(convert(Float64, μ), d, kx, ky)
+@inline Kubo(μ::Real; kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}} = Kubo(convert(Float64, μ), kx, ky)
 
 """
-    BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real, d::Real=0.1, kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}}
+    BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real; kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}}
 
 Construct a `BerryCurvature` using the Kubo method.
 """
-@inline function BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real, d::Real=0.1, kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}}
-    return BerryCurvature(reciprocalspace, Kubo(μ, d, kx, ky))
+@inline function BerryCurvature(reciprocalspace::ReciprocalSpace, μ::Real; kx::T=nothing, ky::T=nothing) where {T<:Union{Nothing, Vector{Float64}}}
+    return BerryCurvature(reciprocalspace, Kubo(μ; kx=kx, ky=ky))
 end
 
 """
@@ -819,21 +850,19 @@ Get the Berry curvature by the Kubo method.
 """
 function berrycurvature(tba::TBA, bc::BerryCurvature{<:ReciprocalSpace, <:Kubo}; options...)
     @assert dimension(bc.reciprocalspace) ∈(2, 3) "berrycurvature error: only two-dimensional and three-dimensional reciprocal spaces are supported."
-    d, kx, ky = bc.method.d, bc.method.kx, bc.method.ky
-    ml = minilength(bc.reciprocalspace)
-    dx, dy = if isnothing(kx)
-        dimension(bc.reciprocalspace)==2 ? (d*ml*[1.0, 0.0], d*ml*[0.0, 1.0]) : (d*ml*[1.0, 0.0, 0.0], d*ml*[0.0, 1.0, 0.0])
+    kx, ky = bc.method.kx, bc.method.ky
+    nx, ny = if isnothing(kx)
+        dimension(bc.reciprocalspace)==2 ? ([1.0, 0.0], [0.0, 1.0]) : ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
     else
-        ml*d*normalize(kx), ml*d*normalize(ky)
+        (normalize(kx), normalize(ky))
     end
-    @assert isapprox(dot(dx, dy), 0.0; atol=atol, rtol=rtol) "berrycurvature error: kx vector and ky vector should be perpendicular to each other in the plane."
+    @assert isapprox(dot(nx, ny), 0.0; atol=atol, rtol=rtol) "berrycurvature error: kx vector and ky vector should be perpendicular to each other in the plane."
     result = blank(bc.reciprocalspace)
     for (k, momentum) in enumerate(bc.reciprocalspace)
         eigensystem = eigen(tba, momentum; options...)
-        mx₁, mx₂ = matrix(tba, momentum+dx; options...), matrix(tba, momentum-dx; options...)
-        my₁, my₂ = matrix(tba, momentum+dy; options...), matrix(tba, momentum-dy; options...)
-        dHx = (mx₂-mx₁) / norm(2*dx)
-        dHy = (my₂-my₁) / norm(2*dy)
+        vs = velocity(tba, momentum; gauge=get(options, :gauge, :rcoordinate))
+        dHx = sum(nx[α]*vs[α] for α in eachindex(vs))
+        dHy = sum(ny[α]*vs[α] for α in eachindex(vs))
         for (i, eᵢ) in enumerate(eigensystem.values)
             eᵢ > bc.method.μ && continue
             vᵢ = eigensystem.vectors[:, i]
