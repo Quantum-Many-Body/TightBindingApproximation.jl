@@ -2,7 +2,7 @@ using Contour: contour, coordinates, lines
 using LinearAlgebra: cholesky, Diagonal, dot, Eigen, I, inv, logdet, norm, normalize
 using Printf: @sprintf
 using QuantumLattices: atol, lazy, plain, rtol
-using QuantumLattices: AbstractLattice, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Matrixization, Neighbors, OneOrMore, Onsite, Operator, OperatorGenerator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
+using QuantumLattices: AbstractLattice, Algorithm, Assignment, BrillouinZone, Boundary, CoordinatedIndex, Data, Elastic, FockIndex, Fock, Formula, Generator, Hilbert, Hooke, Hopping, Index, Internal, Kinetic, LatticeModel, LinearTransformation, Neighbors, OneOrMore, Onsite, Operator, OperatorGenerator, OperatorIndexToTuple, OperatorPack, OperatorSet, OperatorSum, Pairing, Phonon, PhononIndex, ReciprocalPath, ReciprocalScatter, ReciprocalSpace, ReciprocalZone, Term
 using QuantumLattices: ⊕, bonds, expand, icoordinate, idtype, isannihilation, iscreation, label, nneighbor, operatortype, parametertype, rank, rcoordinate, scalartype, shape, shrink, statistics, str, volume, @delegate
 using StaticArrays: SVector
 using TimerOutputs: @timeit_debug, TimerOutput
@@ -179,39 +179,6 @@ function add!(dest::OperatorSum, q::Quadraticization{<:TBAKind{:BdG}}, m::Operat
 end
 
 """
-    TBAMatrixization{D<:Number, V<:Union{AbstractVector{<:Number}, Nothing}} <: Matrixization
-
-Matrixization of the Hamiltonian of a tight-binding system.
-"""
-struct TBAMatrixization{D<:Number, V<:Union{AbstractVector{<:Number}, Nothing}} <: Matrixization
-    k::V
-    dim::Int
-    gauge::Symbol
-    function TBAMatrixization{D}(k, dim::Integer, gauge::Symbol=:icoordinate) where {D<:Number}
-        @assert gauge∈(:rcoordinate, :icoordinate) "TBAMatrixization error: gauge must be `:rcoordinate` or `:icoordinate`."
-        return new{D, typeof(k)}(k, dim, gauge)
-    end
-end
-@inline Base.valtype(::Type{<:TBAMatrixization{D}}, ::Type{<:Union{Quadratic, OperatorSet{<:Quadratic}}}) where {D<:Number} = Matrix{D}
-@inline Base.zero(mr::TBAMatrixization, m::Union{Quadratic, OperatorSet{<:Quadratic}}) = zeros(eltype(valtype(mr, m)), mr.dim, mr.dim)
-@inline (mr::TBAMatrixization)(m::Quadratic; kwargs...) = add!(zero(mr, m), mr, m; kwargs...)
-
-"""
-    add!(dest::AbstractMatrix, mr::TBAMatrixization, m::Quadratic; infinitesimal=0, kwargs...) -> typeof(dest)
-
-Matrixize a quadratic form and add it to `dest`.
-"""
-function add!(dest::AbstractMatrix, mr::TBAMatrixization, m::Quadratic; infinitesimal=0, kwargs...)
-    coordinate = mr.gauge==:rcoordinate ? m.rcoordinate : m.icoordinate
-    phase = isnothing(mr.k) ? one(eltype(dest)) : convert(eltype(dest), exp(1im*dot(mr.k, coordinate)))
-    dest[m.position...] += m.value*phase
-    if m.position[1] == m.position[2]
-        dest[m.position...] += infinitesimal
-    end
-    return dest
-end
-
-"""
     TBAMatrix{C<:Union{AbstractMatrix, Nothing}, T, H<:Hermitian{T, <:AbstractMatrix{T}}} <: AbstractMatrix{T}
 
 Matrix representation of a free quantum lattice system using the tight-binding approximation.
@@ -325,10 +292,16 @@ end
     tba::TBA{<:TBAKind, <:Generator{<:OperatorSet{<:Quadratic}}}, k::Union{AbstractVector{<:Number}, Nothing}=nothing;
     gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba))
 )
-    matrixization = TBAMatrixization{matrixeltype(scalartype(tba), k)}(k, dimension(tba), gauge)
-    m = matrixization(expand(getcontent(tba, :H), lazy); infinitesimal=infinitesimal)
-    commutator = getcontent(tba, :commutator)
-    return TBAMatrix(Hermitian(m), commutator)
+    @assert gauge∈(:rcoordinate, :icoordinate) "matrix error: gauge must be `:rcoordinate` or `:icoordinate`."
+    T = matrixeltype(scalartype(tba), k)
+    m = zeros(T, dimension(tba), dimension(tba))
+    for quadratic in expand(getcontent(tba, :H), lazy)
+        coordinate = gauge==:rcoordinate ? quadratic.rcoordinate : quadratic.icoordinate
+        phase = isnothing(k) ? one(T) : convert(T, exp(1im*dot(k, coordinate)))
+        m[quadratic.position...] += quadratic.value*phase
+        (quadratic.position[1]==quadratic.position[2]) && (m[quadratic.position...] += infinitesimal)
+    end
+    return TBAMatrix(Hermitian(m), getcontent(tba, :commutator))
 end
 @delegate @inline function matrix(tba::TBA{<:TBAKind, <:TBA}, k::Union{AbstractVector{<:Number}, Nothing}=nothing; gauge=:icoordinate, infinitesimal=infinitesimal(kind(tba)))
     return matrix(getcontent(tba, :H), k; gauge=gauge, infinitesimal=infinitesimal)

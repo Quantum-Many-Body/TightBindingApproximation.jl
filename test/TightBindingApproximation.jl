@@ -129,22 +129,6 @@ end
     )
 end
 
-@time @testset "TBAMatrixization" begin
-    ops = OperatorSum(
-        Quadratic(-1.0, (2, 1), [-0.5], [0.0]), Quadratic(-1.0, (1, 2), [0.5], [0.0]), Quadratic(-1.0, (2, 1), [0.5], [1.0]),
-        Quadratic(-1.0, (1, 2), [-0.5], [-1.0]), Quadratic(2.0, (1, 1), [0.0], [0.0]), Quadratic(2.0, (2, 2), [0.0], [0.0])
-    )
-    matrixization = TBAMatrixization{ComplexF64}([0.0], 2, :icoordinate)
-    @test valtype(matrixization, ops) == Matrix{ComplexF64}
-    @test zero(matrixization, ops) == zeros(ComplexF64, 2, 2)
-    @test matrixization(first(ops)) == [0.0+0.0im 0.0+0.0im; -1.0+0.0im 0.0+0.0im]
-
-    @test matrixization(ops) == [2.0+0.0im -2.0+0.0im; -2.0+0.0im 2.0+0.0im]
-    @test TBAMatrixization{ComplexF64}([pi/2], 2, :icoordinate)(ops) == [2.0+0.0im -1.0+1.0im; -1.0-1.0im 2.0+0.0im]
-    @test TBAMatrixization{ComplexF64}([pi/2], 2, :rcoordinate)(ops) ≈ [2.0+0.0im -√2+0.0im; -√2+0.0im 2.0+0.0im]
-    @test TBAMatrixization{Float64}(nothing, 2, :rcoordinate)(ops) == TBAMatrixization{Float64}(nothing, 2, :icoordinate)(ops) == [2.0 -2.0; -2.0 2.0]
-end
-
 @time @testset "TBAMatrix" begin
     data = [2.0+0.0im -2.0+0.0im; -2.0+0.0im 2.0+0.0im]
     m = TBAMatrix(Hermitian(data), nothing)
