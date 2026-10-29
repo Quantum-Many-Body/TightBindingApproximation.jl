@@ -944,11 +944,18 @@ function run!(tba::Algorithm{<:TBA}, fs::Assignment{<:FermiSurface}; options...)
 end
 
 """
-    DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}}
+    DensityOfStates
 
-Density of states of a tight-binding system.
+Abstract density-of-states task. Concrete frontends provide their own task types while sharing [`DensityOfStatesData`](@ref) and the `DensityOfStates` construction interface.
 """
-struct DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}}
+abstract type DensityOfStates end
+
+"""
+    FreeDensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}} <: DensityOfStates
+
+Density-of-states task for a noninteracting tight-binding system, with band selection, Gaussian broadening and optional automatic energy limits.
+"""
+struct FreeDensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L<:Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}} <: DensityOfStates
     brillouinzone::B
     bands::A
     orbitals::L
@@ -957,16 +964,15 @@ struct DensityOfStates{B<:BrillouinZone, A<:Union{Colon, AbstractVector{Int}}, L
     emin::Float64
     emax::Float64
 end
-@inline options(::Type{<:Assignment{<:DensityOfStates}}) = basicoptions
+@inline options(::Type{<:Assignment{<:FreeDensityOfStates}}) = basicoptions
 
 """
     DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; fwhm::Real=0.1, ne::Int=100, emin::Real=NaN, emax::Real=NaN)
-    DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}, orbitals::Tuple{Vararg{Union{Colon, AbstractVector{Int}}}}; fwhm::Real=0.1, ne::Int=100, emin::Real=NaN, emax::Real=NaN)
 
-Construct a `DensityOfStates`.
+Construct a [`FreeDensityOfStates`](@ref).
 """
 @inline function DensityOfStates(brillouinzone::BrillouinZone, bands::Union{Colon, AbstractVector{Int}}=:, orbitals::Union{Colon, AbstractVector{Int}}...=:; fwhm::Real=0.1, ne::Int=100, emin::Real=NaN, emax::Real=NaN)
-    return DensityOfStates(brillouinzone, bands, orbitals, convert(Float64, fwhm), ne, convert(Float64, emin), convert(Float64, emax))
+    return FreeDensityOfStates(brillouinzone, bands, orbitals, convert(Float64, fwhm), ne, convert(Float64, emin), convert(Float64, emax))
 end
 
 """
@@ -981,19 +987,20 @@ struct DensityOfStatesData <: Data
     energies::Vector{Float64}
     values::Matrix{Float64}
 end
-function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, dos::Assignment{<:DensityOfStates}; options...)
-    fwhm, ne, emin, emax = dos.task.fwhm, dos.task.ne, dos.task.emin, dos.task.emax
+function run!(tba::Algorithm{<:TBA{<:Fermionic{:TBA}}}, dos::Assignment{<:FreeDensityOfStates}; options...)
+    task = dos.task
+    fwhm, ne, emin, emax = task.fwhm, task.ne, task.emin, task.emax
     σ = fwhm / 2 /√ (2*log(2))
-    eigenvalues, eigenvectors = eigen(tba, dos.task.brillouinzone; options...)
+    eigenvalues, eigenvectors = eigen(tba, task.brillouinzone; options...)
     isnan(emin) && (emin = mapreduce(minimum, min, eigenvalues))
     isnan(emax) && (emax = mapreduce(maximum, max, eigenvalues))
     energies = LinRange(emin, emax, ne)
-    result = zeros(Float64, ne, length(dos.task.orbitals))
-    nk = length(dos.task.brillouinzone)
+    result = zeros(Float64, ne, length(task.orbitals))
+    nk = length(task.brillouinzone)
     dE = (emax-emin) / (ne-1)
-    bands = default_bands(kind(tba), dimension(tba), dos.task.bands)
+    bands = default_bands(kind(tba), dimension(tba), task.bands)
     for (i, ω) in enumerate(energies)
-        for (j, orbitals) in enumerate(dos.task.orbitals)
+        for (j, orbitals) in enumerate(task.orbitals)
             for (values, vectors) in zip(eigenvalues, eigenvectors)
                 result[i, j] += spectralfunction(ω, values, vectors, bands, orbitals; σ=σ)/nk*dE
             end
