@@ -700,13 +700,13 @@ Get the Berry curvature by the Fukui method.
 """
 function berrycurvature(tba::TBA, bc::BerryCurvature{<:BrillouinZone, <:Fukui{Abelian}}; options...) where Abelian
     @assert length(bc.reciprocalspace.reciprocals)==2 "berrycurvature error: Berry curvature should be defined for 2d systems."
-    vectors = eigvecs(tba, bc.reciprocalspace; options...)
     nx, ny = map(length, shape(bc.reciprocalspace))
-    result = Matrix{eltype(vectors)}(undef, nx+1, ny+1)
-    for i=1:nx+1, j=1:ny+1
-        result[i, j] = vectors[Int(CartesianIndex(i, j), bc.reciprocalspace)][:, bc.method.bands]
-    end
-    return berrycurvature(result, getcontent(tba, :commutator), volume(bc.reciprocalspace)/length(bc.reciprocalspace), Val(Abelian))
+    reciprocalzone = ReciprocalZone{label(bc.reciprocalspace)}(
+        bc.reciprocalspace.reciprocals, [0.0=>1.0, 0.0=>1.0];
+        length=(nx+1, ny+1), ends=(true, true)
+    )
+    values = berrycurvature(tba, BerryCurvature(reciprocalzone, bc.method); options...)
+    return values * (length(bc.reciprocalspace)/length(reciprocalzone))
 end
 function berrycurvature(tba::TBA, bc::BerryCurvature{<:ReciprocalZone, <:Fukui{Abelian}}; options...) where Abelian
     @assert length(bc.reciprocalspace.reciprocals)==2 "berrycurvature error: Berry curvature should be defined for 2d systems."
