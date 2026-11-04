@@ -8,7 +8,7 @@ using StaticArrays: SVector
 using TimerOutputs: @timeit_debug, TimerOutput
 
 import LinearAlgebra: eigen, eigvals, eigvecs, ishermitian, Hermitian
-import QuantumLattices: Metric, Parameters, Table, add!, dimension, getcontent, kind, matrix, options, parameternames, run!, update!
+import QuantumLattices: Metric, Parameters, Table, add!, datatype, dimension, getcontent, kind, matrix, options, parameternames, run!, update!
 
 const tbatimer = TimerOutput()
 
@@ -691,6 +691,8 @@ Construct a `BerryCurvature` using the Fukui method.
 @inline function BerryCurvature(reciprocalspace::Union{BrillouinZone, ReciprocalZone}, bands::AbstractVector{Int}, abelian::Bool=true)
     return BerryCurvature(reciprocalspace, Fukui{abelian}(bands))
 end
+@inline datatype(::Type{BerryCurvature{B, Fukui{true}}}, ::Type{<:TBA}) where {B<:BrillouinZone} = BerryCurvatureData{B, Array{Float64, 3}, Vector{Float64}}
+@inline datatype(::Type{BerryCurvature{B, Fukui{false}}}, ::Type{<:TBA}) where {B<:BrillouinZone} = BerryCurvatureData{B, Matrix{Float64}, Float64}
 
 """
     berrycurvature(tba::TBA, bc::BerryCurvature{<:Union{BrillouinZone, ReciprocalZone}, <:Fukui{true}}; options...) -> Array{Float64, 3}
