@@ -763,13 +763,13 @@ end
 @inline invcommutator(commutator::AbstractMatrix{<:Number}) = inv(commutator)
 
 ## Compute the Berry curvature and Chern number on the first Brillouin zone by use of the Fukui method
-function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone, <:Fukui{true}}}; gauge=:icoordinate, options...)
+function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone, <:Fukui{true}}}; gauge=:rcoordinate, options...)
     values = @timeit_debug tba.timer "Berry curvature" berrycurvature(tba.frontend, bc.task; gauge=gauge, options...)
     chernnumber = reshape(sum(values; dims=(1, 2)), :) * (volume(bc.task.reciprocalspace)/length(bc.task.reciprocalspace)/2pi)
     @info string("Chern numbers: ", join((string(cn, "(", band, ")") for (cn, band) in zip(chernnumber, bc.task.method.bands)), ", "))
     return BerryCurvatureData(bc.task.reciprocalspace, values, chernnumber)
 end
-function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone, <:Fukui{false}}}; gauge=:icoordinate, options...)
+function run!(tba::Algorithm{<:TBA}, bc::Assignment{<:BerryCurvature{<:BrillouinZone, <:Fukui{false}}}; gauge=:rcoordinate, options...)
     values = @timeit_debug tba.timer "Berry curvature" berrycurvature(tba.frontend, bc.task; gauge=gauge, options...)
     chernnumber = sum(values) * (volume(bc.task.reciprocalspace)/length(bc.task.reciprocalspace)) / 2pi
     @info string("Total Chern number: ", chernnumber)
